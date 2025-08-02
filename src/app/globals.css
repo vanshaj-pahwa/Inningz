@@ -1,0 +1,150 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 60 33% 98%; /* #FAF9F9 */
+    --foreground: 200 14% 23%; /* #353C3C */
+    --card: 60 33% 98%;
+    --card-foreground: 200 14% 23%;
+    --popover: 60 33% 98%;
+    --popover-foreground: 200 14% 23%;
+    --primary: 165 47% 39%; /* #3D8D7A */
+    --primary-foreground: 60 33% 98%;
+    --secondary: 180 28% 50%; /* #5EA3A3 */
+    --secondary-foreground: 60 33% 98%;
+    --muted: 159 38% 85%; /* #ADD2C9 */
+    --muted-foreground: 200 14% 43%;
+    --accent: 159 38% 75%; /* Lighter #ADD2C9 */
+    --accent-foreground: 200 14% 23%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 180 10% 80%;
+    --input: 180 10% 85%;
+    --ring: 165 47% 39%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 200 14% 15%; /* Dark teal/slate */
+    --foreground: 60 33% 98%;
+    --card: 200 14% 18%;
+    --card-foreground: 60 33% 98%;
+    --popover: 200 14% 15%;
+    --popover-foreground: 60 33% 98%;
+    --primary: 165 47% 59%; /* Lighter #3D8D7A */
+    --primary-foreground: 200 14% 15%;
+    --secondary: 180 28% 40%; /* Darker #5EA3A3 */
+    --secondary-foreground: 60 33% 98%;
+    --muted: 159 28% 30%; /* Darker #ADD2C9 */
+    --muted-foreground: 180 5% 63%;
+    --accent: 159 28% 35%;
+    --accent-foreground: 60 33% 98%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 200 14% 25%;
+    --input: 200 14% 25%;
+    --ring: 165 47% 59%;
+  }
+
+  /* This is the new theme based on the user's color palette */
+  .krickit {
+    --background: 60 33% 98%; /* #FAF9F9 */
+    --foreground: 200 14% 23%; /* #353C3C */
+    --card: 60 33% 98%;
+    --card-foreground: 200 14% 23%;
+    --popover: 60 33% 98%;
+    --popover-foreground: 200 14% 23%;
+    --primary: 165 47% 39%; /* #3D8D7A */
+    --primary-foreground: 60 33% 98%;
+    --secondary: 180 28% 50%; /* #5EA3A3 */
+    --secondary-foreground: 60 33% 98%;
+    --muted: 159 38% 90%; /* #E2ECE9 - Lighter version of #ADD2C9 */
+    --muted-foreground: 200 14% 43%;
+    --accent: 159 38% 80%; /* #C8E2DA - A bit darker than muted */
+    --accent-foreground: 200 14% 23%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 180 10% 85%;
+    --input: 180 10% 90%;
+    --ring: 165 47% 39%;
+  }
+
+  .dark.krickit {
+    --background: 200 14% 12%; /* Darker slate */
+    --foreground: 60 33% 98%;
+    --card: 200 14% 15%;
+    --card-foreground: 60 33% 98%;
+    --popover: 200 14% 12%;
+    --popover-foreground: 60 33% 98%;
+    --primary: 165 47% 59%; /* Lighter #3D8D7A for dark mode */
+    --primary-foreground: 200 14% 10%;
+    --secondary: 180 28% 30%; /* Darker #5EA3A3 for dark mode */
+    --secondary-foreground: 60 33% 98%;
+    --muted: 200 14% 20%;
+    --muted-foreground: 180 5% 63%;
+    --accent: 180 28% 25%;
+    --accent-foreground: 60 33% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 200 14% 22%;
+    --input: 200 14% 22%;
+    --ring: 165 47% 59%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .event-animation {
+    animation: event-animation 3s ease-out forwards;
+  }
+
+  @keyframes event-animation {
+    0% {
+      opacity: 1;
+      transform: scale(0.8) translateY(10px);
+    }
+    20% {
+      opacity: 1;
+      transform: scale(1.1) translateY(0);
+    }
+    80% {
+      opacity: 1;
+      transform: scale(1.1) translateY(0);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(0.8) translateY(-10px);
+    }
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .hide-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+}
