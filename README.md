@@ -25,37 +25,6 @@
 
 ## 🛠️ Technology Stack
 
-<!-- <table>
-  <tr>
-    <td align="center" width="33%">
-      <strong>Frontend</strong>
-      <br>
-      • Next.js 13+ with App Router
-      <br>
-      • TypeScript
-      <br>
-      • Tailwind CSS
-    </td>
-    <td align="center" width="33%">
-      <strong>UI Components</strong>
-      <br>
-      • Radix UI primitives
-      <br>
-      • shadcn/ui components
-      <br>
-      • Fully responsive design
-    </td>
-    <td align="center" width="33%">
-      <strong>Data & Performance</strong>
-      <br>
-      • Server-side rendering
-      <br>
-      • Cheerio for data extraction
-      <br>
-      • Real-time updates
-    </td>
-  </tr>
-</table> -->
 
 | Category          | Tools Used                                                                 |
 | ----------------- | -------------------------------------------------------------------------- |
@@ -151,7 +120,6 @@ Built with performance and user experience in mind:
 - 🔄 **Real-time Updates**: Instant data synchronization
 - 📊 **Data Visualization**: Interactive charts and graphics
 - 🎨 **Modern Interface**: Clean and intuitive design
-- ♿ **Accessibility**: WCAG 2.1 compliant components
 </details>
 
 ## 🤝 Contributing
