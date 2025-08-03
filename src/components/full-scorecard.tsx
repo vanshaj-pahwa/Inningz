@@ -20,6 +20,7 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [selectedProfile, setSelectedProfile] = useState<PlayerProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
+  const [openAccordion, setOpenAccordion] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     const fetchScorecard = async () => {
@@ -38,6 +39,12 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
     const interval = setInterval(fetchScorecard, 30000);
     return () => clearInterval(interval);
   }, [matchId]);
+
+  useEffect(() => {
+    if (scorecard?.innings.length > 0) {
+      setOpenAccordion(scorecard.innings[scorecard.innings.length - 1].name);
+    }
+  }, [scorecard]);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -89,47 +96,83 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
     }
   }
 
-  const lastInningName = scorecard.innings.length > 0 ? scorecard.innings[scorecard.innings.length - 1].name : '';
-
   return (
-    <div className="space-y-6">
-        <h1 className="text-2xl font-bold">{scorecard.title}</h1>
-        <p className="text-center font-bold text-lg text-destructive">{scorecard.status}</p>
-      <Accordion type="single" collapsible defaultValue={lastInningName} className="w-full">
+    <div className="max-w-7xl mx-auto px-4 space-y-8">
+        {/* Match Header */}
+        <div className="text-center space-y-4 py-6 border-b dark:border-gray-800">
+            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                {scorecard.title}
+            </h1>
+            <p className="text-lg font-medium px-4 py-2 rounded-full bg-destructive/10 text-destructive inline-block">
+                {scorecard.status}
+            </p>
+        </div>
+
+      <Accordion 
+        type="single" 
+        collapsible 
+        value={openAccordion} 
+        onValueChange={setOpenAccordion}
+        className="w-full"
+      >
         {scorecard.innings.map((inning, index) => (
-            <AccordionItem value={inning.name} key={index}>
-                <AccordionTrigger>
-                    <div className='text-left w-full'>
-                        <h2 className="text-2xl font-bold">{inning.name}</h2>
-                        <p className="text-xl text-primary font-semibold">{inning.score}</p>
+            <AccordionItem value={inning.name} key={index} className="border rounded-lg mb-4 shadow-sm hover:shadow-md transition-shadow">
+                <AccordionTrigger className="px-6 py-4 hover:no-underline">
+                    <div className="flex items-center justify-between w-full gap-4">
+                        <div className="flex-1">
+                            <h2 className="text-2xl font-bold bg-gradient-to-r from-primary/80 to-primary bg-clip-text text-transparent">
+                                {inning.name}
+                            </h2>
+                            <p className="text-xl font-semibold mt-1">{inning.score}</p>
+                        </div>
+                        <div className="hidden md:block text-sm text-muted-foreground">
+                            Click to {openAccordion === inning.name ? 'hide' : 'show'} details
+                        </div>
                     </div>
                 </AccordionTrigger>
                 <AccordionContent>
-                    <div className="space-y-6">
-                        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                            <div className="lg:col-span-3 space-y-6">
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle>{inning.battingTeamName} Batting</CardTitle>
+                    <div className="px-6 pb-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+                            <div className="lg:col-span-3 space-y-8">
+                                <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-950/50">
+                                    <CardHeader className="border-b dark:border-gray-800">
+                                        <CardTitle className="flex items-center gap-2">
+                                            {inning.battingTeamName} Batting
+                                        </CardTitle>
                                     </CardHeader>
-                                    <CardContent>
+                                    <CardContent className="p-0">
                                         <Table>
                                             <TableHeader>
-                                            <TableRow>
-                                                <TableHead className="w-[200px]">Batter</TableHead>
-                                                <TableHead>Dismissal</TableHead>
-                                                <TableHead className="text-right">R</TableHead>
-                                                <TableHead className="text-right">B</TableHead>
-                                                <TableHead className="text-right">4s</TableHead>
-                                                <TableHead className="text-right">6s</TableHead>
-                                                <TableHead className="text-right">SR</TableHead>
+                                            <TableRow className="hover:bg-transparent">
+                                                <TableHead className="w-[200px] font-bold">Batter</TableHead>
+                                                <TableHead className="font-bold">Dismissal</TableHead>
+                                                <TableHead className="text-right font-bold">R</TableHead>
+                                                <TableHead className="text-right font-bold">B</TableHead>
+                                                <TableHead className="text-right font-bold">4s</TableHead>
+                                                <TableHead className="text-right font-bold">6s</TableHead>
+                                                <TableHead className="text-right font-bold">SR</TableHead>
                                             </TableRow>
                                             </TableHeader>
                                             <TableBody>
                                             {inning.batsmen.map((batsman, i) => (
-                                                <TableRow key={i} className="even:bg-slate-50 dark:even:bg-gray-800/20">
+                                                <TableRow key={i} 
+                                                    className={`
+                                                        transition-colors
+                                                        ${Number(batsman.runs) >= 50 ? 'bg-green-50/50 dark:bg-green-950/20' : 
+                                                          Number(batsman.runs) >= 30 ? 'bg-emerald-50/30 dark:bg-emerald-950/10' : 
+                                                          'even:bg-gray-50/50 dark:even:bg-gray-800/20'}
+                                                        hover:bg-gray-100/50 dark:hover:bg-gray-800/40
+                                                    `}
+                                                >
                                                 <TableCell className="font-medium">
-                                                    <span className={batsman.profileId ? "cursor-pointer hover:underline" : ""} onClick={() => handleProfileClick(batsman.profileId)}>
+                                                    <span 
+                                                        className={`
+                                                            ${batsman.profileId ? 
+                                                                "cursor-pointer hover:text-primary transition-colors" : ""}
+                                                            ${Number(batsman.runs) >= 50 ? 'text-green-600 dark:text-green-400' : ''}
+                                                        `} 
+                                                        onClick={() => handleProfileClick(batsman.profileId)}
+                                                    >
                                                         {batsman.name}
                                                     </span>
                                                 </TableCell>
@@ -138,18 +181,26 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                                                 <TableCell className="text-right">{batsman.balls}</TableCell>
                                                 <TableCell className="text-right">{batsman.fours}</TableCell>
                                                 <TableCell className="text-right">{batsman.sixes}</TableCell>
-                                                <TableCell className="text-right">{batsman.strikeRate}</TableCell>
+                                                <TableCell className="text-right">
+                                                    <span className={`${
+                                                        parseFloat(batsman.strikeRate) >= 150 ? 'text-green-600 dark:text-green-400' :
+                                                        parseFloat(batsman.strikeRate) >= 100 ? 'text-emerald-600 dark:text-emerald-400' :
+                                                        ''
+                                                    }`}>
+                                                        {batsman.strikeRate}
+                                                    </span>
+                                                </TableCell>
                                                 </TableRow>
                                             ))}
                                             </TableBody>
                                         </Table>
                                         <Separator className="my-4"/>
-                                        <div className="space-y-2 text-sm pr-4">
-                                            <div className="flex justify-between">
+                                        <div className="space-y-2 text-sm px-6 pb-4">
+                                            <div className="flex justify-between items-center">
                                                 <span className="font-semibold">Extras</span>
                                                 <span>{inning.extras}</span>
                                             </div>
-                                            <div className="flex justify-between font-bold text-base">
+                                            <div className="flex justify-between items-center font-bold text-base">
                                                 <span>Total</span>
                                                 <span>{inning.total}</span>
                                             </div>
@@ -157,39 +208,73 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                                     </CardContent>
                                 </Card>
 
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle>{inning.bowlingTeamName} Bowling</CardTitle>
+                                <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-950/50">
+                                    <CardHeader className="border-b dark:border-gray-800">
+                                        <CardTitle className="flex items-center gap-2">
+                                            {inning.bowlingTeamName} Bowling
+                                        </CardTitle>
                                     </CardHeader>
-                                    <CardContent>
+                                    <CardContent className="p-0">
                                         <Table>
                                             <TableHeader>
-                                            <TableRow>
-                                                <TableHead className="w-[200px]">Bowler</TableHead>
-                                                <TableHead className="text-right">O</TableHead>
-                                                <TableHead className="text-right">M</TableHead>
-                                                <TableHead className="text-right">R</TableHead>
-                                                <TableHead className="text-right">W</TableHead>
-                                                <TableHead className="text-right">NB</TableHead>
-                                                <TableHead className="text-right">WD</TableHead>
-                                                <TableHead className="text-right">ECO</TableHead>
+                                            <TableRow className="hover:bg-transparent">
+                                                <TableHead className="w-[200px] font-bold">Bowler</TableHead>
+                                                <TableHead className="text-right font-bold">O</TableHead>
+                                                <TableHead className="text-right font-bold">M</TableHead>
+                                                <TableHead className="text-right font-bold">R</TableHead>
+                                                <TableHead className="text-right font-bold">W</TableHead>
+                                                <TableHead className="text-right font-bold">NB</TableHead>
+                                                <TableHead className="text-right font-bold">WD</TableHead>
+                                                <TableHead className="text-right font-bold">ECO</TableHead>
                                             </TableRow>
                                             </TableHeader>
                                             <TableBody>
                                             {inning.bowlers.map((bowler, i) => (
-                                                <TableRow key={i} className="even:bg-slate-50 dark:even:bg-gray-800/20">
+                                                <TableRow key={i} 
+                                                    className={`
+                                                        transition-colors
+                                                        ${Number(bowler.wickets) >= 3 ? 'bg-orange-50/50 dark:bg-orange-950/20' : 
+                                                        Number(bowler.wickets) >= 2 ? 'bg-amber-50/30 dark:bg-amber-950/10' : 
+                                                        'even:bg-gray-50/50 dark:even:bg-gray-800/20'}
+                                                        hover:bg-gray-100/50 dark:hover:bg-gray-800/40
+                                                    `}
+                                                >
                                                 <TableCell className="font-medium">
-                                                    <span className={bowler.profileId ? "cursor-pointer hover:underline" : ""} onClick={() => handleProfileClick(bowler.profileId)}>
+                                                    <span 
+                                                        className={`
+                                                            ${bowler.profileId ? 
+                                                                "cursor-pointer hover:text-primary transition-colors" : ""}
+                                                            ${Number(bowler.wickets) >= 3 ? 'text-orange-600 dark:text-orange-400' : ''}
+                                                        `} 
+                                                        onClick={() => handleProfileClick(bowler.profileId)}
+                                                    >
                                                         {bowler.name}
                                                     </span>
                                                 </TableCell>
                                                 <TableCell className="text-right">{bowler.overs}</TableCell>
                                                 <TableCell className="text-right">{bowler.maidens}</TableCell>
                                                 <TableCell className="text-right">{bowler.runs}</TableCell>
-                                                <TableCell className="text-right font-bold">{bowler.wickets}</TableCell>
+                                                <TableCell className="text-right">
+                                                    <span className={`font-bold ${
+                                                        Number(bowler.wickets) >= 5 ? 'text-orange-600 dark:text-orange-400' :
+                                                        Number(bowler.wickets) >= 3 ? 'text-amber-600 dark:text-amber-400' :
+                                                        ''
+                                                    }`}>
+                                                        {bowler.wickets}
+                                                    </span>
+                                                </TableCell>
                                                 <TableCell className="text-right">{bowler.noBalls}</TableCell>
                                                 <TableCell className="text-right">{bowler.wides}</TableCell>
-                                                <TableCell className="text-right">{bowler.economy}</TableCell>
+                                                <TableCell className="text-right">
+                                                    <span className={`${
+                                                        parseFloat(bowler.economy) <= 4 ? 'text-green-600 dark:text-green-400' :
+                                                        parseFloat(bowler.economy) <= 6 ? 'text-emerald-600 dark:text-emerald-400' :
+                                                        parseFloat(bowler.economy) >= 10 ? 'text-red-600 dark:text-red-400' :
+                                                        ''
+                                                    }`}>
+                                                        {bowler.economy}
+                                                    </span>
+                                                </TableCell>
                                                 </TableRow>
                                             ))}
                                             </TableBody>
@@ -199,30 +284,48 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                             </div>
                             <div className="lg:col-span-2 space-y-6">
                                 {inning.fallOfWickets.length > 0 && (
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle>Fall of Wickets</CardTitle>
+                                    <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-950/50">
+                                        <CardHeader className="border-b dark:border-gray-800">
+                                            <CardTitle className="flex items-center gap-2">
+                                                Fall of Wickets
+                                            </CardTitle>
                                         </CardHeader>
-                                        <CardContent className="space-y-3">
+                                        <CardContent className="grid gap-3 p-4">
                                             {inning.fallOfWickets.map((fow, i) => (
-                                                <div key={i} className="text-sm flex justify-between items-center gap-2">
+                                                <div key={i} 
+                                                    className="flex justify-between items-center gap-4 p-3 rounded-lg bg-gray-50/50 dark:bg-gray-900/30 hover:bg-gray-100/50 dark:hover:bg-gray-800/40 transition-colors"
+                                                >
                                                     <div className="flex-1">
-                                                        <p className="font-medium">{fow.player}</p>
-                                                        <p className="text-xs text-muted-foreground">{fow.over} ov</p>
+                                                        <p className="font-semibold text-primary">{fow.player.replace(/,/g, '')}</p>
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <span className="text-xs px-2 py-0.5 rounded-full bg-gray-200/50 dark:bg-gray-800/50 text-muted-foreground">
+                                                                {fow.over.replace(/,/g, '')} overs
+                                                            </span>
+                                                        </div>
                                                     </div>
-                                                    <p className="font-bold text-lg">{fow.score}</p>
+                                                    <p className="font-bold text-lg bg-primary/10 text-primary px-3 py-1 rounded-full">
+                                                        {fow.score}
+                                                    </p>
                                                 </div>
                                             ))}
                                         </CardContent>
                                     </Card>
                                 )}
                                 {inning.yetToBat.length > 0 && (
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle>Yet to Bat</CardTitle>
+                                    <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-950/50">
+                                        <CardHeader className="border-b dark:border-gray-800">
+                                            <CardTitle className="flex items-center gap-2">
+                                                Yet to Bat
+                                            </CardTitle>
                                         </CardHeader>
-                                        <CardContent>
-                                        <p className="text-muted-foreground text-sm">{inning.yetToBat.join(', ')}</p>
+                                        <CardContent className="p-4">
+                                            <div className="flex flex-wrap gap-2">
+                                                {inning.yetToBat.map((player, i) => (
+                                                    <span key={i} className="px-3 py-1 rounded-full bg-blue-50/50 dark:bg-blue-950/20 text-sm text-blue-700 dark:text-blue-300">
+                                                        {player}
+                                                    </span>
+                                                ))}
+                                            </div>
                                         </CardContent>
                                     </Card>
                                 )}
