@@ -132,19 +132,6 @@ export default function CombinedRankings() {
 
     return (
         <div className="space-y-4 md:space-y-6">
-            <div className="flex items-center justify-between">
-                <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-                    ICC Rankings
-                </h2>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => window.location.reload()}
-                    className="text-xs"
-                >
-                    Refresh
-                </Button>
-            </div>
 
             {/* Gender Filter */}
             <div className="w-full overflow-x-auto pb-2 hide-scrollbar">
