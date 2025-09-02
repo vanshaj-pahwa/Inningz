@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MapPin, Calendar, Trophy, Users, CloudSun, Grass } from 'lucide-react';
+import { MapPin, Calendar, Trophy, Users, CloudSun } from 'lucide-react';
 import { getMatchStats, type MatchStats } from '@/app/actions';
 
 interface MatchStatsProps {
@@ -178,16 +178,6 @@ export default function MatchStatsComponent({ matchId }: MatchStatsProps) {
                 <div>
                   <p className="text-sm text-muted-foreground">Weather</p>
                   <p className="font-medium">{stats.weather}</p>
-                </div>
-              </div>
-            )}
-
-            {stats.pitchReport && (
-              <div className="flex items-center gap-3">
-                <Grass className="w-5 h-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Pitch Report</p>
-                  <p className="font-medium">{stats.pitchReport}</p>
                 </div>
               </div>
             )}
