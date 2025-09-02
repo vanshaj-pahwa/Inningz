@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { LoaderCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import PlayerProfileDisplay from './player-profile';
+import MatchStatsComponent from './match-stats';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { Separator } from './ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
@@ -336,6 +337,9 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
             </AccordionItem>
         ))}
       </Accordion>
+
+      {/* Match Statistics */}
+      <MatchStatsComponent matchId={matchId} />
 
       <Dialog open={!!selectedProfileId} onOpenChange={handleDialogOpenChange}>
         <DialogContent className="max-w-4xl h-[90vh] overflow-y-auto">
