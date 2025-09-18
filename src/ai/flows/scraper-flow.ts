@@ -354,7 +354,8 @@ export async function getPlayerProfile(profileId: string): Promise<PlayerProfile
   const battingRankings = getRankings('Batting');
   const bowlingRankings = getRankings('Bowling');
 
-  const bio = $('div.cb-col.cb-col-100.cb-player-bio').html() || '';
+  // Get bio from the Overview section
+  const bio = $('.cb-player-description').html() || $('.cb-col-100.cb-col.cb-player-bio').html() || '';
 
   const battingStats: z.infer<typeof PlayerStatsSchema>[] = [];
   const battingTable = $('.cb-plyr-tbl:contains("Batting Career Summary") table');
@@ -1104,6 +1105,14 @@ export async function getNewsContent(newsUrl: string): Promise<string> {
     const html = await response.text();
     const $ = cheerio.load(html);
 
+    // Remove unwanted elements first
+    $('.cb-nws-sub-txt').remove();
+    $('.spt-nws-dtl-hdln').remove();
+    $('.cb-news-img-section').remove();
+    $('.cb-sptlt-hdr').remove();
+    $('.cb-news-copyright').remove();
+    $('.cb-sptlt-sctn').remove();
+
     // Extract the main content from the news article
     let content = '';
 
@@ -1231,8 +1240,7 @@ export async function scrapePlayerRankings(): Promise<PlayerRankings> {
               }
 
               const name = playerLink.text().trim();
-              const profileId = extractProfileId(playerLink.attr('href'));
-
+              
               // Try different ways to get country
               let country = $row.find('.cb-font-12.text-gray').text().trim() ||
                 $row.find('.text-gray').text().trim() ||
@@ -1243,14 +1251,38 @@ export async function scrapePlayerRankings(): Promise<PlayerRankings> {
                 $row.find('.pull-right').text().trim() ||
                 $row.find('.cb-col-14').text().trim();
 
-              // Get player image
+              // Get player image and extract profile ID from it
               let imageUrl = '';
-              const imgElement = $row.find('.cb-rank-plyr-img, img').first();
+              let profileId: string | undefined;
+
+              interface PlayerRowElements {
+                rank: string;
+                name: string;
+                country: string;
+                rating: string;
+                profileId?: string;
+                imageUrl?: string;
+              }  const imgElement = $row.find('.cb-rank-plyr-img, img').first();
               if (imgElement.length) {
-                const src = imgElement.attr('src');
+                const src = imgElement.attr('src') || imgElement.attr('data-src');
                 if (src) {
-                  imageUrl = src.startsWith('http') ? src : `https://www.cricbuzz.com${src}`;
+                  // Try to extract profile ID from the image URL
+                  const match = src.match(/\/i1\/c(\d+)\//);
+                  if (match) {
+                    profileId = match[1];
+                    imageUrl = src;
+                  }
                 }
+              }
+              
+              // If no profile ID found from image, try from URL
+              if (!profileId) {
+                profileId = extractProfileId(playerLink.attr('href'));
+              }
+
+              // If we have a profile ID but no image URL, construct it
+              if (!imageUrl && profileId) {
+                imageUrl = `https://static.cricbuzz.com/a/img/v1/50x50/i1/c${profileId}/${name.toLowerCase().replace(/\s+/g, '-')}.jpg`;
               }
 
               if (rank && name && country && rating && !isNaN(Number(rank))) {
@@ -1279,8 +1311,7 @@ export async function scrapePlayerRankings(): Promise<PlayerRankings> {
                 }
 
                 const name = playerLink.text().trim();
-                const profileId = extractProfileId(playerLink.attr('href'));
-
+                
                 let country = $row.find('.cb-font-12.text-gray').text().trim() ||
                   $row.find('.text-gray').text().trim() ||
                   $row.find('.cb-col-20').text().trim();
@@ -1290,12 +1321,28 @@ export async function scrapePlayerRankings(): Promise<PlayerRankings> {
                   $row.find('.cb-col-14').text().trim();
 
                 let imageUrl = '';
+                let profileId;
                 const imgElement = $row.find('.cb-rank-plyr-img, img').first();
                 if (imgElement.length) {
-                  const src = imgElement.attr('src');
+                  const src = imgElement.attr('src') || imgElement.attr('data-src');
                   if (src) {
-                    imageUrl = src.startsWith('http') ? src : `https://www.cricbuzz.com${src}`;
+                    // Try to extract profile ID from the image URL
+                    const match = src.match(/\/i1\/c(\d+)\//);
+                    if (match) {
+                      profileId = match[1];
+                      imageUrl = src;
+                    }
                   }
+                }
+                
+                // If no profile ID found from image, try from URL
+                if (!profileId) {
+                  profileId = extractProfileId(playerLink.attr('href'));
+                }
+
+                // If we have a profile ID but no image URL, construct it
+                if (!imageUrl && profileId) {
+                  imageUrl = `https://static.cricbuzz.com/a/img/v1/50x50/i1/c${profileId}/${name.toLowerCase().replace(/\s+/g, '-')}.jpg`;
                 }
 
                 if (rank && name && country && rating && !isNaN(Number(rank))) {

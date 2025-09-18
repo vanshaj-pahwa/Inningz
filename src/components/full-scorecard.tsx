@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -336,6 +335,21 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
             </AccordionItem>
         ))}
       </Accordion>
+
+      {/* Player Profile Dialog */}
+      <Dialog open={!!selectedProfileId} onOpenChange={handleDialogOpenChange}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Player Profile</DialogTitle>
+            <DialogDescription>
+              {profileLoading ? 'Loading profile...' : ''}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedProfile && (
+            <PlayerProfileDisplay profile={selectedProfile} />
+          )}
+        </DialogContent>
+      </Dialog>
 
     </div>
   );
