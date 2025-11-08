@@ -29,17 +29,13 @@ export default function CombinedRankings() {
                     getTeamRankings()
                 ]);
 
-                console.log('Player rankings result:', playerResult);
-                console.log('Team rankings result:', teamResult);
 
                 if (playerResult.success && playerResult.rankings) {
                     setPlayerRankings(playerResult.rankings);
-                    console.log('Player rankings data:', playerResult.rankings);
                 }
 
                 if (teamResult.success && teamResult.rankings) {
                     setTeamRankings(teamResult.rankings);
-                    console.log('Team rankings data:', teamResult.rankings);
                 }
 
                 if (!playerResult.success && !teamResult.success) {
@@ -113,17 +109,12 @@ export default function CombinedRankings() {
     }
 
     const getCurrentRankings = () => {
-        console.log('Getting rankings for:', { activeGender, activeFormat, activeCategory });
-        console.log('Player rankings available:', playerRankings);
-        console.log('Team rankings available:', teamRankings);
 
         if (activeCategory === 'teams') {
             const result = teamRankings?.[activeGender]?.[activeFormat] || [];
-            console.log('Team rankings result:', result);
             return result;
         } else {
             const result = playerRankings?.[activeGender]?.[activeCategory]?.[activeFormat] || [];
-            console.log('Player rankings result:', result);
             return result;
         }
     };

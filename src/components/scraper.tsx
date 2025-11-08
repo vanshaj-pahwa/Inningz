@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import { getScoreForMatchId } from '@/app/actions';
+import { getScoreForMatchId, loadMoreCommentary as loadMoreCommentaryAction } from '@/app/actions';
 import type { ScrapeCricbuzzUrlOutput, Commentary } from '@/app/actions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -15,16 +15,16 @@ import { cn } from '@/lib/utils';
 import FullScorecard from './full-scorecard';
 
 export interface ScrapeState {
-  success: boolean;
-  data?: ScrapeCricbuzzUrlOutput | null;
-  error?: string | null;
-  matchId?: string | null;
+    success: boolean;
+    data?: ScrapeCricbuzzUrlOutput | null;
+    error?: string | null;
+    matchId?: string | null;
 }
 
 type LastEventType = {
-  text: string;
-  key: number;
-  variant: 'default' | 'destructive' | 'four' | 'six';
+    text: string;
+    key: number;
+    variant: 'default' | 'destructive' | 'four' | 'six';
 };
 
 type View = 'live' | 'scorecard';
@@ -39,421 +39,508 @@ const CricketBallIcon = () => (
 
 
 export default function ScoreDisplay({ matchId }: { matchId: string }) {
-  const [scoreState, setScoreState] = useState<ScrapeState>({ success: false });
-  const [lastEvent, setLastEvent] = useState<LastEventType | null>(null);
-  const previousData = useRef<ScrapeCricbuzzUrlOutput | null>(null);
-  const [view, setView] = useState<View>('live');
+    const [scoreState, setScoreState] = useState<ScrapeState>({ success: false });
+    const [lastEvent, setLastEvent] = useState<LastEventType | null>(null);
+    const previousData = useRef<ScrapeCricbuzzUrlOutput | null>(null);
+    const [view, setView] = useState<View>('live');
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [lastTimestamp, setLastTimestamp] = useState<number | null>(null);
+    const commentaryEndRef = useRef<HTMLDivElement>(null);
 
 
-  const fetchScore = async () => {
-    if (!matchId) return;
-    const newState = await getScoreForMatchId(matchId);
-    setScoreState(newState);
-  };
+    const fetchScore = async () => {
+        if (!matchId) return;
+        const newState = await getScoreForMatchId(matchId);
 
-  useEffect(() => {
-    fetchScore();
-    const interval = setInterval(fetchScore, 10000);
-    return () => clearInterval(interval);
-  }, [matchId]);
-  
-  const parseScore = (score: string): { runs: number, wickets: number } | null => {
-    if (!score || !score.includes('/')) return null;
-    const parts = score.split(' ')[1]?.split('/');
-    if (!parts || parts.length < 2) return null;
-    const runs = parseInt(parts[0], 10);
-    const wickets = parseInt(parts[1], 10);
-    if (isNaN(runs) || isNaN(wickets)) return null;
-    return { runs, wickets };
-  }
-  
-  const parseOvers = (score: string): number | null => {
-      if (!score || !score.includes('(')) return null;
-      const oversMatch = score.match(/\(([^)]+)\)/);
-      if (!oversMatch || !oversMatch[1]) return null;
-      const overs = parseFloat(oversMatch[1]);
-      if (isNaN(overs)) return null;
-      return overs;
-  }
+        // If we already have extra commentary loaded (more than what API returns), preserve it
+        if (scoreState.data?.commentary && newState.data?.commentary) {
+            const apiCommentaryCount = newState.data.commentary.length;
+            const currentCommentaryCount = scoreState.data.commentary.length;
 
-  useEffect(() => {
-    if (scoreState.data && previousData.current) {
-        const currentScore = parseScore(scoreState.data.score);
-        const prevScore = parseScore(previousData.current.score);
-        const currentOvers = parseOvers(scoreState.data.score);
-        const prevOvers = parseOvers(previousData.current.score);
+            // If we have more commentary than the API returns, it means we loaded more
+            if (currentCommentaryCount > apiCommentaryCount) {
+                // Keep the new live commentary at the top, and append the old loaded commentary
+                const oldLoadedCommentary = scoreState.data.commentary.slice(apiCommentaryCount);
+                setScoreState({
+                    ...newState,
+                    data: {
+                        ...newState.data,
+                        commentary: [...newState.data.commentary, ...oldLoadedCommentary],
+                    },
+                });
+            } else {
+                setScoreState(newState);
+            }
+        } else {
+            setScoreState(newState);
+        }
 
-        const isLive = !scoreState.data.status.toLowerCase().includes('complete') && !scoreState.data.status.toLowerCase().includes('won');
+        // Use the oldest commentary timestamp for pagination (only set once)
+        if (newState.data?.oldestCommentaryTimestamp && !lastTimestamp) {
+            setLastTimestamp(newState.data.oldestCommentaryTimestamp);
+        }
+    };
 
-        let eventToShow: Omit<LastEventType, 'key'> | null = null;
+    const loadMoreCommentary = async () => {
+        if (!matchId || !lastTimestamp || loadingMore) return;
 
-        if (currentScore && prevScore && isLive) {
-            const runDiff = currentScore.runs - prevScore.runs;
-            const wicketDiff = currentScore.wickets - prevScore.wickets;
-            const oversChanged = currentOvers !== null && prevOvers !== null && currentOvers > prevOvers;
+        setLoadingMore(true);
+        try {
+            const result = await loadMoreCommentaryAction(matchId, lastTimestamp);
 
-            if (wicketDiff > 0) {
-                eventToShow = { text: 'W', variant: 'destructive' };
-            } else if (runDiff === 6) {
-                eventToShow = { text: '6', variant: 'six' };
-            } else if (runDiff === 4) {
-                eventToShow = { text: '4', variant: 'four' };
-            } else if (runDiff > 0 && runDiff < 4) {
-                eventToShow = { text: `+${runDiff}`, variant: 'default' };
-            } else if (runDiff === 0 && wicketDiff === 0 && oversChanged) {
-                 eventToShow = { text: 'DOT', variant: 'default' };
+            if (result.success && result.commentary && result.commentary.length > 0 && scoreState.data) {
+                setScoreState({
+                    ...scoreState,
+                    data: {
+                        ...scoreState.data,
+                        commentary: [...scoreState.data.commentary, ...result.commentary],
+                    },
+                });
+
+                if (result.timestamp) {
+                    setLastTimestamp(result.timestamp);
+                }
+
+                // Scroll to the newly loaded commentary
+                setTimeout(() => {
+                    commentaryEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                }, 100);
+            } else if (result.success && result.commentary && result.commentary.length === 0) {
+                // No more commentary available
+                setLastTimestamp(null); // Hide the load more button
+            }
+        } catch (e) {
+            console.error('[Client] Failed to load more commentary:', e);
+        } finally {
+            setLoadingMore(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchScore();
+        const interval = setInterval(fetchScore, 10000);
+        return () => clearInterval(interval);
+    }, [matchId]);
+
+    const parseScore = (score: string): { runs: number, wickets: number } | null => {
+        if (!score || !score.includes('/')) return null;
+        const parts = score.split(' ')[1]?.split('/');
+        if (!parts || parts.length < 2) return null;
+        const runs = parseInt(parts[0], 10);
+        const wickets = parseInt(parts[1], 10);
+        if (isNaN(runs) || isNaN(wickets)) return null;
+        return { runs, wickets };
+    }
+
+    const parseOvers = (score: string): number | null => {
+        if (!score || !score.includes('(')) return null;
+        const oversMatch = score.match(/\(([^)]+)\)/);
+        if (!oversMatch || !oversMatch[1]) return null;
+        const overs = parseFloat(oversMatch[1]);
+        if (isNaN(overs)) return null;
+        return overs;
+    }
+
+    useEffect(() => {
+        if (scoreState.data && previousData.current) {
+            const currentScore = parseScore(scoreState.data.score);
+            const prevScore = parseScore(previousData.current.score);
+            const currentOvers = parseOvers(scoreState.data.score);
+            const prevOvers = parseOvers(previousData.current.score);
+
+            const isLive = !scoreState.data.status.toLowerCase().includes('complete') && !scoreState.data.status.toLowerCase().includes('won');
+
+            let eventToShow: Omit<LastEventType, 'key'> | null = null;
+
+            if (currentScore && prevScore && isLive) {
+                const runDiff = currentScore.runs - prevScore.runs;
+                const wicketDiff = currentScore.wickets - prevScore.wickets;
+                const oversChanged = currentOvers !== null && prevOvers !== null && currentOvers > prevOvers;
+
+                if (wicketDiff > 0) {
+                    eventToShow = { text: 'W', variant: 'destructive' };
+                } else if (runDiff === 6) {
+                    eventToShow = { text: '6', variant: 'six' };
+                } else if (runDiff === 4) {
+                    eventToShow = { text: '4', variant: 'four' };
+                } else if (runDiff > 0 && runDiff < 4) {
+                    eventToShow = { text: `+${runDiff}`, variant: 'default' };
+                } else if (runDiff === 0 && wicketDiff === 0 && oversChanged) {
+                    eventToShow = { text: 'DOT', variant: 'default' };
+                }
+            }
+
+            if (eventToShow) {
+                setLastEvent({ ...eventToShow, key: Date.now() });
             }
         }
-        
-        if (eventToShow) {
-            setLastEvent({ ...eventToShow, key: Date.now() });
+
+        if (scoreState.data) {
+            previousData.current = scoreState.data;
         }
-    }
-
-    if (scoreState.data) {
-        previousData.current = scoreState.data;
-    }
-}, [scoreState.data]);
+    }, [scoreState.data]);
 
 
-  if (scoreState.error) {
-    return (
-      <div className="max-w-4xl mx-auto">
-        <Alert variant="destructive" className="mt-8">
-            <AlertTitle>Error</AlertTitle>
-            <AlertDescription>{scoreState.error}</AlertDescription>
-        </Alert>
-      </div>
-    )
-  }
-
-  const { data } = scoreState;
-
-  if (!data && !scoreState.error) {
-    return (
-      <div className="w-full flex items-center justify-center p-8 mt-16">
-         <LoaderCircle className="w-8 h-8 animate-spin text-primary" />
-         <p className="ml-4 text-muted-foreground">Fetching live score...</p>
-     </div>
-    )
-  }
-    
-  const renderCommentaryItem = (comment: Commentary, index: number) => {
-    const baseClasses = "p-3 flex gap-3 items-start text-sm";
-    
-    if (comment.type === 'user' && comment.author) {
-      return (
-        <div key={index} className={`${baseClasses} border-t`}>
-            <User size={16} className="text-muted-foreground mt-0.5 flex-shrink-0" />
-            <div>
-                <p className="font-semibold text-primary">{comment.author}</p>
-                <p className="text-foreground/80 italic" dangerouslySetInnerHTML={{ __html: `"${comment.text}"` }}/>
+    if (scoreState.error) {
+        return (
+            <div className="max-w-4xl mx-auto">
+                <Alert variant="destructive" className="mt-8">
+                    <AlertTitle>Error</AlertTitle>
+                    <AlertDescription>{scoreState.error}</AlertDescription>
+                </Alert>
             </div>
-        </div>
-      );
+        )
     }
 
-    if (comment.type === 'stat') {
-      const isShortText = comment.text.length < 100;
-      return (
-        <div key={index} className={`${baseClasses} bg-slate-50 dark:bg-gray-800/20 border-t`}>
-          <p className={`text-muted-foreground w-full ${isShortText ? 'text-center' : ''}`} dangerouslySetInnerHTML={{ __html: comment.text }} />
-        </div>
-      )
-    }
-    
-    const over = comment.text.split(':')[0];
-    const text = comment.text.substring(comment.text.indexOf(':') + 1);
-    const events = comment.event?.split(',') || [];
+    const { data } = scoreState;
 
-    const getEventDisplay = (event: string) => {
-        switch(event) {
-            case 'FOUR': return { text: '4', className: 'bg-blue-500 text-white' };
-            case 'SIX': return { text: '6', className: 'bg-purple-600 text-white' };
-            case 'WICKET': return { text: 'W', className: 'bg-red-600 text-white' };
-            case 'FIFTY': return { text: '50', className: 'bg-green-500 text-white text-xs px-1.5'};
-            case 'HUNDRED': return { text: '100', className: 'bg-amber-500 text-white text-xs px-1.5'};
-            default: return null;
-        }
-    }
-
-    return (
-      <div key={index} className={`${baseClasses} border-t`}>
-          <div className="flex flex-col items-center flex-shrink-0 w-12 space-y-1">
-             <div className="font-mono text-xs text-muted-foreground">{over}</div>
-              <div className="flex flex-col items-center space-y-1">
-                {events.map((event, i) => {
-                    const eventDisplay = getEventDisplay(event);
-                    if (!eventDisplay) return null;
-                    
-                    const isRound = ['FOUR', 'SIX', 'WICKET'].includes(event);
-                    
-                    return (
-                        <div key={i} className={cn(`flex-shrink-0 flex items-center justify-center font-bold text-sm`,
-                           isRound ? 'w-6 h-6 rounded-full' : 'rounded',
-                           eventDisplay.className
-                        )}>
-                            {eventDisplay.text}
-                        </div>
-                    )
-                })}
-              </div>
-          </div>
-          <p className="text-foreground flex-1" dangerouslySetInnerHTML={{ __html: text }} />
-      </div>
-    );
-  };
-
-  const getEventBadgeVariant = (variant: LastEventType['variant']) => {
-    switch (variant) {
-      case 'destructive': return 'destructive';
-      case 'four': return 'default';
-      case 'six': return 'secondary'; // Or create a custom variant
-      default: return 'default';
-    }
-  }
-  
-  const getEventBadgeClass = (variant: LastEventType['variant']) => {
-    switch(variant) {
-        case 'four': return 'bg-blue-600 hover:bg-blue-700 text-white';
-        case 'six': return 'bg-purple-600 hover:bg-purple-700 text-white';
-        default: return '';
-    }
-  }
-
-
-  return (
-    <div className="w-full max-w-7xl mx-auto px-4">
-        <div className="flex items-center justify-between gap-4 mb-6 py-4 border-b dark:border-gray-800">
-          <div className="flex items-center gap-4">
-            <Button asChild variant="outline" size="icon" className="shrink-0">
-                <Link href="/">
-                    <ArrowLeft className="h-4 w-4"/>
-                </Link>
-            </Button>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-                {data?.title}
-              </h1>
-              <p className="text-sm text-muted-foreground mt-1">{data?.toss}</p>
+    if (!data && !scoreState.error) {
+        return (
+            <div className="w-full flex items-center justify-center p-8 mt-16">
+                <LoaderCircle className="w-8 h-8 animate-spin text-primary" />
+                <p className="ml-4 text-muted-foreground">Fetching live score...</p>
             </div>
-          </div>
-          <div className="flex items-center gap-2 bg-gray-100/50 dark:bg-gray-800/30 p-1 rounded-lg backdrop-blur-sm">
-              <Button 
-                  variant={view === 'live' ? 'default' : 'ghost'}
-                  onClick={() => setView('live')}
-                  size="sm"
-                  className="rounded-md"
-              >
-                  Live
-              </Button>
-              <Button 
-                  variant={view === 'scorecard' ? 'default' : 'ghost'}
-                  onClick={() => setView('scorecard')}
-                  size="sm"
-                  className="rounded-md"
-              >
-                  Scorecard
-              </Button>
-          </div>
-        </div>
+        )
+    }
 
-        <div>
-            {view === 'live' && (
-                <div className="space-y-6">
-                    <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-950/50 border-primary/10">
-                        <CardContent className="p-6 relative">
-                           {lastEvent && (
-                              <Badge
-                                key={lastEvent.key}
-                                variant={getEventBadgeVariant(lastEvent.variant)}
-                                className={`absolute top-[-0.75rem] right-4 text-lg font-bold event-animation tabular-nums shadow-lg ${getEventBadgeClass(lastEvent.variant)}`}
-                              >
-                               {lastEvent.text}
-                              </Badge>
-                            )}
-                            <div className="space-y-4">
-                                {data?.previousInnings.map((inning, index) => (
-                                    <div key={index} 
-                                         className="p-3 rounded-lg bg-gray-50/50 dark:bg-gray-900/30 hover:bg-gray-100/50 dark:hover:bg-gray-800/40 transition-colors"
-                                    >
-                                        <div className="flex justify-between items-center gap-4">
-                                            <span className="font-semibold text-primary/90">{inning.teamName}</span>
-                                            <span className="font-bold text-lg bg-primary/10 text-primary px-3 py-0.5 rounded-full">
-                                                {inning.score}
-                                            </span>
-                                        </div>
-                                    </div>
-                                ))}
-                                <div className="p-4 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5">
-                                    <div className="flex justify-between items-baseline gap-4">
-                                        <span className="text-2xl font-bold tracking-tight">{data?.score}</span>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-sm text-muted-foreground">CRR:</span>
-                                            <span className="font-semibold text-primary">{data?.currentRunRate}</span>
-                                        </div>
-                                    </div>
-                                    <p className="text-base text-destructive font-semibold mt-3">{data?.status}</p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-    
-                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                        <div className="lg:col-span-3 space-y-6">
-                           <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-950/50 border-primary/10">
-                                <CardHeader className="border-b dark:border-gray-800">
-                                    <CardTitle className="flex items-center gap-2">
-                                        Commentary
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="p-0">
-                                    <div className="space-y-0.5 max-h-[80rem] overflow-y-auto hide-scrollbar">
-                                        {data?.commentary.map((comment, index) => renderCommentaryItem(comment, index))}
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </div>
-                        
-                        <div className="lg:col-span-2 space-y-6">
-                            <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-950/50 border-primary/10">
-                                <CardHeader className="border-b dark:border-gray-800">
-                                    <CardTitle className="flex items-center gap-2">
-                                        Scoreboard
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className='pt-6'>
-                                    <div className="space-y-6">
-                                        <div>
-                                            <div className="flex items-center gap-2 mb-4">
-                                                <h4 className="font-semibold">Batting</h4>
-                                            </div>
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow>
-                                                        <TableHead className="w-[200px]">Batter</TableHead>
-                                                        <TableHead className="text-right">R</TableHead>
-                                                        <TableHead className="text-right">B</TableHead>
-                                                        <TableHead className="text-right">4s</TableHead>
-                                                        <TableHead className="text-right">6s</TableHead>
-                                                        <TableHead className="text-right">SR</TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {data?.batsmen.map((batsman, index) => (
-                                                        <TableRow key={index} 
-                                                            className={cn(
-                                                                "transition-colors",
-                                                                batsman.onStrike 
-                                                                    ? "bg-primary/5 hover:bg-primary/10" 
-                                                                    : "even:bg-gray-50/50 dark:even:bg-gray-800/20 hover:bg-gray-100/50 dark:hover:bg-gray-800/40"
-                                                            )}
-                                                        >
-                                                            <TableCell className="font-medium">
-                                                                <span className="flex items-center gap-2">
-                                                                    {batsman.name}
-                                                                    {batsman.onStrike && <CricketBatIcon />}
-                                                                </span>
-                                                            </TableCell>
-                                                            <TableCell className="text-right font-bold text-primary">{batsman.runs}</TableCell>
-                                                            <TableCell className="text-right">{batsman.balls}</TableCell>
-                                                            <TableCell className="text-right text-blue-600 dark:text-blue-400">{batsman.fours}</TableCell>
-                                                            <TableCell className="text-right text-purple-600 dark:text-purple-400">{batsman.sixes}</TableCell>
-                                                            <TableCell className="text-right font-medium">{batsman.strikeRate}</TableCell>
-                                                        </TableRow>
-                                                    ))}
-                                                </TableBody>
-                                            </Table>
-                                        </div>
-    
-                                        <div className="mt-8">
-                                            <div className="flex items-center gap-2 mb-3">
-                                                <h4 className="font-semibold">Bowling</h4>
-                                            </div>
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow>
-                                                        <TableHead className="w-[200px]">Bowler</TableHead>
-                                                        <TableHead className="text-right">O</TableHead>
-                                                        <TableHead className="text-right">M</TableHead>
-                                                        <TableHead className="text-right">R</TableHead>
-                                                        <TableHead className="text-right">W</TableHead>
-                                                        <TableHead className="text-right">ECO</TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {data?.bowlers.map((bowler, index) => (
-                                                        <TableRow key={index} 
-                                                            className={cn(
-                                                                "transition-colors",
-                                                                bowler.onStrike 
-                                                                    ? "bg-primary/5 hover:bg-primary/10" 
-                                                                    : "even:bg-gray-50/50 dark:even:bg-gray-800/20 hover:bg-gray-100/50 dark:hover:bg-gray-800/40"
-                                                            )}
-                                                        >
-                                                            <TableCell className="font-medium">
-                                                                <span className="flex items-center gap-2">
-                                                                    {bowler.name}
-                                                                    {bowler.onStrike && <CricketBallIcon />}
-                                                                </span>
-                                                            </TableCell>
-                                                            <TableCell className="text-right text-primary font-medium">{bowler.overs}</TableCell>
-                                                            <TableCell className="text-right">{bowler.maidens}</TableCell>
-                                                            <TableCell className="text-right">{bowler.runs}</TableCell>
-                                                            <TableCell className="text-right font-bold text-orange-600 dark:text-orange-400">{bowler.wickets}</TableCell>
-                                                            <TableCell className="text-right">
-                                                                <span className={cn(
-                                                                    "font-medium",
-                                                                    parseFloat(bowler.economy) <= 6 ? "text-green-600 dark:text-green-400" :
-                                                                    parseFloat(bowler.economy) >= 10 ? "text-red-600 dark:text-red-400" :
-                                                                    "text-primary"
-                                                                )}>
-                                                                    {bowler.economy}
-                                                                </span>
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    ))}
-                                                </TableBody>
-                                            </Table>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                            <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-950/50 border-primary/10">
-                                <CardHeader className="border-b dark:border-gray-800">
-                                    <CardTitle className="flex items-center gap-2">
-                                        Match Info
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="divide-y dark:divide-gray-800 pt-6">
-                                    <div className="py-4 first:pt-0 last:pb-0">
-                                        <p className="font-semibold text-primary mb-2">Partnership</p>
-                                        <p className="text-muted-foreground bg-gray-50/50 dark:bg-gray-900/30 p-2 rounded">
-                                            {data?.partnership}
-                                        </p>
-                                    </div>
-                                    <div className="py-4 first:pt-0 last:pb-0">
-                                        <p className="font-semibold text-destructive mb-2">Last Wicket</p>
-                                        <p className="text-muted-foreground bg-gray-50/50 dark:bg-gray-900/30 p-2 rounded">
-                                            {data?.lastWicket}
-                                        </p>
-                                    </div>
-                                    <div className="py-4 first:pt-0 last:pb-0">
-                                        <p className="font-semibold text-orange-600 dark:text-orange-400 mb-2">Recent Overs</p>
-                                        <p className="font-mono text-sm bg-gray-50/50 dark:bg-gray-900/30 p-2 rounded tracking-wider">
-                                            {data?.recentOvers}
-                                        </p>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </div>
+    const renderCommentaryItem = (comment: Commentary, index: number) => {
+        const baseClasses = "p-3 flex gap-3 items-start text-sm";
+
+        if (comment.type === 'user' && comment.author) {
+            return (
+                <div key={index} className={`${baseClasses} border-t`}>
+                    <User size={16} className="text-muted-foreground mt-0.5 flex-shrink-0" />
+                    <div>
+                        <p className="font-semibold text-primary">{comment.author}</p>
+                        <p className="text-foreground/80 italic" dangerouslySetInnerHTML={{ __html: `"${comment.text}"` }} />
                     </div>
                 </div>
-            )}
-            {view === 'scorecard' && (
-                <FullScorecard matchId={matchId} />
-            )}
+            );
+        }
+
+        if (comment.type === 'stat') {
+            const isShortText = comment.text.length < 100;
+            return (
+                <div key={index} className={`${baseClasses} bg-slate-50 dark:bg-gray-800/20 border-t`}>
+                    <p className={`text-muted-foreground w-full ${isShortText ? 'text-center' : ''}`} dangerouslySetInnerHTML={{ __html: comment.text }} />
+                </div>
+            )
+        }
+
+        const over = comment.text.split(':')[0];
+        const text = comment.text.substring(comment.text.indexOf(':') + 1);
+        const events = comment.event?.split(',') || [];
+
+        const getEventDisplay = (event: string) => {
+            switch (event) {
+                case 'FOUR': return { text: '4', className: 'bg-blue-500 text-white' };
+                case 'SIX': return { text: '6', className: 'bg-purple-600 text-white' };
+                case 'WICKET': return { text: 'W', className: 'bg-red-600 text-white' };
+                case 'FIFTY': return { text: '50', className: 'bg-green-500 text-white text-xs px-1.5' };
+                case 'HUNDRED': return { text: '100', className: 'bg-amber-500 text-white text-xs px-1.5' };
+                default: return null;
+            }
+        }
+
+        return (
+            <div key={index} className={`${baseClasses} border-t`}>
+                <div className="flex flex-col items-center flex-shrink-0 w-12 space-y-1">
+                    <div className="font-mono text-xs text-muted-foreground">{over}</div>
+                    <div className="flex flex-col items-center space-y-1">
+                        {events.map((event, i) => {
+                            const eventDisplay = getEventDisplay(event);
+                            if (!eventDisplay) return null;
+
+                            const isRound = ['FOUR', 'SIX', 'WICKET'].includes(event);
+
+                            return (
+                                <div key={i} className={cn(`flex-shrink-0 flex items-center justify-center font-bold text-sm`,
+                                    isRound ? 'w-6 h-6 rounded-full' : 'rounded',
+                                    eventDisplay.className
+                                )}>
+                                    {eventDisplay.text}
+                                </div>
+                            )
+                        })}
+                    </div>
+                </div>
+                <p className="text-foreground flex-1" dangerouslySetInnerHTML={{ __html: text }} />
+            </div>
+        );
+    };
+
+    const getEventBadgeVariant = (variant: LastEventType['variant']) => {
+        switch (variant) {
+            case 'destructive': return 'destructive';
+            case 'four': return 'default';
+            case 'six': return 'secondary'; // Or create a custom variant
+            default: return 'default';
+        }
+    }
+
+    const getEventBadgeClass = (variant: LastEventType['variant']) => {
+        switch (variant) {
+            case 'four': return 'bg-blue-600 hover:bg-blue-700 text-white';
+            case 'six': return 'bg-purple-600 hover:bg-purple-700 text-white';
+            default: return '';
+        }
+    }
+
+
+    return (
+        <div className="w-full max-w-7xl mx-auto px-4">
+            <div className="flex items-center justify-between gap-4 mb-6 py-4 border-b dark:border-gray-800">
+                <div className="flex items-center gap-4">
+                    <Button asChild variant="outline" size="icon" className="shrink-0">
+                        <Link href="/">
+                            <ArrowLeft className="h-4 w-4" />
+                        </Link>
+                    </Button>
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                            {data?.title}
+                        </h1>
+                        <p className="text-sm text-muted-foreground mt-1">{data?.toss}</p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-2 bg-gray-100/50 dark:bg-gray-800/30 p-1 rounded-lg backdrop-blur-sm">
+                    <Button
+                        variant={view === 'live' ? 'default' : 'ghost'}
+                        onClick={() => setView('live')}
+                        size="sm"
+                        className="rounded-md"
+                    >
+                        Live
+                    </Button>
+                    <Button
+                        variant={view === 'scorecard' ? 'default' : 'ghost'}
+                        onClick={() => setView('scorecard')}
+                        size="sm"
+                        className="rounded-md"
+                    >
+                        Scorecard
+                    </Button>
+                </div>
+            </div>
+
+            <div>
+                {view === 'live' && (
+                    <div className="space-y-6">
+                        <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-950/50 border-primary/10">
+                            <CardContent className="p-6 relative">
+                                {lastEvent && (
+                                    <Badge
+                                        key={lastEvent.key}
+                                        variant={getEventBadgeVariant(lastEvent.variant)}
+                                        className={`absolute top-[-0.75rem] right-4 text-lg font-bold event-animation tabular-nums shadow-lg ${getEventBadgeClass(lastEvent.variant)}`}
+                                    >
+                                        {lastEvent.text}
+                                    </Badge>
+                                )}
+                                <div className="space-y-4">
+                                    {data?.previousInnings.map((inning, index) => (
+                                        <div key={index}
+                                            className="p-3 rounded-lg bg-gray-50/50 dark:bg-gray-900/30 hover:bg-gray-100/50 dark:hover:bg-gray-800/40 transition-colors"
+                                        >
+                                            <div className="flex justify-between items-center gap-4">
+                                                <span className="font-semibold text-primary/90">{inning.teamName}</span>
+                                                <span className="font-bold text-lg bg-primary/10 text-primary px-3 py-0.5 rounded-full">
+                                                    {inning.score}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    <div className="p-4 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5">
+                                        <div className="flex justify-between items-baseline gap-4">
+                                            <span className="text-2xl font-bold tracking-tight">{data?.score}</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm text-muted-foreground">CRR:</span>
+                                                <span className="font-semibold text-primary">{data?.currentRunRate}</span>
+                                            </div>
+                                        </div>
+                                        <p className="text-base text-destructive font-semibold mt-3">{data?.status}</p>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                            <div className="lg:col-span-3 space-y-6">
+                                <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-950/50 border-primary/10">
+                                    <CardHeader className="border-b dark:border-gray-800">
+                                        <CardTitle className="flex items-center gap-2">
+                                            Commentary
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="p-0">
+                                        <div className="space-y-0.5 max-h-[80rem] overflow-y-auto hide-scrollbar">
+                                            {data?.commentary.map((comment, index) => renderCommentaryItem(comment, index))}
+                                            <div ref={commentaryEndRef} />
+                                        </div>
+                                        {lastTimestamp && (
+                                            <div className="p-4 border-t dark:border-gray-800">
+                                                <Button
+                                                    onClick={loadMoreCommentary}
+                                                    disabled={loadingMore}
+                                                    variant="outline"
+                                                    className="w-full"
+                                                >
+                                                    {loadingMore ? (
+                                                        <>
+                                                            <LoaderCircle className="w-4 h-4 animate-spin mr-2" />
+                                                            Loading...
+                                                        </>
+                                                    ) : (
+                                                        'Load More Commentary'
+                                                    )}
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            </div>
+
+                            <div className="lg:col-span-2 space-y-6">
+                                <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-950/50 border-primary/10">
+                                    <CardHeader className="border-b dark:border-gray-800">
+                                        <CardTitle className="flex items-center gap-2">
+                                            Scoreboard
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className='pt-6'>
+                                        <div className="space-y-6">
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-4">
+                                                    <h4 className="font-semibold">Batting</h4>
+                                                </div>
+                                                <Table>
+                                                    <TableHeader>
+                                                        <TableRow>
+                                                            <TableHead className="w-[200px]">Batter</TableHead>
+                                                            <TableHead className="text-right">R</TableHead>
+                                                            <TableHead className="text-right">B</TableHead>
+                                                            <TableHead className="text-right">4s</TableHead>
+                                                            <TableHead className="text-right">6s</TableHead>
+                                                            <TableHead className="text-right">SR</TableHead>
+                                                        </TableRow>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {data?.batsmen.map((batsman, index) => (
+                                                            <TableRow key={index}
+                                                                className={cn(
+                                                                    "transition-colors",
+                                                                    batsman.onStrike
+                                                                        ? "bg-primary/5 hover:bg-primary/10"
+                                                                        : "even:bg-gray-50/50 dark:even:bg-gray-800/20 hover:bg-gray-100/50 dark:hover:bg-gray-800/40"
+                                                                )}
+                                                            >
+                                                                <TableCell className="font-medium">
+                                                                    <span className="flex items-center gap-2">
+                                                                        {batsman.name}
+                                                                        {batsman.onStrike && <CricketBatIcon />}
+                                                                    </span>
+                                                                </TableCell>
+                                                                <TableCell className="text-right font-bold text-primary">{batsman.runs}</TableCell>
+                                                                <TableCell className="text-right">{batsman.balls}</TableCell>
+                                                                <TableCell className="text-right text-blue-600 dark:text-blue-400">{batsman.fours}</TableCell>
+                                                                <TableCell className="text-right text-purple-600 dark:text-purple-400">{batsman.sixes}</TableCell>
+                                                                <TableCell className="text-right font-medium">{parseFloat(batsman.strikeRate).toFixed(2)}</TableCell>
+                                                            </TableRow>
+                                                        ))}
+                                                    </TableBody>
+                                                </Table>
+                                            </div>
+
+                                            <div className="mt-8">
+                                                <div className="flex items-center gap-2 mb-3">
+                                                    <h4 className="font-semibold">Bowling</h4>
+                                                </div>
+                                                <Table>
+                                                    <TableHeader>
+                                                        <TableRow>
+                                                            <TableHead className="w-[200px]">Bowler</TableHead>
+                                                            <TableHead className="text-right">O</TableHead>
+                                                            <TableHead className="text-right">M</TableHead>
+                                                            <TableHead className="text-right">R</TableHead>
+                                                            <TableHead className="text-right">W</TableHead>
+                                                            <TableHead className="text-right">ECO</TableHead>
+                                                        </TableRow>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {data?.bowlers.map((bowler, index) => (
+                                                            <TableRow key={index}
+                                                                className={cn(
+                                                                    "transition-colors",
+                                                                    bowler.onStrike
+                                                                        ? "bg-primary/5 hover:bg-primary/10"
+                                                                        : "even:bg-gray-50/50 dark:even:bg-gray-800/20 hover:bg-gray-100/50 dark:hover:bg-gray-800/40"
+                                                                )}
+                                                            >
+                                                                <TableCell className="font-medium">
+                                                                    <span className="flex items-center gap-2">
+                                                                        {bowler.name}
+                                                                        {bowler.onStrike && <CricketBallIcon />}
+                                                                    </span>
+                                                                </TableCell>
+                                                                <TableCell className="text-right text-primary font-medium">{bowler.overs}</TableCell>
+                                                                <TableCell className="text-right">{bowler.maidens}</TableCell>
+                                                                <TableCell className="text-right">{bowler.runs}</TableCell>
+                                                                <TableCell className="text-right font-bold text-orange-600 dark:text-orange-400">{bowler.wickets}</TableCell>
+                                                                <TableCell className="text-right">
+                                                                    <span className={cn(
+                                                                        "font-medium",
+                                                                        parseFloat(bowler.economy) <= 6 ? "text-green-600 dark:text-green-400" :
+                                                                            parseFloat(bowler.economy) >= 10 ? "text-red-600 dark:text-red-400" :
+                                                                                "text-primary"
+                                                                    )}>
+                                                                        {bowler.economy}
+                                                                    </span>
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        ))}
+                                                    </TableBody>
+                                                </Table>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                                <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-950/50 border-primary/10">
+                                    <CardHeader className="border-b dark:border-gray-800">
+                                        <CardTitle className="flex items-center gap-2">
+                                            Match Info
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="divide-y dark:divide-gray-800 pt-6">
+                                        <div className="py-4 first:pt-0 last:pb-0">
+                                            <p className="font-semibold text-primary mb-2">Partnership</p>
+                                            <p className="text-muted-foreground bg-gray-50/50 dark:bg-gray-900/30 p-2 rounded">
+                                                {data?.partnership}
+                                            </p>
+                                        </div>
+                                        <div className="py-4 first:pt-0 last:pb-0">
+                                            <p className="font-semibold text-destructive mb-2">Last Wicket</p>
+                                            <p className="text-muted-foreground bg-gray-50/50 dark:bg-gray-900/30 p-2 rounded">
+                                                {data?.lastWicket}
+                                            </p>
+                                        </div>
+                                        <div className="py-4 first:pt-0 last:pb-0">
+                                            <p className="font-semibold text-orange-600 dark:text-orange-400 mb-2">Recent Overs</p>
+                                            <p className="font-mono text-sm bg-gray-50/50 dark:bg-gray-900/30 p-2 rounded tracking-wider">
+                                                {data?.recentOvers}
+                                            </p>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                {view === 'scorecard' && (
+                    <>
+                        <FullScorecard matchId={matchId} />
+                    </>
+                )}
+            </div>
         </div>
-    </div>
-  );
+    );
 }

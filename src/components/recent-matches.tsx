@@ -5,22 +5,51 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getRecentMatches } from '@/app/actions';
 import type { LiveMatch } from '@/app/actions';
-import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { LoaderCircle, History } from "lucide-react";
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import { LoaderCircle, History, ChevronRight, ChevronDown } from "lucide-react";
 
-type FilterType = 'All' | 'International' | 'League' | 'Domestic' | 'Women';
+interface GroupedMatches {
+  [seriesName: string]: LiveMatch[];
+}
 
-const filters: FilterType[] = ['All', 'International', 'League', 'Domestic', 'Women'];
+type MatchFilter = 'all' | 'international' | 'league' | 'domestic' | 'women';
 
 export default function RecentMatches() {
   const [matches, setMatches] = useState<LiveMatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState<FilterType>('All');
+  const [expandedSeries, setExpandedSeries] = useState<Set<string>>(new Set());
+  const [activeFilter, setActiveFilter] = useState<MatchFilter>('all');
+
+  const toggleSeries = (seriesName: string) => {
+    setExpandedSeries(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(seriesName)) {
+        newSet.delete(seriesName);
+      } else {
+        newSet.add(seriesName);
+      }
+      return newSet;
+    });
+  };
+
+  const getMatchCategory = (match: LiveMatch): MatchFilter => {
+    const title = match.title.toLowerCase();
+    const seriesName = (match.seriesName || '').toLowerCase();
+    const combined = `${title} ${seriesName}`;
+
+    if (combined.includes('women')) return 'women';
+    if (combined.includes('ipl') || combined.includes('bbl') || combined.includes('psl') || 
+        combined.includes('cpl') || combined.includes('league') || combined.includes('t20 league')) return 'league';
+    if (combined.includes('test') || combined.includes('odi') || combined.includes('t20i') || 
+        combined.includes('international')) return 'international';
+    return 'domestic';
+  };
+
+  const filterMatches = (matches: LiveMatch[]): LiveMatch[] => {
+    if (activeFilter === 'all') return matches;
+    return matches.filter(match => getMatchCategory(match) === activeFilter);
+  };
 
   useEffect(() => {
     const fetchMatches = async () => {
@@ -29,6 +58,11 @@ export default function RecentMatches() {
       const result = await getRecentMatches();
       if (result.success && result.matches) {
         setMatches(result.matches);
+        // Open first series by default
+        if (result.matches.length > 0) {
+          const firstSeries = result.matches[0].seriesName || 'Other Matches';
+          setExpandedSeries(new Set([firstSeries]));
+        }
       } else {
         setError(result.error ?? "Failed to fetch recent matches.");
       }
@@ -52,96 +86,191 @@ export default function RecentMatches() {
     return (
       <div className="w-full flex items-center justify-center min-h-[60vh]">
         <Alert variant="destructive" className="max-w-xl">
-            <AlertTitle className="text-lg">Unable to fetch matches</AlertTitle>
-            <AlertDescription className="mt-2">{error}</AlertDescription>
+          <AlertTitle className="text-lg">Unable to fetch matches</AlertTitle>
+          <AlertDescription className="mt-2">{error}</AlertDescription>
         </Alert>
       </div>
     );
   }
 
-  const filteredMatches = activeFilter === 'All'
-    ? matches
-    : matches.filter(match => match.matchType === activeFilter);
-  
-  if (filteredMatches.length === 0 && !loading) {
+  if (matches.length === 0) {
     return (
-        <div className="w-full flex flex-col items-center justify-center min-h-[60vh] p-8">
-            <div className="p-4 rounded-full bg-primary/10 mb-4">
-                <History className="w-8 h-8 text-primary" />
-            </div>
-            <h3 className="text-xl font-semibold mb-2">No recent {activeFilter !== 'All' ? activeFilter.toLowerCase() : ''} matches found</h3>
-            <p className="text-muted-foreground text-center max-w-sm">
-                Try selecting a different category or check back later
-            </p>
+      <div className="w-full flex flex-col items-center justify-center min-h-[60vh] p-8">
+        <div className="p-4 rounded-full bg-primary/10 mb-4">
+          <History className="w-8 h-8 text-primary" />
         </div>
-    )
+        <h3 className="text-xl font-semibold mb-2">No recent matches found</h3>
+        <p className="text-muted-foreground text-center max-w-sm">
+          Check back later for completed matches
+        </p>
+      </div>
+    );
   }
 
+  // Filter and group matches by series
+  const filteredMatches = filterMatches(matches);
+  const groupedMatches: GroupedMatches = filteredMatches.reduce((acc, match) => {
+    const seriesName = match.seriesName || 'Other Matches';
+    if (!acc[seriesName]) {
+      acc[seriesName] = [];
+    }
+    acc[seriesName].push(match);
+    return acc;
+  }, {} as GroupedMatches);
+
+  const isComplete = (status: string) => {
+    return status.toLowerCase().includes('won');
+  };
+
+  const getCategoryDisplay = (category: MatchFilter) => {
+    const styles = {
+      international: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+      league: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+      domestic: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+      women: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300',
+      all: ''
+    };
+    const labels = {
+      international: 'International',
+      league: 'League',
+      domestic: 'Domestic',
+      women: 'Women',
+      all: ''
+    };
+    return { style: styles[category], label: labels[category] };
+  };
+
+  const filters: { value: MatchFilter; label: string }[] = [
+    { value: 'all', label: 'All' },
+    { value: 'international', label: 'International' },
+    { value: 'league', label: 'League' },
+    { value: 'domestic', label: 'Domestic' },
+    { value: 'women', label: 'Women' },
+  ];
+
   return (
-    <div>
-        <div className="flex items-center justify-center gap-2 mb-6 overflow-x-auto">
-            <div className="flex gap-2 bg-gray-100/50 dark:bg-gray-800/30 p-1 rounded-lg backdrop-blur-sm">
-                {filters.map(filter => (
-                    <Button 
-                        key={filter} 
-                        variant={activeFilter === filter ? 'default' : 'ghost'}
-                        size="sm"
-                        onClick={() => setActiveFilter(filter)}
-                        className="rounded-md"
+    <div className="space-y-6">
+      {/* Filter Buttons */}
+      <div className="flex flex-wrap gap-2 pb-2 border-b border-border">
+        {filters.map((filter) => (
+          <button
+            key={filter.value}
+            onClick={() => setActiveFilter(filter.value)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeFilter === filter.value
+                ? 'bg-blue-600 text-white'
+                : 'bg-card text-muted-foreground hover:bg-accent hover:text-foreground border border-border'
+            }`}
+          >
+            {filter.label}
+          </button>
+        ))}
+      </div>
+
+      {/* No matches for filter */}
+      {Object.keys(groupedMatches).length === 0 && (
+        <div className="w-full flex flex-col items-center justify-center min-h-[40vh] p-8">
+          <div className="p-4 rounded-full bg-primary/10 mb-4">
+            <History className="w-8 h-8 text-primary" />
+          </div>
+          <h3 className="text-xl font-semibold mb-2">No matches found</h3>
+          <p className="text-muted-foreground text-center max-w-sm">
+            Try selecting a different filter
+          </p>
+        </div>
+      )}
+
+      {Object.entries(groupedMatches).map(([seriesName, seriesMatches]) => {
+        const isExpanded = expandedSeries.has(seriesName);
+
+        return (
+          <div key={seriesName} className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+            {/* Series Header - Accordion Toggle */}
+            <button
+              onClick={() => toggleSeries(seriesName)}
+              className="flex w-full items-center justify-between bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 text-white transition-opacity hover:opacity-90"
+            >
+              <h3 className="text-sm font-bold uppercase tracking-wide">{seriesName}</h3>
+              {isExpanded ? (
+                <ChevronDown className="h-5 w-5" />
+              ) : (
+                <ChevronRight className="h-5 w-5" />
+              )}
+            </button>
+
+            {/* Matches in this series - Collapsible */}
+            {isExpanded && (
+              <div className="divide-y divide-border">
+                {seriesMatches.map((match) => {
+                  const matchIsComplete = isComplete(match.status);
+
+                  return (
+                    <Link
+                      key={match.matchId}
+                      href={`/match/${match.matchId}`}
+                      className="block bg-card transition-colors hover:bg-accent/50"
                     >
-                        {filter}
-                    </Button>
-                ))}
-            </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredMatches.map(match => (
-                <Link key={match.matchId} href={`/match/${match.matchId}`} passHref>
-                    <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer h-full flex flex-col bg-white/50 dark:bg-gray-950/50 backdrop-blur-sm border-primary/10 hover:border-primary/30">
-                        <CardContent className="p-5 flex flex-col flex-grow relative overflow-hidden">
-                            <div className="mb-4">
-                                <div className="flex items-center gap-2">
-                                    <h3 className="text-base font-bold tracking-tight bg-gradient-to-r from-primary/90 to-primary bg-clip-text text-transparent group-hover:from-primary group-hover:to-primary/90 transition-all flex-1">
-                                        {match.title}
-                                    </h3>
-                                    <Badge 
-                                        className={cn(
-                                            "text-[10px] px-2 py-0 font-medium shrink-0",
-                                            match.matchType === 'International' && "bg-blue-100 hover:bg-blue-100/80 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400",
-                                            match.matchType === 'League' && "bg-purple-100 hover:bg-purple-100/80 text-purple-700 dark:bg-purple-500/20 dark:text-purple-400",
-                                            match.matchType === 'Domestic' && "bg-amber-100 hover:bg-amber-100/80 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400",
-                                            match.matchType === 'Women' && "bg-pink-100 hover:bg-pink-100/80 text-pink-700 dark:bg-pink-500/20 dark:text-pink-400"
-                                        )}
-                                    >
-                                        {match.matchType}
-                                    </Badge>
-                                </div>
+                      <div className="p-4">
+                        {/* Match info and venue */}
+                        <div className="mb-3 flex items-start justify-between gap-2">
+                          <div className="flex-1 text-xs text-muted-foreground">
+                            <span>{match.title.split(',').slice(0, 2).join(',')}</span>
+                            {match.venue && (
+                              <span className="ml-1.5">• {match.venue}</span>
+                            )}
+                          </div>
+                          {activeFilter === 'all' && (() => {
+                            const category = getMatchCategory(match);
+                            const display = getCategoryDisplay(category);
+                            return (
+                              <span className={`rounded-full px-2 py-0.5 text-xs font-medium flex-shrink-0 ${display.style}`}>
+                                {display.label}
+                              </span>
+                            );
+                          })()}
+                        </div>
+
+                        {/* Teams and scores */}
+                        <div className="space-y-2.5">
+                          {match.teams.map((team, idx) => (
+                            <div key={idx} className="flex items-center justify-between gap-4">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-foreground">
+                                  {team.name}
+                                </span>
+                              </div>
+                              {team.score && (
+                                <span className="text-base font-semibold tabular-nums text-foreground">
+                                  {team.score}
+                                </span>
+                              )}
                             </div>
-                            
-                            <div className="space-y-3 flex-grow">
-                                {match.teams.map((team, index) => (
-                                    <div key={index} 
-                                        className="p-3 rounded-lg bg-gray-50/50 dark:bg-gray-900/30 hover:bg-gray-100/50 dark:hover:bg-gray-800/40 transition-colors"
-                                    >
-                                        <div className="flex justify-between items-center gap-4">
-                                            <span className="font-semibold text-primary/90">{team.name}</span>
-                                            <span className="font-bold text-lg bg-primary/10 text-primary px-3 py-0.5 rounded-full">
-                                                {team.score || '-'}
-                                            </span>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                            <div className="mt-4 pt-3 border-t dark:border-gray-800">
-                                <p className="text-sm font-medium text-center text-muted-foreground">
-                                    {match.status}
-                                </p>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </Link>
-            ))}
-        </div>
+                          ))}
+                        </div>
+
+                        {/* Status */}
+                        {match.status && match.status.toLowerCase() !== 'status not available' && (
+                          <div className="mt-3 pt-2 border-t border-border/50">
+                            <span
+                              className={`text-sm font-medium ${
+                                matchIsComplete
+                                  ? 'text-blue-600 dark:text-blue-400'
+                                  : 'text-muted-foreground'
+                              }`}
+                            >
+                              {match.status}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
