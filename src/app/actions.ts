@@ -14,6 +14,7 @@ import {
     scrapeTeamRankings as scrapeTeamRankingsFlow,
     scrapeMatchStats as scrapeMatchStatsFlow,
     scrapeSeriesMatches as scrapeSeriesMatchesFlow,
+    getMatchSquads as getMatchSquadsFlow,
     type ScrapeCricbuzzUrlOutput as ScrapeFlowOutput,
     type Commentary as CommentaryType,
     type LiveMatch as LiveMatchType,
@@ -23,6 +24,8 @@ import {
     type PlayerRankings,
     type TeamRankings,
     type MatchStats,
+    type MatchSquads as MatchSquadsType,
+    type SquadPlayer as SquadPlayerType,
 } from '@/ai/flows/scraper-flow';
 
 export type ScrapeCricbuzzUrlOutput = ScrapeFlowOutput;
@@ -30,6 +33,8 @@ export type Commentary = CommentaryType;
 export type LiveMatch = LiveMatchType;
 export type FullScorecard = FullScorecardType;
 export type PlayerProfile = PlayerProfileType;
+export type MatchSquads = MatchSquadsType;
+export type SquadPlayer = SquadPlayerType;
 export type { NewsItem, PlayerRankings, TeamRankings, MatchStats };
 
 interface ScrapeState {
@@ -256,3 +261,17 @@ export async function getSeriesMatches(seriesId: string): Promise<{ success: boo
 
 
 
+
+
+export async function getMatchSquads(matchId: string): Promise<{ success: boolean; squads?: MatchSquads; error?: string }> {
+    if (!matchId) {
+        return { success: false, error: 'Invalid Match ID' };
+    }
+    try {
+        const squads = await getMatchSquadsFlow(matchId);
+        return { success: true, squads };
+    } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : 'An unexpected error occurred.';
+        return { success: false, error: errorMessage };
+    }
+}

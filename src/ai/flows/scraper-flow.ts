@@ -348,6 +348,28 @@ const MatchStatsSchema = z.object({
   pitchReport: z.string().optional(),
 });
 
+const SquadPlayerSchema = z.object({
+  name: z.string(),
+  role: z.string(),
+  profileId: z.string().optional(),
+  imageUrl: z.string().optional(),
+  isCaptain: z.boolean().optional(),
+  isWicketKeeper: z.boolean().optional(),
+});
+
+const TeamSquadSchema = z.object({
+  teamName: z.string(),
+  teamShortName: z.string(),
+  teamFlagUrl: z.string().optional(),
+  playingXI: z.array(SquadPlayerSchema),
+  bench: z.array(SquadPlayerSchema),
+});
+
+const MatchSquadsSchema = z.object({
+  team1: TeamSquadSchema,
+  team2: TeamSquadSchema,
+});
+
 export type PlayerProfile = z.infer<typeof PlayerProfileSchema>;
 export type FullScorecard = z.infer<typeof FullScorecardSchema>;
 export type LiveMatch = z.infer<typeof LiveMatchSchema>;
@@ -355,6 +377,8 @@ export type NewsItem = z.infer<typeof NewsItemSchema>;
 export type PlayerRankings = z.infer<typeof PlayerRankingsSchema>;
 export type TeamRankings = z.infer<typeof TeamRankingsSchema>;
 export type MatchStats = z.infer<typeof MatchStatsSchema>;
+export type MatchSquads = z.infer<typeof MatchSquadsSchema>;
+export type SquadPlayer = z.infer<typeof SquadPlayerSchema>;
 
 export type ScrapeCricbuzzUrlOutput = z.infer<
   typeof ScrapeCricbuzzUrlOutputSchema
@@ -2819,5 +2843,187 @@ export async function scrapeMatchStats(matchId: string): Promise<MatchStats> {
     referee,
     weather,
     pitchReport,
+  });
+}
+
+
+export async function getMatchSquads(matchId: string): Promise<MatchSquads> {
+  const url = `https://www.cricbuzz.com/cricket-match-squads/${matchId}`;
+  const response = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch squads: ${response.statusText}`);
+  }
+
+  const html = await response.text();
+  const $ = cheerio.load(html);
+
+  // Get team names and flags from the header
+  // Structure: <div class="flex justify-between"><div class="flex"><img/><h1 class="font-bold">TEAM1</h1></div><div class="flex"><h1 class="font-bold">TEAM2</h1></div></div>
+  const teamData: Array<{ name: string; flagUrl?: string }> = [];
+  
+  // Find the header with both teams
+  $('div.flex.justify-between').each((_, header) => {
+    const $header = $(header);
+    
+    // Find each team container (div.flex inside the header)
+    $header.find('> div.flex').each((_, teamDiv) => {
+      const $teamDiv = $(teamDiv);
+      const name = $teamDiv.find('h1.font-bold').text().trim();
+      const flagUrl = $teamDiv.find('img').attr('src') || $teamDiv.find('img').attr('srcset')?.split(' ')[0];
+      
+      if (name && name.length > 0 && name.length < 20) {
+        teamData.push({ name, flagUrl });
+      }
+    });
+    
+    // Stop after finding teams
+    if (teamData.length >= 2) {
+      return false;
+    }
+  });
+
+  if (teamData.length < 2) {
+    throw new Error(`Could not find both team names. Found: ${teamData.map(t => t.name).join(', ')}`);
+  }
+
+  const teams: z.infer<typeof TeamSquadSchema>[] = [
+    { teamName: teamData[0].name, teamShortName: teamData[0].name, teamFlagUrl: teamData[0].flagUrl, playingXI: [], bench: [] },
+    { teamName: teamData[1].name, teamShortName: teamData[1].name, teamFlagUrl: teamData[1].flagUrl, playingXI: [], bench: [] },
+  ];
+
+  // Process Playing XI section
+  $('h1:contains("playing XI"), h1:contains("Playing XI")').each((_, sectionHeader) => {
+    const $section = $(sectionHeader).parent();
+    const $squadGrid = $section.find('.w-full.flex');
+    
+    // Left column (Team 1)
+    $squadGrid.find('.w-1\\/2').first().find('a').each((_, player) => {
+      const $player = $(player);
+      const href = $player.attr('href') || '';
+      const profileId = href.match(/\/profiles\/(\d+)\//)?.[1];
+      
+      // Name is in the first span inside flex-row
+      const name = $player.find('.flex.flex-row span').first().text().trim();
+      
+      // Captain/WK is in the second span (if exists)
+      const captainWK = $player.find('.flex.flex-row span').eq(1).text().trim();
+      
+      // Role is in the div with text-cbTxtSec text-xs classes
+      const role = $player.find('div.text-cbTxtSec.text-xs').text().trim();
+      
+      // Image URL from img tag
+      const imageUrl = $player.find('img').attr('src') || $player.find('img').attr('srcset')?.split(' ')[0];
+
+      if (name) {
+        teams[0].playingXI.push({
+          name,
+          role: role || 'Player',
+          profileId,
+          imageUrl,
+          isCaptain: captainWK.includes('C'),
+          isWicketKeeper: captainWK.includes('WK'),
+        });
+      }
+    });
+
+    // Right column (Team 2)
+    $squadGrid.find('.w-1\\/2').last().find('a').each((_, player) => {
+      const $player = $(player);
+      const href = $player.attr('href') || '';
+      const profileId = href.match(/\/profiles\/(\d+)\//)?.[1];
+      
+      // Name is in the first span inside flex-row
+      const name = $player.find('.flex.flex-row span').first().text().trim();
+      
+      // Captain/WK is in the second span (if exists)
+      const captainWK = $player.find('.flex.flex-row span').eq(1).text().trim();
+      
+      // Role is in the div with text-cbTxtSec text-xs classes
+      const role = $player.find('div.text-cbTxtSec.text-xs').text().trim();
+      
+      // Image URL from img tag
+      const imageUrl = $player.find('img').attr('src') || $player.find('img').attr('srcset')?.split(' ')[0];
+
+      if (name) {
+        teams[1].playingXI.push({
+          name,
+          role: role || 'Player',
+          profileId,
+          imageUrl,
+          isCaptain: captainWK.includes('C'),
+          isWicketKeeper: captainWK.includes('WK'),
+        });
+      }
+    });
+  });
+
+  // Process Bench section
+  $('h1:contains("bench"), h1:contains("Bench")').each((_, sectionHeader) => {
+    const $section = $(sectionHeader).parent();
+    const $squadGrid = $section.find('.w-full.flex');
+    
+    // Left column (Team 1)
+    $squadGrid.find('.w-1\\/2').first().find('a').each((_, player) => {
+      const $player = $(player);
+      const href = $player.attr('href') || '';
+      const profileId = href.match(/\/profiles\/(\d+)\//)?.[1];
+      
+      // Name is in the first span inside flex-row
+      const name = $player.find('.flex.flex-row span').first().text().trim();
+      
+      // Role is in the div with text-cbTxtSec text-xs classes
+      const role = $player.find('div.text-cbTxtSec.text-xs').text().trim();
+      
+      // Image URL from img tag
+      const imageUrl = $player.find('img').attr('src') || $player.find('img').attr('srcset')?.split(' ')[0];
+
+      if (name) {
+        teams[0].bench.push({
+          name,
+          role: role || 'Player',
+          profileId,
+          imageUrl,
+        });
+      }
+    });
+
+    // Right column (Team 2)
+    $squadGrid.find('.w-1\\/2').last().find('a').each((_, player) => {
+      const $player = $(player);
+      const href = $player.attr('href') || '';
+      const profileId = href.match(/\/profiles\/(\d+)\//)?.[1];
+      
+      // Name is in the first span inside flex-row
+      const name = $player.find('.flex.flex-row span').first().text().trim();
+      
+      // Role is in the div with text-cbTxtSec text-xs classes
+      const role = $player.find('div.text-cbTxtSec.text-xs').text().trim();
+      
+      // Image URL from img tag
+      const imageUrl = $player.find('img').attr('src') || $player.find('img').attr('srcset')?.split(' ')[0];
+
+      if (name) {
+        teams[1].bench.push({
+          name,
+          role: role || 'Player',
+          profileId,
+          imageUrl,
+        });
+      }
+    });
+  });
+
+  if (teams[0].playingXI.length === 0 && teams[1].playingXI.length === 0) {
+    throw new Error('Could not find any players in squads');
+  }
+
+  return MatchSquadsSchema.parse({
+    team1: teams[0],
+    team2: teams[1],
   });
 }

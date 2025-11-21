@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import FullScorecard from './full-scorecard';
 import PlayerProfileDisplay from './player-profile';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import MatchSquadsDisplay from './match-squads';
 
 export interface ScrapeState {
     success: boolean;
@@ -29,7 +30,7 @@ type LastEventType = {
     variant: 'default' | 'destructive' | 'four' | 'six';
 };
 
-type View = 'live' | 'scorecard';
+type View = 'live' | 'scorecard' | 'squads';
 
 const CricketBatIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlnsXlink="http://www.w3.org/1999/xlink" width="16" height="16" x="0" y="0" viewBox="0 0 512 512" className="inline-block ml-1 text-primary" xmlSpace="preserve"><g fill="currentColor"><path d="m148.67 150.612-22.453 43.502a7.834 7.834 0 0 0 1.534 8.906l96.127 90.728-1.671 12.502 203.456 203.456a7.834 7.834 0 0 0 8.906 1.534l7.782-3.704a137.76 137.76 0 0 0 65.183-65.183l3.704-7.782a7.834 7.834 0 0 0-1.534-8.906L306.248 222.208l-12.104 1.671-91.196-96.057a7.834 7.834 0 0 0-8.906-1.534z" opacity="1"></path><path d="m511.237 434.57-3.698 7.777a130.779 130.779 0 0 1-3.295 6.466L315.536 260.11 186.165 127.612c-.857-.843-.663-2.264.422-2.78l9.477-.85c2.995-1.425 8.717 5.03 11.062 7.375l79.161 84.945 19.962 5.906 203.459 203.459a7.827 7.827 0 0 1 1.529 8.903z" opacity="1"></path><path d="m204.592 120.557 101.654 101.654 22.921 93.554c1.98 8.082-5.32 15.382-13.402 13.402l-93.554-22.921-101.655-101.653a7.846 7.846 0 0 1-1.54-8.901l24.725-51.949 51.949-24.725a7.846 7.846 0 0 1 8.902 1.539z" opacity="1"></path><path d="M315.533 260.112 183.092 127.67a8.515 8.515 0 0 0-2.21-1.601v-.011l14.811-7.044a7.865 7.865 0 0 1 8.903 1.539l101.653 101.653z" opacity="1"></path><path d="M223.643 223.644c-8.504 8.504-22.291 8.504-30.795 0L3 33.795c-3.998-3.998-3.998-10.481 0-14.48L19.315 3.001c3.998-3.998 10.481-3.998 14.48 0L223.644 192.85c8.503 8.503 8.503 22.29-.001 30.794z" opacity="1"></path><path d="M223.641 223.642a21.705 21.705 0 0 1-8.965 5.412c2.324-7.467.516-15.937-5.391-21.845L19.437 17.362c-3.997-4.008-10.483-4.008-14.481 0L19.313 3.006a10.222 10.222 0 0 1 14.48 0L223.64 192.853c8.512 8.5 8.512 22.289.001 30.789z" opacity="1"></path></g></svg>
@@ -338,12 +339,12 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                         <p className="text-xs md:text-sm text-muted-foreground mt-0.5 md:mt-1 truncate">{data?.toss}</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-1.5 md:gap-2 bg-gray-100/50 dark:bg-gray-800/30 p-1 rounded-lg backdrop-blur-sm self-start md:self-auto">
+                <div className="flex items-center gap-1 md:gap-1.5 bg-gray-100/50 dark:bg-gray-800/30 p-1 rounded-lg backdrop-blur-sm self-start md:self-auto">
                     <Button
                         variant={view === 'live' ? 'default' : 'ghost'}
                         onClick={() => setView('live')}
                         size="sm"
-                        className="rounded-md text-xs md:text-sm h-8 md:h-9 px-3 md:px-4"
+                        className="rounded-md text-xs md:text-sm h-8 md:h-9 px-2 md:px-4"
                     >
                         Live
                     </Button>
@@ -351,9 +352,17 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                         variant={view === 'scorecard' ? 'default' : 'ghost'}
                         onClick={() => setView('scorecard')}
                         size="sm"
-                        className="rounded-md text-xs md:text-sm h-8 md:h-9 px-3 md:px-4"
+                        className="rounded-md text-xs md:text-sm h-8 md:h-9 px-2 md:px-4"
                     >
                         Scorecard
+                    </Button>
+                    <Button
+                        variant={view === 'squads' ? 'default' : 'ghost'}
+                        onClick={() => setView('squads')}
+                        size="sm"
+                        className="rounded-md text-xs md:text-sm h-8 md:h-9 px-2 md:px-4"
+                    >
+                        Squads
                     </Button>
                 </div>
             </div>
@@ -596,6 +605,11 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                 {view === 'scorecard' && (
                     <>
                         <FullScorecard matchId={matchId} />
+                    </>
+                )}
+                {view === 'squads' && (
+                    <>
+                        <MatchSquadsDisplay matchId={matchId} />
                     </>
                 )}
             </div>
