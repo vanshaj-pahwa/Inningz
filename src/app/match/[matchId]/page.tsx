@@ -29,8 +29,8 @@ export default function MatchPage() {
   }
 
   return (
-    <main className="container mx-auto p-4">
-      <div className="flex justify-end mb-4">
+    <main className="container mx-auto p-1 md:p-4">
+      <div className="flex justify-end mb-2 md:mb-4 px-1 md:px-0">
         <ThemeToggle />
       </div>
       <div className="w-full">
