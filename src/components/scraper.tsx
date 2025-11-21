@@ -478,7 +478,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                 )}
                                             </div>
                                         </div>
-                                        <p className="text-sm md:text-base text-destructive font-semibold mt-2 md:mt-3">{data?.status}</p>
+                                        <p className="text-sm md:text-base text-red-600 dark:text-red-400 font-semibold mt-2 md:mt-3">{data?.status}</p>
                                     </div>
                                 </div>
                             </CardContent>
