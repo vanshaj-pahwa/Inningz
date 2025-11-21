@@ -270,7 +270,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                             {/* Over Number */}
                             <div className="flex-shrink-0 flex flex-col items-center justify-center bg-primary/10 dark:bg-primary/20 rounded-lg px-2 md:px-3 py-1.5 md:py-2 border border-primary/30">
                                 <span className="text-[10px] md:text-xs text-muted-foreground font-medium">Over</span>
-                                <span className="text-lg md:text-xl font-bold text-primary">{Math.floor(comment.overNumber || 0)}</span>
+                                <span className="text-lg md:text-xl font-bold text-primary">{Math.floor(comment.overNumber || 0) + 1}</span>
                             </div>
                             
                             {/* Balls and Score */}
