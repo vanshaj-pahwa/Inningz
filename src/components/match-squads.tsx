@@ -185,10 +185,10 @@ export default function MatchSquadsDisplay({ matchId }: { matchId: string }) {
                 </div>
             </div>
 
-            {/* Playing XI */}
+            {/* Playing XI / Squad */}
             <div className="pb-3 md:pb-5">
                 <h1 className="capitalize p-2 font-bold text-sm md:text-lg text-center bg-gray-100 dark:bg-gray-800">
-                    Playing XI
+                    {squads.team1.playingXI.length > 11 || squads.team2.playingXI.length > 11 ? 'Squad' : 'Playing XI'}
                 </h1>
                 <div className="w-full flex">
                     <div className="w-1/2">

@@ -3,6 +3,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { getScoreForMatchId, loadMoreCommentary as loadMoreCommentaryAction, getPlayerProfile } from '@/app/actions';
 import type { ScrapeCricbuzzUrlOutput, Commentary, PlayerProfile } from '@/app/actions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -53,6 +54,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
     const [selectedPlayerName, setSelectedPlayerName] = useState<string | null>(null);
     const [selectedProfile, setSelectedProfile] = useState<PlayerProfile | null>(null);
     const [profileLoading, setProfileLoading] = useState(false);
+    const [timeLeft, setTimeLeft] = useState<{ hours: number; minutes: number; seconds: number } | null>(null);
 
 
     const fetchScore = async () => {
@@ -141,6 +143,32 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
         };
         fetchProfile();
     }, [selectedProfileId, selectedPlayerName]);
+
+    // Countdown timer for upcoming matches
+    useEffect(() => {
+        if (!scoreState.data?.matchStartTimestamp) return;
+        
+        const updateCountdown = () => {
+            const now = Date.now();
+            const diff = scoreState.data!.matchStartTimestamp! - now;
+            
+            if (diff <= 0) {
+                setTimeLeft(null);
+                return;
+            }
+            
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+            
+            setTimeLeft({ hours, minutes, seconds });
+        };
+        
+        updateCountdown();
+        const interval = setInterval(updateCountdown, 1000);
+        
+        return () => clearInterval(interval);
+    }, [scoreState.data?.matchStartTimestamp]);
 
     const parseScore = (score: string): { runs: number, wickets: number } | null => {
         if (!score || !score.includes('/')) return null;
@@ -437,25 +465,73 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
             <div>
                 {view === 'live' && (
                     <div className="space-y-4 md:space-y-6">
+                        {/* Countdown Timer for Upcoming Matches */}
+                        {timeLeft && data?.batsmen.length === 0 && (
+                            <Card className="backdrop-blur-sm bg-gradient-to-br from-primary/10 via-primary/5 to-primary/10 border-primary/20">
+                                <CardContent className="p-6 md:p-8">
+                                    <div className="flex flex-col gap-4 md:gap-6">
+                                        {/* Countdown */}
+                                        <div className="flex justify-center">
+                                            <div className="flex items-end gap-1 md:gap-2 font-bold text-2xl md:text-4xl">
+                                                <div className="flex flex-col items-center">
+                                                    <span className="text-3xl md:text-5xl text-primary">{String(timeLeft.hours).padStart(2, '0')}</span>
+                                                    <span className="text-xs md:text-sm text-muted-foreground mt-1">hours</span>
+                                                </div>
+                                                <span className="text-3xl md:text-5xl text-primary mb-6">:</span>
+                                                <div className="flex flex-col items-center">
+                                                    <span className="text-3xl md:text-5xl text-primary">{String(timeLeft.minutes).padStart(2, '0')}</span>
+                                                    <span className="text-xs md:text-sm text-muted-foreground mt-1">minutes</span>
+                                                </div>
+                                                <span className="text-3xl md:text-5xl text-primary mb-6">:</span>
+                                                <div className="flex flex-col items-center">
+                                                    <span className="text-3xl md:text-5xl text-primary">{String(timeLeft.seconds).padStart(2, '0')}</span>
+                                                    <span className="text-xs md:text-sm text-muted-foreground mt-1">seconds</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        {/* Match Start Info */}
+                                        <div className="text-center">
+                                            <p className="text-sm md:text-base text-muted-foreground">{data?.status}</p>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
+                        
                         {/* Score Card - Full width */}
-                        <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-950/50 border-primary/10">
-                            <CardContent className="p-4 md:p-6 relative">
-                                {lastEvent && (
-                                    <Badge
-                                        key={lastEvent.key}
-                                        variant={getEventBadgeVariant(lastEvent.variant)}
-                                        className={`absolute top-[-0.75rem] right-4 text-base md:text-lg font-bold event-animation tabular-nums shadow-lg ${getEventBadgeClass(lastEvent.variant)}`}
-                                    >
-                                        {lastEvent.text}
-                                    </Badge>
-                                )}
-                                <div className="space-y-3 md:space-y-4">
+                        {(!timeLeft || data?.batsmen.length > 0) && (
+                            <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-950/50 border-primary/10">
+                                <CardContent className="p-4 md:p-6 relative">
+                                    {lastEvent && (
+                                        <Badge
+                                            key={lastEvent.key}
+                                            variant={getEventBadgeVariant(lastEvent.variant)}
+                                            className={`absolute top-[-0.75rem] right-4 text-base md:text-lg font-bold event-animation tabular-nums shadow-lg ${getEventBadgeClass(lastEvent.variant)}`}
+                                        >
+                                            {lastEvent.text}
+                                        </Badge>
+                                    )}
+                                    <div className="space-y-3 md:space-y-4">
                                     {data?.previousInnings.map((inning, index) => (
                                         <div key={index}
                                             className="p-2.5 md:p-3 rounded-lg bg-gray-50/50 dark:bg-gray-900/30 hover:bg-gray-100/50 dark:hover:bg-gray-800/40 transition-colors"
                                         >
                                             <div className="flex justify-between items-center gap-3 md:gap-4">
-                                                <span className="font-semibold text-sm md:text-base text-primary/90">{inning.teamName}</span>
+                                                <div className="flex items-center gap-2">
+                                                    {inning.teamFlagUrl && (
+                                                        <div className="rounded overflow-hidden w-6 h-4 md:w-7 md:h-5 flex-shrink-0">
+                                                            <Image
+                                                                src={inning.teamFlagUrl}
+                                                                alt={inning.teamShortName || inning.teamName}
+                                                                width={25}
+                                                                height={18}
+                                                                className="w-full h-full object-cover"
+                                                            />
+                                                        </div>
+                                                    )}
+                                                    <span className="font-semibold text-sm md:text-base text-primary/90">{inning.teamName}</span>
+                                                </div>
                                                 <span className="font-bold text-base md:text-lg bg-primary/10 text-primary px-2.5 md:px-3 py-0.5 rounded-full">
                                                     {inning.score}
                                                 </span>
@@ -483,6 +559,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                 </div>
                             </CardContent>
                         </Card>
+                        )}
 
                         {/* Desktop: 2-column grid, Mobile: Stack with reordering */}
                         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 md:gap-6">

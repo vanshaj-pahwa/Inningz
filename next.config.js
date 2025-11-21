@@ -5,7 +5,7 @@ const nextConfig = {
       {
         protocol: "https",
         hostname: "static.cricbuzz.com",
-        pathname: "/a/img/v1/**",
+        pathname: "/**",
       },
       {
         protocol: "https",

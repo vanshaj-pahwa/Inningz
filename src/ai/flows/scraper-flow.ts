@@ -47,6 +47,8 @@ const ScrapeCricbuzzUrlOutputSchema = z.object({
   commentary: z.array(CommentarySchema).describe('The latest commentary, including live and user comments.'),
   previousInnings: z.array(z.object({
     teamName: z.string(),
+    teamShortName: z.string().optional(),
+    teamFlagUrl: z.string().optional(),
     score: z.string(),
   })).describe('The scores of the previous innings.'),
   currentRunRate: z.string(),
@@ -56,6 +58,7 @@ const ScrapeCricbuzzUrlOutputSchema = z.object({
   recentOvers: z.string(),
   toss: z.string(),
   oldestCommentaryTimestamp: z.number().optional(),
+  matchStartTimestamp: z.number().optional(),
 });
 
 const LiveMatchSchema = z.object({
@@ -1730,6 +1733,7 @@ async function getScoreFromHtml(matchId: string): Promise<ScrapeCricbuzzUrlOutpu
     lastWicket: 'N/A',
     recentOvers: 'N/A',
     toss: 'N/A',
+    matchStartTimestamp: undefined,
   };
 }
 
@@ -1924,10 +1928,24 @@ export async function getScoreForMatchId(
 
   const previousInnings = miniscore?.matchScoreDetails?.inningsScoreList
     ?.filter((inn: any) => inn.inningsId !== miniscore.inningsId)
-    .map((inn: any) => ({
-      teamName: inn.batTeamName,
-      score: `${inn.score}/${inn.wickets}`,
-    })) ?? [];
+    .map((inn: any) => {
+      // Find matching team from matchHeader
+      const team = matchHeader?.team1?.shortName === inn.batTeamName ? matchHeader.team1 : 
+                   matchHeader?.team2?.shortName === inn.batTeamName ? matchHeader.team2 : null;
+      
+      // Try multiple flag URL patterns
+      let teamFlagUrl: string | undefined;
+      if (team?.imageId) {
+        teamFlagUrl = `https://static.cricbuzz.com/a/img/v1/25x18/i1/c${team.imageId}/${team.shortName.toLowerCase()}.jpg`;
+      }
+      
+      return {
+        teamName: inn.batTeamName,
+        teamShortName: team?.shortName,
+        teamFlagUrl,
+        score: `${inn.score}/${inn.wickets}`,
+      };
+    }) ?? [];
 
   const partnership = miniscore?.partnerShip ? `${miniscore.partnerShip.runs}(${miniscore.partnerShip.balls})` : "N/A";
   const lastWicket = miniscore?.lastWicket ?? "N/A";
@@ -1954,6 +1972,7 @@ export async function getScoreForMatchId(
     recentOvers,
     toss,
     oldestCommentaryTimestamp: oldestTimestamp,
+    matchStartTimestamp: matchHeader?.matchStartTimestamp,
   };
 
   const validation = ScrapeCricbuzzUrlOutputSchema.safeParse(result);
@@ -2876,6 +2895,8 @@ export async function getMatchSquads(matchId: string): Promise<MatchSquads> {
   const html = await response.text();
   const $ = cheerio.load(html);
 
+  console.log('[Squad Parser] Fetching squads for match:', matchId);
+
   // Get team names and flags from the header
   // Structure: <div class="flex justify-between"><div class="flex"><img/><h1 class="font-bold">TEAM1</h1></div><div class="flex"><h1 class="font-bold">TEAM2</h1></div></div>
   const teamData: Array<{ name: string; flagUrl?: string }> = [];
@@ -2905,13 +2926,18 @@ export async function getMatchSquads(matchId: string): Promise<MatchSquads> {
     throw new Error(`Could not find both team names. Found: ${teamData.map(t => t.name).join(', ')}`);
   }
 
+  console.log('[Squad Parser] Found teams:', teamData.map(t => t.name).join(' vs '));
+
   const teams: z.infer<typeof TeamSquadSchema>[] = [
     { teamName: teamData[0].name, teamShortName: teamData[0].name, teamFlagUrl: teamData[0].flagUrl, playingXI: [], bench: [] },
     { teamName: teamData[1].name, teamShortName: teamData[1].name, teamFlagUrl: teamData[1].flagUrl, playingXI: [], bench: [] },
   ];
 
   // Process Playing XI section
-  $('h1:contains("playing XI"), h1:contains("Playing XI")').each((_, sectionHeader) => {
+  const playingXISections = $('h1:contains("playing XI"), h1:contains("Playing XI")');
+  console.log('[Squad Parser] Found Playing XI sections:', playingXISections.length);
+  
+  playingXISections.each((_, sectionHeader) => {
     const $section = $(sectionHeader).parent();
     const $squadGrid = $section.find('.w-full.flex');
     
@@ -3032,8 +3058,89 @@ export async function getMatchSquads(matchId: string): Promise<MatchSquads> {
     });
   });
 
+  // If no Playing XI found, try to parse squad lists (for upcoming matches)
   if (teams[0].playingXI.length === 0 && teams[1].playingXI.length === 0) {
-    throw new Error('Could not find any players in squads');
+    console.log('[Squad Parser] No Playing XI found, trying to parse squad lists...');
+    
+    // New approach: Parse the Squad h1 section with concatenated player data
+    const squadH1 = $('h1:contains("Squad")').first();
+    if (squadH1.length > 0) {
+      const squadContainer = squadH1.next();
+      const squadText = squadContainer.text();
+      
+      console.log('[Squad Parser] Parsing squad text, length:', squadText.length);
+      
+      // The squad container has both teams' squads side by side in a grid
+      // Find all player links and use their parent structure to determine team
+      const allPlayerLinks = squadContainer.find('a[href*="/profiles/"]');
+      console.log('[Squad Parser] Found total player links:', allPlayerLinks.length);
+      
+      if (allPlayerLinks.length > 0) {
+        // Group players by checking if they're in left or right half of the container
+        allPlayerLinks.each((idx, link) => {
+          const $link = $(link);
+          const href = $link.attr('href') || '';
+          const profileId = href.match(/\/profiles\/(\d+)\//)?.[1];
+          
+          const name = $link.find('.flex.flex-row span').first().text().trim();
+          const roleMarker = $link.find('.flex.flex-row span').eq(1).text().trim();
+          const role = $link.find('div.text-xs').text().trim() || 'Player';
+          const imageUrl = $link.find('img').attr('src') || $link.find('img').attr('srcset')?.split(' ')[0];
+          
+          if (name && name.length > 2) {
+            // Check if this link's parent has w-1/2 class or similar
+            let teamIndex = 0;
+            let $parent = $link.parent();
+            
+            // Traverse up to find the column container
+            for (let i = 0; i < 5; i++) {
+              const classes = $parent.attr('class') || '';
+              // Check if this is the right column (second w-1/2)
+              if (classes.includes('w-1/2')) {
+                // Check if this is the second occurrence by checking previous siblings
+                const prevSiblings = $parent.prevAll('[class*="w-1/2"]');
+                if (prevSiblings.length > 0) {
+                  teamIndex = 1;
+                }
+                break;
+              }
+              $parent = $parent.parent();
+              if ($parent.length === 0) break;
+            }
+            
+            teams[teamIndex].playingXI.push({
+              name,
+              role,
+              profileId,
+              imageUrl,
+              isCaptain: roleMarker.includes('C'),
+              isWicketKeeper: roleMarker.includes('WK'),
+            });
+          }
+        });
+      }
+      
+      console.log('[Squad Parser] Parsed players - Team 1:', teams[0].playingXI.length, 'Team 2:', teams[1].playingXI.length);
+    }
+  }
+
+  console.log('[Squad Parser] Team 1 players:', teams[0].playingXI.length);
+  console.log('[Squad Parser] Team 2 players:', teams[1].playingXI.length);
+
+  if (teams[0].playingXI.length === 0 && teams[1].playingXI.length === 0) {
+    // Log some HTML snippets for debugging
+    console.log('[Squad Parser] Sample HTML snippets:');
+    console.log('[Squad Parser] h1 tags:', $('h1').map((_, el) => $(el).text().trim()).get().slice(0, 10));
+    
+    // Check what's after the "Squad" h1
+    const squadH1 = $('h1:contains("Squad")').first();
+    if (squadH1.length > 0) {
+      console.log('[Squad Parser] Found Squad h1, checking siblings...');
+      console.log('[Squad Parser] Next sibling text:', squadH1.next().text().substring(0, 200));
+      console.log('[Squad Parser] Parent text:', squadH1.parent().text().substring(0, 300));
+    }
+    
+    throw new Error('Could not find any players in squads. The squads may not be announced yet.');
   }
 
   return MatchSquadsSchema.parse({
