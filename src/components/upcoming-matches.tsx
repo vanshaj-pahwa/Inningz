@@ -210,22 +210,27 @@ export default function UpcomingMatches() {
                   >
                     <div className="p-4">
                       {/* Match info and venue */}
-                      <div className="mb-3 flex items-start justify-between gap-2">
-                        <div className="flex-1 text-xs text-muted-foreground">
-                          <span>{match.title.split(',').slice(0, 2).join(',')}</span>
-                          {match.venue && (
-                            <span className="ml-1.5">• {match.venue}</span>
-                          )}
+                      <div className="mb-3 space-y-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 text-xs text-muted-foreground">
+                            <span>{match.title.split(',').slice(0, 2).join(',')}</span>
+                          </div>
+                          {activeFilter === 'all' && (() => {
+                            const category = getMatchCategory(match);
+                            const display = getCategoryDisplay(category);
+                            return (
+                              <span className={`rounded-full px-2 py-0.5 text-xs font-medium flex-shrink-0 ${display.style}`}>
+                                {display.label}
+                              </span>
+                            );
+                          })()}
                         </div>
-                        {activeFilter === 'all' && (() => {
-                          const category = getMatchCategory(match);
-                          const display = getCategoryDisplay(category);
-                          return (
-                            <span className={`rounded-full px-2 py-0.5 text-xs font-medium flex-shrink-0 ${display.style}`}>
-                              {display.label}
-                            </span>
-                          );
-                        })()}
+                        {match.venue && match.venue !== 'N/A' && (
+                          <div className="text-xs text-muted-foreground">
+                            <span className="font-semibold">Venue: </span>
+                            <span>{match.venue}</span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Teams */}

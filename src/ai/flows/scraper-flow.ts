@@ -57,6 +57,8 @@ const ScrapeCricbuzzUrlOutputSchema = z.object({
   lastWicket: z.string(),
   recentOvers: z.string(),
   toss: z.string(),
+  venue: z.string().optional(),
+  date: z.string().optional(),
   oldestCommentaryTimestamp: z.number().optional(),
   matchStartTimestamp: z.number().optional(),
 });
@@ -1279,8 +1281,12 @@ export async function scrapeUpcomingMatches(): Promise<LiveMatch[]> {
     const $matchesContainer = $seriesBlock.find('.flex.flex-col.gap-px').first();
     if ($matchesContainer.length === 0) return;
 
-    $matchesContainer.find('> div > a[href^="/live-cricket-scores/"]').each((_, matchElement) => {
-      const $match = $(matchElement);
+    $matchesContainer.find('> div').each((_, matchContainer) => {
+      const $matchContainer = $(matchContainer);
+      const $match = $matchContainer.find('a[href^="/live-cricket-scores/"]').first();
+      
+      if ($match.length === 0) return;
+      
       const href = $match.attr('href');
       if (!href) return;
 
@@ -1289,8 +1295,33 @@ export async function scrapeUpcomingMatches(): Promise<LiveMatch[]> {
       processedMatchIds.add(matchId);
 
       const title = $match.attr('title') || 'Untitled Match';
-      const venueText = $match.find('.text-xs.text-cbTxtSec').first().text().trim();
-      const venue = venueText.split('•').pop()?.trim() || '';
+      
+      // Extract venue and date/time from the info div below the match link
+      const $infoDiv = $matchContainer.find('.gap-9.py-2, .gap-9.py-0\\.5').first();
+      let venue = '';
+      let dateTime = '';
+      
+      if ($infoDiv.length > 0) {
+        // Extract venue
+        const venueLink = $infoDiv.find('a[href*="/venues/"]');
+        if (venueLink.length > 0) {
+          venue = venueLink.attr('title') || venueLink.text().trim();
+        }
+        
+        // Extract date & time
+        $infoDiv.find('div').each((_, div) => {
+          const text = $(div).text();
+          if (text.includes('Date & Time:')) {
+            dateTime = text.replace('Date & Time:', '').trim();
+          }
+        });
+      }
+      
+      // Fallback to old method if info div not found
+      if (!venue) {
+        const venueText = $match.find('.text-xs.text-cbTxtSec').first().text().trim();
+        venue = venueText.split('•').pop()?.trim() || '';
+      }
 
       const teams: { name: string, score?: string }[] = [];
 
@@ -1315,6 +1346,11 @@ export async function scrapeUpcomingMatches(): Promise<LiveMatch[]> {
       if (!status) {
         status = $match.find('span[class*="text-cb"]').last().text().trim();
       }
+      
+      // Use dateTime as status if available and no other status found
+      if (!status && dateTime) {
+        status = dateTime;
+      }
 
       if (teams.length > 0) {
         upcomingMatches.push({
@@ -1325,7 +1361,7 @@ export async function scrapeUpcomingMatches(): Promise<LiveMatch[]> {
           status: status || 'Status not available',
           seriesName,
           seriesUrl,
-          venue,
+          venue: venue || undefined,
         });
       }
     });
@@ -1951,6 +1987,24 @@ export async function getScoreForMatchId(
   const lastWicket = miniscore?.lastWicket ?? "N/A";
   const recentOvers = miniscore?.recentOvsStats ?? "N/A";
   const toss = matchHeader?.tossResults?.tossWinnerName ? `${matchHeader.tossResults.tossWinnerName} won the toss and elected to ${matchHeader.tossResults.decision}` : "N/A";
+  
+  // Extract venue and date
+  const venue = matchHeader?.venueInfo ? `${matchHeader.venueInfo.ground}, ${matchHeader.venueInfo.city}` : undefined;
+  const matchDate = matchHeader?.matchStartTimestamp ? (() => {
+    const date = new Date(matchHeader.matchStartTimestamp);
+    const formatter = new Intl.DateTimeFormat('en-US', { 
+      weekday: 'short', 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZoneName: 'short'
+    });
+    const formatted = formatter.format(date);
+    // Replace GMT+X:XX with cleaner timezone names
+    return formatted.replace(/GMT\+5:30/, 'IST').replace(/GMT([+-]\d{1,2}):?(\d{2})?/, 'GMT$1');
+  })() : undefined;
 
   // Get the oldest timestamp from commentaryList for pagination
   const oldestTimestamp = commentaryList && commentaryList.length > 0
@@ -1971,6 +2025,8 @@ export async function getScoreForMatchId(
     lastWicket,
     recentOvers,
     toss,
+    venue,
+    date: matchDate,
     oldestCommentaryTimestamp: oldestTimestamp,
     matchStartTimestamp: matchHeader?.matchStartTimestamp,
   };

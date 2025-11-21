@@ -417,7 +417,6 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
         }
     }
 
-
     return (
         <div className="w-full max-w-7xl mx-auto px-2 md:px-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4 mb-4 md:mb-6 py-3 md:py-4 border-b dark:border-gray-800">
@@ -431,7 +430,23 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                         <h1 className="text-base md:text-2xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent truncate">
                             {data?.title}
                         </h1>
-                        <p className="text-xs md:text-sm text-muted-foreground mt-0.5 md:mt-1 truncate">{data?.toss}</p>
+                        <div className="text-xs md:text-sm text-muted-foreground mt-0.5 md:mt-1 space-y-0.5">
+                            {data?.toss && data.toss !== 'N/A' && data.toss.trim() !== '' ? (
+                                <p className="truncate">{data.toss}</p>
+                            ) : null}
+                            {data?.venue && data.venue !== 'N/A' && data.venue.trim() !== '' && (
+                                <p className="truncate">
+                                    <span className="font-semibold">Venue: </span>
+                                    {data.venue}
+                                </p>
+                            )}
+                            {data?.date && data.date !== 'N/A' && data.date.trim() !== '' && (
+                                <p className="truncate">
+                                    <span className="font-semibold">Date: </span>
+                                    {data.date}
+                                </p>
+                            )}
+                        </div>
                     </div>
                 </div>
                 <div className="flex items-center gap-1 md:gap-1.5 bg-gray-100/50 dark:bg-gray-800/30 p-1 rounded-lg backdrop-blur-sm self-start md:self-auto">
@@ -562,9 +577,9 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                         )}
 
                         {/* Desktop: 2-column grid, Mobile: Stack with reordering */}
-                        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 md:gap-6">
-                            {/* Commentary - Desktop: Left (3/5), Mobile: Bottom */}
-                            <div className="lg:col-span-3 order-3 lg:order-1 space-y-4 md:space-y-6">
+                        <div className={`grid grid-cols-1 gap-4 md:gap-6 ${data?.batsmen.length === 0 && data?.bowlers.length === 0 ? '' : 'lg:grid-cols-5'}`}>
+                            {/* Commentary - Desktop: Left (3/5 or full width), Mobile: Bottom */}
+                            <div className={`order-3 lg:order-1 space-y-4 md:space-y-6 ${data?.batsmen.length === 0 && data?.bowlers.length === 0 ? '' : 'lg:col-span-3'}`}>
                                 <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-950/50 border-primary/10">
                                     <CardHeader className="border-b dark:border-gray-800 p-3 md:p-6">
                                         <CardTitle className="text-base md:text-lg flex items-center gap-2">
@@ -600,6 +615,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                             </div>
 
                             {/* Scoreboard & Match Info - Desktop: Right sidebar (2/5), Mobile: Top */}
+                            {(data.batsmen.length !== 0 || data.bowlers.length !== 0) && (
                             <div className="lg:col-span-2 space-y-4 md:space-y-6">
                                 {/* Scoreboard - Mobile: First */}
                                 <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-950/50 border-primary/10 order-1 lg:order-none">
@@ -751,6 +767,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                     </CardContent>
                                 </Card>
                             </div>
+                            )}
                         </div>
                     </div>
                 )}
