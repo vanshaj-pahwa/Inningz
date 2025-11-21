@@ -12,6 +12,12 @@ const CommentarySchema = z.object({
   event: z.string().optional(),
   runs: z.number().optional(),
   milestone: z.string().optional(),
+  overSummary: z.string().optional(),
+  overRuns: z.number().optional(),
+  overNumber: z.number().optional(),
+  teamShortName: z.string().optional(),
+  teamScore: z.number().optional(),
+  teamWickets: z.number().optional(),
 });
 
 const ScrapeCricbuzzUrlOutputSchema = z.object({
@@ -44,6 +50,7 @@ const ScrapeCricbuzzUrlOutputSchema = z.object({
     score: z.string(),
   })).describe('The scores of the previous innings.'),
   currentRunRate: z.string(),
+  requiredRunRate: z.string().optional(),
   partnership: z.string(),
   lastWicket: z.string(),
   recentOvers: z.string(),
@@ -1718,6 +1725,7 @@ async function getScoreFromHtml(matchId: string): Promise<ScrapeCricbuzzUrlOutpu
     }],
     previousInnings: [],
     currentRunRate: 'N/A',
+    requiredRunRate: undefined,
     partnership: 'N/A',
     lastWicket: 'N/A',
     recentOvers: 'N/A',
@@ -1866,25 +1874,30 @@ export async function getScoreForMatchId(
 
       let overNumberStr = '';
       if (c.overNumber) {
-        const overNumber = parseFloat(c.overNumber);
-        const wholeOver = Math.floor(overNumber);
-        const ballNumber = Math.round((overNumber - wholeOver) * 10);
-        if (ballNumber === 6) {
-          overNumberStr = `${wholeOver + 1}.0`;
-        } else {
-          overNumberStr = c.overNumber;
-        }
+        overNumberStr = c.overNumber.toString();
       }
 
 
       if (c.ballNbr > 0 && overNumberStr) {
-        return {
+        const commentary: Commentary = {
           type: 'live',
           text: `${overNumberStr}: ${commText}`,
           event: c.event,
           runs: c.runs,
           milestone,
         };
+
+        // Add over summary if this is an over-break
+        if (c.overSeparator) {
+          commentary.overSummary = c.overSeparator.o_summary;
+          commentary.overRuns = c.overSeparator.runs;
+          commentary.overNumber = c.overSeparator.overNum;
+          commentary.teamShortName = c.overSeparator.batTeamName;
+          commentary.teamScore = c.overSeparator.score;
+          commentary.teamWickets = c.overSeparator.wickets;
+        }
+
+        return commentary;
       }
 
       const boldFormat = c.commentaryFormats?.bold;
@@ -1935,6 +1948,7 @@ export async function getScoreForMatchId(
     commentary,
     previousInnings,
     currentRunRate: String(miniscore?.currentRunRate ?? 0),
+    requiredRunRate: miniscore?.requiredRunRate ? String(miniscore.requiredRunRate) : undefined,
     partnership,
     lastWicket,
     recentOvers,

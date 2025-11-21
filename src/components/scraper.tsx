@@ -263,28 +263,95 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
         }
 
         return (
-            <div key={index} className={`${baseClasses} border-t`}>
-                <div className="flex flex-col items-center flex-shrink-0 w-9 md:w-12 space-y-1">
-                    <div className="font-mono text-[10px] md:text-xs text-muted-foreground">{over}</div>
-                    <div className="flex flex-col items-center space-y-1">
-                        {events.map((event, i) => {
-                            const eventDisplay = getEventDisplay(event);
-                            if (!eventDisplay) return null;
-
-                            const isRound = ['FOUR', 'SIX', 'WICKET'].includes(event);
-
-                            return (
-                                <div key={i} className={cn(`flex-shrink-0 flex items-center justify-center font-bold text-xs md:text-sm`,
-                                    isRound ? 'w-5 h-5 md:w-6 md:h-6 rounded-full' : 'rounded',
-                                    eventDisplay.className
-                                )}>
-                                    {eventDisplay.text}
+            <div key={index}>
+                {comment.overSummary && (
+                    <div className="bg-gradient-to-r from-primary/5 via-primary/3 to-primary/5 border-y border-primary/20 dark:border-primary/30 px-3 md:px-4 py-3 md:py-3.5">
+                        <div className="flex items-center gap-3 md:gap-4">
+                            {/* Over Number */}
+                            <div className="flex-shrink-0 flex flex-col items-center justify-center bg-primary/10 dark:bg-primary/20 rounded-lg px-2 md:px-3 py-1.5 md:py-2 border border-primary/30">
+                                <span className="text-[10px] md:text-xs text-muted-foreground font-medium">Over</span>
+                                <span className="text-lg md:text-xl font-bold text-primary">{Math.floor(comment.overNumber || 0)}</span>
+                            </div>
+                            
+                            {/* Balls and Score */}
+                            <div className="flex-1 flex items-center justify-between gap-3 flex-wrap">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    {comment.overSummary.trim().split(/\s+/).map((ball, idx) => {
+                                        const ballStr = ball.trim();
+                                        if (!ballStr) return null;
+                                        
+                                        // Determine ball type and styling
+                                        let ballClass = "px-2 py-1 rounded-md font-bold text-xs md:text-sm transition-all";
+                                        let ballContent = ballStr;
+                                        
+                                        if (ballStr === '6') {
+                                            ballClass += " bg-purple-600 text-white shadow-md";
+                                        } else if (ballStr === '4') {
+                                            ballClass += " bg-blue-600 text-white shadow-md";
+                                        } else if (ballStr === 'W' || ballStr.includes('W')) {
+                                            ballClass += " bg-red-600 text-white shadow-md";
+                                        } else if (ballStr.toLowerCase().includes('wd') || ballStr.toLowerCase().includes('wide')) {
+                                            ballClass += " bg-orange-500 text-white text-[10px] md:text-xs";
+                                            ballContent = 'Wd';
+                                        } else if (ballStr.toLowerCase().includes('nb') || ballStr.toLowerCase().includes('noball')) {
+                                            ballClass += " bg-orange-500 text-white text-[10px] md:text-xs";
+                                            ballContent = 'Nb';
+                                        } else if (ballStr.toLowerCase().includes('lb') || ballStr.toLowerCase().includes('legbye')) {
+                                            ballClass += " bg-gray-500 text-white text-[10px] md:text-xs";
+                                            ballContent = 'Lb';
+                                        } else if (ballStr.toLowerCase().includes('b') && ballStr.length <= 2) {
+                                            ballClass += " bg-gray-500 text-white text-[10px] md:text-xs";
+                                            ballContent = 'B';
+                                        } else if (ballStr === '0' || ballStr === '.') {
+                                            ballClass += " bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300";
+                                            ballContent = '•';
+                                        } else if (/^\d+$/.test(ballStr)) {
+                                            ballClass += " bg-green-600 text-white";
+                                        } else {
+                                            ballClass += " bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-[10px] md:text-xs";
+                                        }
+                                        
+                                        return (
+                                            <span key={idx} className={ballClass}>
+                                                {ballContent}
+                                            </span>
+                                        );
+                                    })}
+                                    <span className="ml-1 font-bold text-sm md:text-base text-primary">
+                                        ({comment.overRuns} runs)
+                                    </span>
                                 </div>
-                            )
-                        })}
+                                <div className="flex items-center gap-2 bg-white/50 dark:bg-gray-900/50 px-3 py-1.5 rounded-full border border-primary/20">
+                                    <span className="font-bold text-sm md:text-base text-primary">{comment.teamShortName}</span>
+                                    <span className="font-bold text-base md:text-lg text-foreground">{comment.teamScore}-{comment.teamWickets}</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
+                )}
+                <div className={`${baseClasses} border-t`}>
+                    <div className="flex flex-col items-center flex-shrink-0 w-9 md:w-12 space-y-1">
+                        <div className="font-mono text-[10px] md:text-xs text-muted-foreground">{over}</div>
+                        <div className="flex flex-col items-center space-y-1">
+                            {events.map((event, i) => {
+                                const eventDisplay = getEventDisplay(event);
+                                if (!eventDisplay) return null;
+
+                                const isRound = ['FOUR', 'SIX', 'WICKET'].includes(event);
+
+                                return (
+                                    <div key={i} className={cn(`flex-shrink-0 flex items-center justify-center font-bold text-xs md:text-sm`,
+                                        isRound ? 'w-5 h-5 md:w-6 md:h-6 rounded-full' : 'rounded',
+                                        eventDisplay.className
+                                    )}>
+                                        {eventDisplay.text}
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </div>
+                    <p className="text-foreground flex-1 text-xs md:text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: text }} />
                 </div>
-                <p className="text-foreground flex-1 text-xs md:text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: text }} />
             </div>
         );
     };
@@ -396,11 +463,19 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                         </div>
                                     ))}
                                     <div className="p-3 md:p-4 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5">
-                                        <div className="flex justify-between items-baseline gap-3 md:gap-4">
+                                        <div className="flex justify-between items-baseline gap-3 md:gap-4 flex-wrap">
                                             <span className="text-xl md:text-2xl font-bold tracking-tight">{data?.score}</span>
-                                            <div className="flex items-center gap-1.5 md:gap-2">
-                                                <span className="text-xs md:text-sm text-muted-foreground">CRR:</span>
-                                                <span className="font-semibold text-sm md:text-base text-primary">{data?.currentRunRate}</span>
+                                            <div className="flex items-center gap-3 md:gap-4">
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="text-xs md:text-sm text-muted-foreground">CRR:</span>
+                                                    <span className="font-semibold text-sm md:text-base text-primary">{data?.currentRunRate}</span>
+                                                </div>
+                                                {data?.requiredRunRate && (
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="text-xs md:text-sm font-bold text-muted-foreground">REQ:</span>
+                                                        <span className="font-semibold text-sm md:text-base text-orange-600 dark:text-orange-400">{data.requiredRunRate}</span>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                         <p className="text-sm md:text-base text-destructive font-semibold mt-2 md:mt-3">{data?.status}</p>
