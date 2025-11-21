@@ -223,15 +223,15 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
     }
 
     const renderCommentaryItem = (comment: Commentary, index: number) => {
-        const baseClasses = "p-3 flex gap-3 items-start text-sm";
+        const baseClasses = "p-2.5 md:p-3 flex gap-2 md:gap-3 items-start text-xs md:text-sm";
 
         if (comment.type === 'user' && comment.author) {
             return (
                 <div key={index} className={`${baseClasses} border-t`}>
-                    <User size={16} className="text-muted-foreground mt-0.5 flex-shrink-0" />
+                    <User size={14} className="text-muted-foreground mt-0.5 flex-shrink-0 md:w-4 md:h-4" />
                     <div>
-                        <p className="font-semibold text-primary">{comment.author}</p>
-                        <p className="text-foreground/80 italic" dangerouslySetInnerHTML={{ __html: `"${comment.text}"` }} />
+                        <p className="font-semibold text-primary text-xs md:text-sm">{comment.author}</p>
+                        <p className="text-foreground/80 italic text-xs md:text-sm" dangerouslySetInnerHTML={{ __html: `"${comment.text}"` }} />
                     </div>
                 </div>
             );
@@ -241,7 +241,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
             const isShortText = comment.text.length < 100;
             return (
                 <div key={index} className={`${baseClasses} bg-slate-50 dark:bg-gray-800/20 border-t`}>
-                    <p className={`text-muted-foreground w-full ${isShortText ? 'text-center' : ''}`} dangerouslySetInnerHTML={{ __html: comment.text }} />
+                    <p className={`text-muted-foreground w-full text-xs md:text-sm ${isShortText ? 'text-center' : ''}`} dangerouslySetInnerHTML={{ __html: comment.text }} />
                 </div>
             )
         }
@@ -255,16 +255,16 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                 case 'FOUR': return { text: '4', className: 'bg-blue-500 text-white' };
                 case 'SIX': return { text: '6', className: 'bg-purple-600 text-white' };
                 case 'WICKET': return { text: 'W', className: 'bg-red-600 text-white' };
-                case 'FIFTY': return { text: '50', className: 'bg-green-500 text-white text-xs px-1.5' };
-                case 'HUNDRED': return { text: '100', className: 'bg-amber-500 text-white text-xs px-1.5' };
+                case 'FIFTY': return { text: '50', className: 'bg-green-500 text-white text-[10px] md:text-xs px-1 md:px-1.5' };
+                case 'HUNDRED': return { text: '100', className: 'bg-amber-500 text-white text-[10px] md:text-xs px-1 md:px-1.5' };
                 default: return null;
             }
         }
 
         return (
             <div key={index} className={`${baseClasses} border-t`}>
-                <div className="flex flex-col items-center flex-shrink-0 w-12 space-y-1">
-                    <div className="font-mono text-xs text-muted-foreground">{over}</div>
+                <div className="flex flex-col items-center flex-shrink-0 w-9 md:w-12 space-y-1">
+                    <div className="font-mono text-[10px] md:text-xs text-muted-foreground">{over}</div>
                     <div className="flex flex-col items-center space-y-1">
                         {events.map((event, i) => {
                             const eventDisplay = getEventDisplay(event);
@@ -273,8 +273,8 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                             const isRound = ['FOUR', 'SIX', 'WICKET'].includes(event);
 
                             return (
-                                <div key={i} className={cn(`flex-shrink-0 flex items-center justify-center font-bold text-sm`,
-                                    isRound ? 'w-6 h-6 rounded-full' : 'rounded',
+                                <div key={i} className={cn(`flex-shrink-0 flex items-center justify-center font-bold text-xs md:text-sm`,
+                                    isRound ? 'w-5 h-5 md:w-6 md:h-6 rounded-full' : 'rounded',
                                     eventDisplay.className
                                 )}>
                                     {eventDisplay.text}
@@ -283,7 +283,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                         })}
                     </div>
                 </div>
-                <p className="text-foreground flex-1" dangerouslySetInnerHTML={{ __html: text }} />
+                <p className="text-foreground flex-1 text-xs md:text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: text }} />
             </div>
         );
     };
@@ -323,27 +323,27 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
 
 
     return (
-        <div className="w-full max-w-7xl mx-auto px-4">
-            <div className="flex items-center justify-between gap-4 mb-6 py-4 border-b dark:border-gray-800">
-                <div className="flex items-center gap-4">
-                    <Button asChild variant="outline" size="icon" className="shrink-0">
+        <div className="w-full max-w-7xl mx-auto px-2 md:px-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4 mb-4 md:mb-6 py-3 md:py-4 border-b dark:border-gray-800">
+                <div className="flex items-center gap-2 md:gap-4">
+                    <Button asChild variant="outline" size="icon" className="shrink-0 h-8 w-8 md:h-10 md:w-10">
                         <Link href="/">
-                            <ArrowLeft className="h-4 w-4" />
+                            <ArrowLeft className="h-3 w-3 md:h-4 md:w-4" />
                         </Link>
                     </Button>
-                    <div>
-                        <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                    <div className="flex-1 min-w-0">
+                        <h1 className="text-base md:text-2xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent truncate">
                             {data?.title}
                         </h1>
-                        <p className="text-sm text-muted-foreground mt-1">{data?.toss}</p>
+                        <p className="text-xs md:text-sm text-muted-foreground mt-0.5 md:mt-1 truncate">{data?.toss}</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-2 bg-gray-100/50 dark:bg-gray-800/30 p-1 rounded-lg backdrop-blur-sm">
+                <div className="flex items-center gap-1.5 md:gap-2 bg-gray-100/50 dark:bg-gray-800/30 p-1 rounded-lg backdrop-blur-sm self-start md:self-auto">
                     <Button
                         variant={view === 'live' ? 'default' : 'ghost'}
                         onClick={() => setView('live')}
                         size="sm"
-                        className="rounded-md"
+                        className="rounded-md text-xs md:text-sm h-8 md:h-9 px-3 md:px-4"
                     >
                         Live
                     </Button>
@@ -351,7 +351,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                         variant={view === 'scorecard' ? 'default' : 'ghost'}
                         onClick={() => setView('scorecard')}
                         size="sm"
-                        className="rounded-md"
+                        className="rounded-md text-xs md:text-sm h-8 md:h-9 px-3 md:px-4"
                     >
                         Scorecard
                     </Button>
@@ -360,50 +360,53 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
 
             <div>
                 {view === 'live' && (
-                    <div className="space-y-6">
+                    <div className="space-y-4 md:space-y-6">
+                        {/* Score Card - Full width */}
                         <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-950/50 border-primary/10">
-                            <CardContent className="p-6 relative">
+                            <CardContent className="p-4 md:p-6 relative">
                                 {lastEvent && (
                                     <Badge
                                         key={lastEvent.key}
                                         variant={getEventBadgeVariant(lastEvent.variant)}
-                                        className={`absolute top-[-0.75rem] right-4 text-lg font-bold event-animation tabular-nums shadow-lg ${getEventBadgeClass(lastEvent.variant)}`}
+                                        className={`absolute top-[-0.75rem] right-4 text-base md:text-lg font-bold event-animation tabular-nums shadow-lg ${getEventBadgeClass(lastEvent.variant)}`}
                                     >
                                         {lastEvent.text}
                                     </Badge>
                                 )}
-                                <div className="space-y-4">
+                                <div className="space-y-3 md:space-y-4">
                                     {data?.previousInnings.map((inning, index) => (
                                         <div key={index}
-                                            className="p-3 rounded-lg bg-gray-50/50 dark:bg-gray-900/30 hover:bg-gray-100/50 dark:hover:bg-gray-800/40 transition-colors"
+                                            className="p-2.5 md:p-3 rounded-lg bg-gray-50/50 dark:bg-gray-900/30 hover:bg-gray-100/50 dark:hover:bg-gray-800/40 transition-colors"
                                         >
-                                            <div className="flex justify-between items-center gap-4">
-                                                <span className="font-semibold text-primary/90">{inning.teamName}</span>
-                                                <span className="font-bold text-lg bg-primary/10 text-primary px-3 py-0.5 rounded-full">
+                                            <div className="flex justify-between items-center gap-3 md:gap-4">
+                                                <span className="font-semibold text-sm md:text-base text-primary/90">{inning.teamName}</span>
+                                                <span className="font-bold text-base md:text-lg bg-primary/10 text-primary px-2.5 md:px-3 py-0.5 rounded-full">
                                                     {inning.score}
                                                 </span>
                                             </div>
                                         </div>
                                     ))}
-                                    <div className="p-4 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5">
-                                        <div className="flex justify-between items-baseline gap-4">
-                                            <span className="text-2xl font-bold tracking-tight">{data?.score}</span>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-sm text-muted-foreground">CRR:</span>
-                                                <span className="font-semibold text-primary">{data?.currentRunRate}</span>
+                                    <div className="p-3 md:p-4 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5">
+                                        <div className="flex justify-between items-baseline gap-3 md:gap-4">
+                                            <span className="text-xl md:text-2xl font-bold tracking-tight">{data?.score}</span>
+                                            <div className="flex items-center gap-1.5 md:gap-2">
+                                                <span className="text-xs md:text-sm text-muted-foreground">CRR:</span>
+                                                <span className="font-semibold text-sm md:text-base text-primary">{data?.currentRunRate}</span>
                                             </div>
                                         </div>
-                                        <p className="text-base text-destructive font-semibold mt-3">{data?.status}</p>
+                                        <p className="text-sm md:text-base text-destructive font-semibold mt-2 md:mt-3">{data?.status}</p>
                                     </div>
                                 </div>
                             </CardContent>
                         </Card>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                            <div className="lg:col-span-3 space-y-6">
+                        {/* Desktop: 2-column grid, Mobile: Stack with reordering */}
+                        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 md:gap-6">
+                            {/* Commentary - Desktop: Left (3/5), Mobile: Bottom */}
+                            <div className="lg:col-span-3 order-3 lg:order-1 space-y-4 md:space-y-6">
                                 <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-950/50 border-primary/10">
-                                    <CardHeader className="border-b dark:border-gray-800">
-                                        <CardTitle className="flex items-center gap-2">
+                                    <CardHeader className="border-b dark:border-gray-800 p-3 md:p-6">
+                                        <CardTitle className="text-base md:text-lg flex items-center gap-2">
                                             Commentary
                                         </CardTitle>
                                     </CardHeader>
@@ -413,16 +416,16 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                             <div ref={commentaryEndRef} />
                                         </div>
                                         {lastTimestamp && (
-                                            <div className="p-4 border-t dark:border-gray-800">
+                                            <div className="p-3 md:p-4 border-t dark:border-gray-800">
                                                 <Button
                                                     onClick={loadMoreCommentary}
                                                     disabled={loadingMore}
                                                     variant="outline"
-                                                    className="w-full"
+                                                    className="w-full text-xs md:text-sm"
                                                 >
                                                     {loadingMore ? (
                                                         <>
-                                                            <LoaderCircle className="w-4 h-4 animate-spin mr-2" />
+                                                            <LoaderCircle className="w-3 h-3 md:w-4 md:h-4 animate-spin mr-2" />
                                                             Loading...
                                                         </>
                                                     ) : (
@@ -435,142 +438,152 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                 </Card>
                             </div>
 
-                            <div className="lg:col-span-2 space-y-6">
-                                <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-950/50 border-primary/10">
-                                    <CardHeader className="border-b dark:border-gray-800">
-                                        <CardTitle className="flex items-center gap-2">
-                                            Scoreboard
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent className='pt-6'>
-                                        <div className="space-y-6">
-                                            <div>
-                                                <div className="flex items-center gap-2 mb-4">
-                                                    <h4 className="font-semibold">Batting</h4>
-                                                </div>
-                                                <Table>
-                                                    <TableHeader>
-                                                        <TableRow>
-                                                            <TableHead className="w-[200px]">Batter</TableHead>
-                                                            <TableHead className="text-right">R</TableHead>
-                                                            <TableHead className="text-right">B</TableHead>
-                                                            <TableHead className="text-right">4s</TableHead>
-                                                            <TableHead className="text-right">6s</TableHead>
-                                                            <TableHead className="text-right">SR</TableHead>
-                                                        </TableRow>
-                                                    </TableHeader>
-                                                    <TableBody>
-                                                        {data?.batsmen.map((batsman, index) => (
-                                                            <TableRow key={index}
-                                                                className={cn(
-                                                                    "transition-colors",
-                                                                    batsman.onStrike
-                                                                        ? "bg-primary/5 hover:bg-primary/10"
-                                                                        : "even:bg-gray-50/50 dark:even:bg-gray-800/20 hover:bg-gray-100/50 dark:hover:bg-gray-800/40"
-                                                                )}
-                                                            >
-                                                                <TableCell className="font-medium">
-                                                                    <span className="flex items-center gap-2">
-                                                                        <span
-                                                                            className={batsman.profileId ? "cursor-pointer hover:text-primary transition-colors" : ""}
-                                                                            onClick={() => handleProfileClick(batsman.profileId, batsman.name)}
-                                                                        >
-                                                                            {batsman.name}
-                                                                        </span>
-                                                                        {batsman.onStrike && <CricketBatIcon />}
-                                                                    </span>
-                                                                </TableCell>
-                                                                <TableCell className="text-right font-bold text-primary">{batsman.runs}</TableCell>
-                                                                <TableCell className="text-right">{batsman.balls}</TableCell>
-                                                                <TableCell className="text-right text-blue-600 dark:text-blue-400">{batsman.fours}</TableCell>
-                                                                <TableCell className="text-right text-purple-600 dark:text-purple-400">{batsman.sixes}</TableCell>
-                                                                <TableCell className="text-right font-medium">{parseFloat(batsman.strikeRate).toFixed(2)}</TableCell>
-                                                            </TableRow>
-                                                        ))}
-                                                    </TableBody>
-                                                </Table>
-                                            </div>
-
-                                            <div className="mt-8">
-                                                <div className="flex items-center gap-2 mb-3">
-                                                    <h4 className="font-semibold">Bowling</h4>
-                                                </div>
-                                                <Table>
-                                                    <TableHeader>
-                                                        <TableRow>
-                                                            <TableHead className="w-[200px]">Bowler</TableHead>
-                                                            <TableHead className="text-right">O</TableHead>
-                                                            <TableHead className="text-right">M</TableHead>
-                                                            <TableHead className="text-right">R</TableHead>
-                                                            <TableHead className="text-right">W</TableHead>
-                                                            <TableHead className="text-right">ECO</TableHead>
-                                                        </TableRow>
-                                                    </TableHeader>
-                                                    <TableBody>
-                                                        {data?.bowlers.map((bowler, index) => (
-                                                            <TableRow key={index}
-                                                                className={cn(
-                                                                    "transition-colors",
-                                                                    bowler.onStrike
-                                                                        ? "bg-primary/5 hover:bg-primary/10"
-                                                                        : "even:bg-gray-50/50 dark:even:bg-gray-800/20 hover:bg-gray-100/50 dark:hover:bg-gray-800/40"
-                                                                )}
-                                                            >
-                                                                <TableCell className="font-medium">
-                                                                    <span className="flex items-center gap-2">
-                                                                        <span
-                                                                            className={bowler.profileId ? "cursor-pointer hover:text-primary transition-colors" : ""}
-                                                                            onClick={() => handleProfileClick(bowler.profileId, bowler.name)}
-                                                                        >
-                                                                            {bowler.name}
-                                                                        </span>
-                                                                        {bowler.onStrike && <CricketBallIcon />}
-                                                                    </span>
-                                                                </TableCell>
-                                                                <TableCell className="text-right text-primary font-medium">{bowler.overs}</TableCell>
-                                                                <TableCell className="text-right">{bowler.maidens}</TableCell>
-                                                                <TableCell className="text-right">{bowler.runs}</TableCell>
-                                                                <TableCell className="text-right font-bold text-orange-600 dark:text-orange-400">{bowler.wickets}</TableCell>
-                                                                <TableCell className="text-right">
-                                                                    <span className={cn(
-                                                                        "font-medium",
-                                                                        parseFloat(bowler.economy) <= 6 ? "text-green-600 dark:text-green-400" :
-                                                                            parseFloat(bowler.economy) >= 10 ? "text-red-600 dark:text-red-400" :
-                                                                                "text-primary"
-                                                                    )}>
-                                                                        {bowler.economy}
-                                                                    </span>
-                                                                </TableCell>
-                                                            </TableRow>
-                                                        ))}
-                                                    </TableBody>
-                                                </Table>
-                                            </div>
+                            {/* Scoreboard & Match Info - Desktop: Right sidebar (2/5), Mobile: Top */}
+                            <div className="lg:col-span-2 space-y-4 md:space-y-6">
+                                {/* Scoreboard - Mobile: First */}
+                                <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-950/50 border-primary/10 order-1 lg:order-none">
+                            <CardHeader className="border-b dark:border-gray-800 p-3 md:p-6">
+                                <CardTitle className="text-base md:text-lg flex items-center gap-2">
+                                    Scoreboard
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className='p-3 md:pt-6 md:px-6 md:pb-6'>
+                                <div className="space-y-4 md:space-y-6">
+                                    {/* Batting */}
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-3 md:mb-4">
+                                            <h4 className="font-semibold text-sm md:text-base">Batting</h4>
                                         </div>
-                                    </CardContent>
-                                </Card>
-                                <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-950/50 border-primary/10">
-                                    <CardHeader className="border-b dark:border-gray-800">
-                                        <CardTitle className="flex items-center gap-2">
+                                        <div className="overflow-x-auto -mx-3 md:mx-0">
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead className="text-xs md:text-sm min-w-[120px] md:w-auto">Batter</TableHead>
+                                                        <TableHead className="text-right text-xs md:text-sm">R</TableHead>
+                                                        <TableHead className="text-right text-xs md:text-sm">B</TableHead>
+                                                        <TableHead className="text-right text-xs md:text-sm">4s</TableHead>
+                                                        <TableHead className="text-right text-xs md:text-sm">6s</TableHead>
+                                                        <TableHead className="text-right text-xs md:text-sm">SR</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {data?.batsmen.map((batsman, index) => (
+                                                        <TableRow key={index}
+                                                            className={cn(
+                                                                "transition-colors",
+                                                                batsman.onStrike
+                                                                    ? "bg-primary/5 hover:bg-primary/10"
+                                                                    : "even:bg-gray-50/50 dark:even:bg-gray-800/20 hover:bg-gray-100/50 dark:hover:bg-gray-800/40"
+                                                            )}
+                                                        >
+                                                            <TableCell className="font-medium text-xs md:text-sm py-2 md:py-3">
+                                                                <span className="flex items-center gap-1 md:gap-2">
+                                                                    <span
+                                                                        className={batsman.profileId ? "cursor-pointer hover:text-primary transition-colors truncate" : "truncate"}
+                                                                        onClick={() => handleProfileClick(batsman.profileId, batsman.name)}
+                                                                    >
+                                                                        {batsman.name}
+                                                                    </span>
+                                                                    {batsman.onStrike && <CricketBatIcon />}
+                                                                </span>
+                                                            </TableCell>
+                                                            <TableCell className="text-right font-bold text-primary text-xs md:text-sm">{batsman.runs}</TableCell>
+                                                            <TableCell className="text-right text-xs md:text-sm">{batsman.balls}</TableCell>
+                                                            <TableCell className="text-right text-blue-600 dark:text-blue-400 text-xs md:text-sm">{batsman.fours}</TableCell>
+                                                            <TableCell className="text-right text-purple-600 dark:text-purple-400 text-xs md:text-sm">{batsman.sixes}</TableCell>
+                                                            <TableCell className="text-right font-medium text-xs md:text-sm">{parseFloat(batsman.strikeRate).toFixed(2)}</TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </div>
+
+                                    {/* Bowling */}
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <h4 className="font-semibold text-sm md:text-base">Bowling</h4>
+                                        </div>
+                                        <div className="overflow-x-auto -mx-3 md:mx-0">
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead className="text-xs md:text-sm min-w-[120px] md:w-auto">Bowler</TableHead>
+                                                        <TableHead className="text-right text-xs md:text-sm">O</TableHead>
+                                                        <TableHead className="text-right text-xs md:text-sm">M</TableHead>
+                                                        <TableHead className="text-right text-xs md:text-sm">R</TableHead>
+                                                        <TableHead className="text-right text-xs md:text-sm">W</TableHead>
+                                                        <TableHead className="text-right text-xs md:text-sm">ECO</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {data?.bowlers.map((bowler, index) => (
+                                                        <TableRow key={index}
+                                                            className={cn(
+                                                                "transition-colors",
+                                                                bowler.onStrike
+                                                                    ? "bg-primary/5 hover:bg-primary/10"
+                                                                    : "even:bg-gray-50/50 dark:even:bg-gray-800/20 hover:bg-gray-100/50 dark:hover:bg-gray-800/40"
+                                                            )}
+                                                        >
+                                                            <TableCell className="font-medium text-xs md:text-sm py-2 md:py-3">
+                                                                <span className="flex items-center gap-1 md:gap-2">
+                                                                    <span
+                                                                        className={bowler.profileId ? "cursor-pointer hover:text-primary transition-colors truncate" : "truncate"}
+                                                                        onClick={() => handleProfileClick(bowler.profileId, bowler.name)}
+                                                                    >
+                                                                        {bowler.name}
+                                                                    </span>
+                                                                    {bowler.onStrike && <CricketBallIcon />}
+                                                                </span>
+                                                            </TableCell>
+                                                            <TableCell className="text-right text-primary font-medium text-xs md:text-sm">{bowler.overs}</TableCell>
+                                                            <TableCell className="text-right text-xs md:text-sm">{bowler.maidens}</TableCell>
+                                                            <TableCell className="text-right text-xs md:text-sm">{bowler.runs}</TableCell>
+                                                            <TableCell className="text-right font-bold text-orange-600 dark:text-orange-400 text-xs md:text-sm">{bowler.wickets}</TableCell>
+                                                            <TableCell className="text-right text-xs md:text-sm">
+                                                                <span className={cn(
+                                                                    "font-medium",
+                                                                    parseFloat(bowler.economy) <= 6 ? "text-green-600 dark:text-green-400" :
+                                                                        parseFloat(bowler.economy) >= 10 ? "text-red-600 dark:text-red-400" :
+                                                                            "text-primary"
+                                                                )}>
+                                                                    {bowler.economy}
+                                                                </span>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                                {/* Match Info - Mobile: Second */}
+                                <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-950/50 border-primary/10 order-2 lg:order-none">
+                                    <CardHeader className="border-b dark:border-gray-800 p-3 md:p-6">
+                                        <CardTitle className="text-base md:text-lg flex items-center gap-2">
                                             Match Info
                                         </CardTitle>
                                     </CardHeader>
-                                    <CardContent className="divide-y dark:divide-gray-800 pt-6">
-                                        <div className="py-4 first:pt-0 last:pb-0">
-                                            <p className="font-semibold text-primary mb-2">Partnership</p>
-                                            <p className="text-muted-foreground bg-gray-50/50 dark:bg-gray-900/30 p-2 rounded">
+                                    <CardContent className="divide-y dark:divide-gray-800 p-3 md:pt-6 md:px-6 md:pb-6">
+                                        <div className="py-3 md:py-4 first:pt-0 last:pb-0">
+                                            <p className="font-semibold text-primary mb-2 text-sm md:text-base">Partnership</p>
+                                            <p className="text-muted-foreground bg-gray-50/50 dark:bg-gray-900/30 p-2 rounded text-xs md:text-sm">
                                                 {data?.partnership}
                                             </p>
                                         </div>
-                                        <div className="py-4 first:pt-0 last:pb-0">
-                                            <p className="font-semibold text-destructive mb-2">Last Wicket</p>
-                                            <p className="text-muted-foreground bg-gray-50/50 dark:bg-gray-900/30 p-2 rounded">
+                                        <div className="py-3 md:py-4 first:pt-0 last:pb-0">
+                                            <p className="font-semibold text-destructive mb-2 text-sm md:text-base">Last Wicket</p>
+                                            <p className="text-muted-foreground bg-gray-50/50 dark:bg-gray-900/30 p-2 rounded text-xs md:text-sm">
                                                 {data?.lastWicket}
                                             </p>
                                         </div>
-                                        <div className="py-4 first:pt-0 last:pb-0">
-                                            <p className="font-semibold text-orange-600 dark:text-orange-400 mb-2">Recent Overs</p>
-                                            <p className="font-mono text-sm bg-gray-50/50 dark:bg-gray-900/30 p-2 rounded tracking-wider">
+                                        <div className="py-3 md:py-4 first:pt-0 last:pb-0">
+                                            <p className="font-semibold text-orange-600 dark:text-orange-400 mb-2 text-sm md:text-base">Recent Overs</p>
+                                            <p className="font-mono text-xs md:text-sm bg-gray-50/50 dark:bg-gray-900/30 p-2 rounded tracking-wider">
                                                 {data?.recentOvers}
                                             </p>
                                         </div>
