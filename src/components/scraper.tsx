@@ -3,8 +3,8 @@
 
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import { getScoreForMatchId, loadMoreCommentary as loadMoreCommentaryAction } from '@/app/actions';
-import type { ScrapeCricbuzzUrlOutput, Commentary } from '@/app/actions';
+import { getScoreForMatchId, loadMoreCommentary as loadMoreCommentaryAction, getPlayerProfile } from '@/app/actions';
+import type { ScrapeCricbuzzUrlOutput, Commentary, PlayerProfile } from '@/app/actions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { LoaderCircle, User, ArrowLeft } from "lucide-react";
@@ -13,6 +13,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Badge } from './ui/badge';
 import { cn } from '@/lib/utils';
 import FullScorecard from './full-scorecard';
+import PlayerProfileDisplay from './player-profile';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 
 export interface ScrapeState {
     success: boolean;
@@ -46,6 +48,10 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
     const [loadingMore, setLoadingMore] = useState(false);
     const [lastTimestamp, setLastTimestamp] = useState<number | null>(null);
     const commentaryEndRef = useRef<HTMLDivElement>(null);
+    const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+    const [selectedPlayerName, setSelectedPlayerName] = useState<string | null>(null);
+    const [selectedProfile, setSelectedProfile] = useState<PlayerProfile | null>(null);
+    const [profileLoading, setProfileLoading] = useState(false);
 
 
     const fetchScore = async () => {
@@ -121,6 +127,19 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
         const interval = setInterval(fetchScore, 10000);
         return () => clearInterval(interval);
     }, [matchId]);
+
+    useEffect(() => {
+        const fetchProfile = async () => {
+            if (!selectedProfileId) return;
+            setProfileLoading(true);
+            const result = await getPlayerProfile(selectedProfileId, selectedPlayerName || undefined);
+            if (result.success && result.data) {
+                setSelectedProfile(result.data);
+            }
+            setProfileLoading(false);
+        };
+        fetchProfile();
+    }, [selectedProfileId, selectedPlayerName]);
 
     const parseScore = (score: string): { runs: number, wickets: number } | null => {
         if (!score || !score.includes('/')) return null;
@@ -286,6 +305,22 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
         }
     }
 
+    const handleProfileClick = (profileId: string | undefined, playerName?: string) => {
+        if (profileId) {
+            setSelectedProfileId(profileId);
+            setSelectedPlayerName(playerName || null);
+            setSelectedProfile(null);
+        }
+    }
+
+    const handleDialogOpenChange = (open: boolean) => {
+        if (!open) {
+            setSelectedProfileId(null);
+            setSelectedPlayerName(null);
+            setSelectedProfile(null);
+        }
+    }
+
 
     return (
         <div className="w-full max-w-7xl mx-auto px-4">
@@ -436,7 +471,12 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                             >
                                                                 <TableCell className="font-medium">
                                                                     <span className="flex items-center gap-2">
-                                                                        {batsman.name}
+                                                                        <span
+                                                                            className={batsman.profileId ? "cursor-pointer hover:text-primary transition-colors" : ""}
+                                                                            onClick={() => handleProfileClick(batsman.profileId, batsman.name)}
+                                                                        >
+                                                                            {batsman.name}
+                                                                        </span>
                                                                         {batsman.onStrike && <CricketBatIcon />}
                                                                     </span>
                                                                 </TableCell>
@@ -478,7 +518,12 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                             >
                                                                 <TableCell className="font-medium">
                                                                     <span className="flex items-center gap-2">
-                                                                        {bowler.name}
+                                                                        <span
+                                                                            className={bowler.profileId ? "cursor-pointer hover:text-primary transition-colors" : ""}
+                                                                            onClick={() => handleProfileClick(bowler.profileId, bowler.name)}
+                                                                        >
+                                                                            {bowler.name}
+                                                                        </span>
                                                                         {bowler.onStrike && <CricketBallIcon />}
                                                                     </span>
                                                                 </TableCell>
@@ -541,6 +586,29 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                     </>
                 )}
             </div>
+
+            {/* Player Profile Dialog */}
+            <Dialog open={!!selectedProfileId} onOpenChange={handleDialogOpenChange}>
+                <DialogContent className="max-w-[95vw] w-full max-h-[95vh] overflow-y-auto p-0">
+                    <DialogHeader className="sr-only">
+                        <DialogTitle>Player Profile</DialogTitle>
+                    </DialogHeader>
+                    {profileLoading && (
+                        <div className="flex justify-center items-center p-12">
+                            <LoaderCircle className="w-8 h-8 animate-spin text-primary" />
+                            <p className="ml-4 text-muted-foreground">Loading player profile...</p>
+                        </div>
+                    )}
+                    {selectedProfile && (
+                        <PlayerProfileDisplay profile={selectedProfile} />
+                    )}
+                    {!profileLoading && !selectedProfile && selectedProfileId && (
+                        <div className="p-8 text-center text-muted-foreground">
+                            Failed to load player profile
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

@@ -26,6 +26,7 @@ const ScrapeCricbuzzUrlOutputSchema = z.object({
     strikeRate: z.string(),
     fours: z.string(),
     sixes: z.string(),
+    profileId: z.string().optional(),
   })).describe('The current batsmen.'),
   bowlers: z.array(z.object({
     name: z.string(),
@@ -35,6 +36,7 @@ const ScrapeCricbuzzUrlOutputSchema = z.object({
     wickets: z.string(),
     economy: z.string(),
     onStrike: z.boolean(),
+    profileId: z.string().optional(),
   })).describe('The current bowlers.'),
   commentary: z.array(CommentarySchema).describe('The latest commentary, including live and user comments.'),
   previousInnings: z.array(z.object({
@@ -153,10 +155,39 @@ const PlayerProfileInfoSchema = z.object({
 
 const PlayerRankingSchema = z.object({
   test: z.string(),
+  testBest: z.string().optional(),
   odi: z.string(),
+  odiBest: z.string().optional(),
   t20: z.string(),
+  t20Best: z.string().optional(),
 });
 
+// New format: stats organized by stat type (row) with format values (columns)
+const BattingCareerSummarySchema = z.object({
+  test: z.string(),
+  odi: z.string(),
+  t20: z.string(),
+  ipl: z.string(),
+});
+
+const BattingStatsRowSchema = z.object({
+  stat: z.string(),
+  values: BattingCareerSummarySchema,
+});
+
+const BowlingCareerSummarySchema = z.object({
+  test: z.string(),
+  odi: z.string(),
+  t20: z.string(),
+  ipl: z.string(),
+});
+
+const BowlingStatsRowSchema = z.object({
+  stat: z.string(),
+  values: BowlingCareerSummarySchema,
+});
+
+// Keep old schemas for backward compatibility
 const PlayerStatsSchema = z.object({
   format: z.string(),
   matches: z.string(),
@@ -190,6 +221,22 @@ const PlayerBowlingStatsSchema = z.object({
   tenWickets: z.string(),
 });
 
+const RecentBattingFormSchema = z.object({
+  opponent: z.string(),
+  score: z.string(),
+  format: z.string(),
+  date: z.string(),
+  matchUrl: z.string().optional(),
+});
+
+const RecentBowlingFormSchema = z.object({
+  opponent: z.string(),
+  wickets: z.string(),
+  format: z.string(),
+  date: z.string(),
+  matchUrl: z.string().optional(),
+});
+
 
 const PlayerProfileSchema = z.object({
   info: PlayerProfileInfoSchema,
@@ -197,9 +244,16 @@ const PlayerProfileSchema = z.object({
   rankings: z.object({
     batting: PlayerRankingSchema,
     bowling: PlayerRankingSchema,
+    allRounder: PlayerRankingSchema.optional(),
   }),
   battingStats: z.array(PlayerStatsSchema),
   bowlingStats: z.array(PlayerBowlingStatsSchema),
+  battingCareerSummary: z.array(BattingStatsRowSchema).optional(),
+  bowlingCareerSummary: z.array(BowlingStatsRowSchema).optional(),
+  recentForm: z.object({
+    batting: z.array(RecentBattingFormSchema),
+    bowling: z.array(RecentBowlingFormSchema),
+  }).optional(),
 });
 
 const NewsItemSchema = z.object({
@@ -347,13 +401,20 @@ export async function getPlayerProfile(profileId: string, playerName?: string): 
 
   // Try to extract JSON data from Next.js page
   try {
-    // Find the script push that contains playerData
-    const scriptMatch = html.match(/17:\["[^"]*",\s*"div"[^]+?playerBattingStats[^]+?playerBowlingStats[^]+?\]\)/);
+    // Try multiple patterns to find the player data
+    let scriptMatch = html.match(/self\.__next_f\.push\(\[1,"([^"]+)"\]\)/g);
+    
+    if (!scriptMatch) {
+      // Try alternative pattern
+      scriptMatch = html.match(/17:\["[^"]*",\s*"div"[^]+?playerBattingStats[^]+?playerBowlingStats[^]+?\]\)/);
+    }
 
     if (scriptMatch) {
-
+      // Combine all script matches and look for player data
+      const combinedScript = Array.isArray(scriptMatch) ? scriptMatch.join('') : scriptMatch[0];
+      
       // Extract the JSON string from within the script
-      const jsonStrMatch = scriptMatch[0].match(/\{\\?"playerNews\\?":\{[^]+?playerBowlingStats\\?":\{[^]+?\}\}/);
+      const jsonStrMatch = combinedScript.match(/\{\\?"playerData\\?":\{[^]+?playerBowlingStats\\?":\{[^]+?\}\}/);
 
       if (jsonStrMatch) {
         // Clean up the escaped JSON
@@ -385,13 +446,27 @@ export async function getPlayerProfile(profileId: string, playerName?: string): 
         const rankings = {
           batting: {
             test: playerData.rankings?.bat?.testRank || '--',
+            testBest: playerData.rankings?.bat?.testBestRank || '--',
             odi: playerData.rankings?.bat?.odiRank || '--',
+            odiBest: playerData.rankings?.bat?.odiBestRank || '--',
             t20: playerData.rankings?.bat?.t20Rank || '--',
+            t20Best: playerData.rankings?.bat?.t20BestRank || '--',
           },
           bowling: {
             test: playerData.rankings?.bowl?.testRank || '--',
+            testBest: playerData.rankings?.bowl?.testBestRank || '--',
             odi: playerData.rankings?.bowl?.odiRank || '--',
+            odiBest: playerData.rankings?.bowl?.odiBestRank || '--',
             t20: playerData.rankings?.bowl?.t20Rank || '--',
+            t20Best: playerData.rankings?.bowl?.t20BestRank || '--',
+          },
+          allRounder: {
+            test: playerData.rankings?.allRounder?.testRank || '--',
+            testBest: playerData.rankings?.allRounder?.testBestRank || '--',
+            odi: playerData.rankings?.allRounder?.odiRank || '--',
+            odiBest: playerData.rankings?.allRounder?.odiBestRank || '--',
+            t20: playerData.rankings?.allRounder?.t20Rank || '--',
+            t20Best: playerData.rankings?.allRounder?.t20BestRank || '--',
           },
         };
 
@@ -463,6 +538,14 @@ export async function getPlayerProfile(profileId: string, playerName?: string): 
         }
 
 
+        console.log('[Player Profile] Extracted from JSON:', {
+          name,
+          country,
+          bioLength: bio.length,
+          battingStatsCount: battingStats.length,
+          bowlingStatsCount: bowlingStats.length,
+        });
+
         return PlayerProfileSchema.parse({
           info: { name, country, imageUrl, personal, teams },
           bio,
@@ -473,118 +556,485 @@ export async function getPlayerProfile(profileId: string, playerName?: string): 
       }
     }
   } catch (jsonError) {
+    console.log('[Player Profile] JSON extraction failed, falling back to HTML scraping', jsonError);
   }
 
   // Fallback to HTML scraping
   const $ = cheerio.load(html);
 
-  const infoContainer = $('div.cb-col.cb-col-100.cb-bg-white');
-  const name = infoContainer.find('h1.cb-font-40').text().trim();
-  const country = infoContainer.find('h3.cb-font-18.text-gray').text().trim();
+  // Extract player name from the header
+  let name = $('span.tb\\:font-bold.wb\\:text-xl.wb\\:mt-1').first().text().trim();
+  if (!name) {
+    name = $('h1').first().text().trim();
+  }
 
+  // Extract country from the flag section - use first() to avoid duplicates
+  let country = $('.flex.items-center.w-full.justify-center').first().find('.text-xs.text-cbItmBkgDark, .wb\\:text-base').first().text().trim();
+  if (!country) {
+    country = $('h3.cb-font-18.text-gray').first().text().trim();
+  }
 
+  // Extract image URL
   let imageUrl = '';
-  const src = infoContainer.find('img').attr('src');
-  if (src) {
-    if (src.startsWith('http')) {
-      imageUrl = src;
+  const imgSrc = $('.h-avatarLarge.w-avatarLarge img, .wb\\:rounded-full').attr('src') || $('.h-avatarLarge.w-avatarLarge img, .wb\\:rounded-full').attr('srcset')?.split(' ')[0];
+  if (imgSrc) {
+    if (imgSrc.startsWith('http')) {
+      imageUrl = imgSrc;
+    } else if (imgSrc.startsWith('//')) {
+      imageUrl = `https:${imgSrc}`;
     } else {
-      imageUrl = `https://www.cricbuzz.com${src}`;
+      imageUrl = `https://www.cricbuzz.com${imgSrc}`;
     }
   }
 
+  // Extract personal information from the new structure
+  const getPersonalInfo = (label: string): string => {
+    let value = '';
+    
+    // Try new structure first
+    $('.w-full.flex.tb\\:flex-col.gap-4').each((_, row) => {
+      const $row = $(row);
+      const labelText = $row.find('.text-cbItmBkgDark, .wb\\:text-black.wb\\:font-bold').first().text().trim();
+      if (labelText.toLowerCase() === label.toLowerCase()) {
+        value = $row.find('.flex-grow, .tb\\:font-bold, .wb\\:font-normal').last().text().trim();
+        return false; // break
+      }
+    });
 
-  const personalInfoContainer = $('div.cb-col.cb-col-33.text-black');
-  const getPersonalInfo = (label: string) => {
-    const text = personalInfoContainer.find(`.cb-col-40:contains("${label}")`).next().text().trim();
-    return text || '--';
+    // Fallback to old structure
+    if (!value) {
+      const text = $(`.cb-col-40:contains("${label}")`).next().text().trim();
+      value = text || '--';
+    }
+
+    return value || '--';
   };
 
   const personal = {
     born: getPersonalInfo('Born'),
     birthPlace: getPersonalInfo('Birth Place'),
-    height: getPersonalInfo('Height'),
+    height: getPersonalInfo('Height') || '--',
     role: getPersonalInfo('Role'),
     battingStyle: getPersonalInfo('Batting Style'),
-    bowlingStyle: getPersonalInfo('Bowling Style'),
+    bowlingStyle: getPersonalInfo('Bowling Style') || '--',
   };
 
-  const teams = getPersonalInfo('Teams');
+  // Extract teams
+  let teams = getPersonalInfo('Teams');
+  if (teams === '--') {
+    teams = $('.w-full.tb\\:flex-col.hidden.tb\\:flex .tb\\:font-bold').text().trim() || '--';
+  }
 
-  const getRankings = (type: 'Batting' | 'Bowling'): z.infer<typeof PlayerRankingSchema> => {
-    const rankLabelDiv = $(`div.cb-col.cb-col-25.cb-plyr-rank.text-bold:contains("${type}")`);
-    const testRank = rankLabelDiv.next().text().trim() || '--';
-    const odiRank = rankLabelDiv.next().next().text().trim() || '--';
-    const t20Rank = rankLabelDiv.next().next().next().text().trim() || '--';
-
-    return {
-      test: testRank,
-      odi: odiRank,
-      t20: t20Rank,
+  // Extract ICC Rankings from the new table structure
+  const getRankings = (type: 'Batting' | 'Bowling' | 'All-Rounder'): z.infer<typeof PlayerRankingSchema> => {
+    const rankings = { 
+      test: '--', 
+      testBest: '--',
+      odi: '--', 
+      odiBest: '--',
+      t20: '--',
+      t20Best: '--'
     };
+    
+    // The issue is that Cricbuzz shows the same table for all tabs in static HTML
+    // The table content changes dynamically via JavaScript when tabs are clicked
+    // So we can only reliably get the batting rankings (default tab)
+    
+    // Only extract for batting, return empty for others
+    if (type !== 'Batting') {
+      return rankings;
+    }
+    
+    // Find the rankings table
+    $('table').each((_, table) => {
+      const $table = $(table);
+      const headers = $table.find('thead th').map((_, th) => $(th).text().trim().toUpperCase()).get();
+      
+      // Check if this is a rankings table
+      if (headers.includes('FORMAT') && headers.includes('CURRENT RANK') && headers.includes('BEST RANK')) {
+        $table.find('tbody tr').each((_, row) => {
+          const $row = $(row);
+          const cells = $row.find('td');
+          if (cells.length >= 3) {
+            const format = cells.eq(0).text().trim().toLowerCase();
+            const currentRank = cells.eq(1).find('span').first().text().trim() || cells.eq(1).text().trim();
+            const bestRank = cells.eq(2).text().trim();
+            
+            if (format === 'test') {
+              rankings.test = currentRank || '--';
+              rankings.testBest = bestRank || '--';
+            } else if (format === 'odi') {
+              rankings.odi = currentRank || '--';
+              rankings.odiBest = bestRank || '--';
+            } else if (format === 't20i') {
+              rankings.t20 = currentRank || '--';
+              rankings.t20Best = bestRank || '--';
+            }
+          }
+        });
+        return false; // break
+      }
+    });
+    
+    // Fallback: Try old structure - look for the active tab and table
+      const isActiveTab = type === 'Batting' 
+        ? $('button:contains("Batting")').hasClass('bg-white') || $('button:contains("Batting")').hasClass('m-1')
+        : $('button:contains("Bowling")').hasClass('bg-white');
+      
+      if (isActiveTab || type === 'Batting') {
+        $('table tbody tr').each((_, row) => {
+          const $row = $(row);
+          const format = $row.find('td').first().text().trim().toLowerCase();
+          const rank = $row.find('td').eq(1).find('span').first().text().trim();
+          
+          if (format === 'test') rankings.test = rank || '--';
+          else if (format === 'odi') rankings.odi = rank || '--';
+          else if (format === 't20i') rankings.t20 = rank || '--';
+        });
+      }
+
+    // Fallback to oldest structure
+    if (rankings.test === '--' && rankings.odi === '--' && rankings.t20 === '--') {
+      const rankLabelDiv = $(`div.cb-col.cb-col-25.cb-plyr-rank.text-bold:contains("${type}")`);
+      rankings.test = rankLabelDiv.next().text().trim() || '--';
+      rankings.odi = rankLabelDiv.next().next().text().trim() || '--';
+      rankings.t20 = rankLabelDiv.next().next().next().text().trim() || '--';
+    }
+    
+    return rankings;
   };
 
+  // Extract all three ranking types from HTML
   const battingRankings = getRankings('Batting');
   const bowlingRankings = getRankings('Bowling');
+  const allRounderRankings = getRankings('All-Rounder');
 
-  // Get bio from the Overview section
-  const bio = $('.cb-player-description').html() || $('.cb-col-100.cb-col.cb-player-bio').html() || '';
+  // Get bio from the Overview section - try multiple selectors
+  let bio = '';
+  
+  // Try the new structure first - section#player-bio
+  const playerBioSection = $('#player-bio div.px-4').html();
+  if (playerBioSection && playerBioSection.length > 50) {
+    bio = playerBioSection;
+  }
+  
+  // Try other selectors if not found
+  if (!bio) {
+    const bioSelectors = [
+      '.cb-player-description',
+      '.cb-col-100.cb-col.cb-player-bio',
+      '[class*="player-bio"]',
+      'section[id*="bio"] div',
+      'div.text-sm.leading-relaxed',
+      'p.text-gray-700'
+    ];
+    
+    for (const selector of bioSelectors) {
+      const content = $(selector).html();
+      if (content && content.length > 50) {
+        bio = content;
+        break;
+      }
+    }
+  }
+
+  // If still no bio, try to extract from script data
+  if (!bio) {
+    const scriptContent = $('script').text();
+    const bioMatch = scriptContent.match(/"bio":"([^"]+)"/);
+    if (bioMatch && bioMatch[1]) {
+      bio = bioMatch[1]
+        .replace(/\\n/g, '<br>')
+        .replace(/\\"/g, '"')
+        .replace(/\\'/g, "'");
+    }
+  }
 
   const battingStats: z.infer<typeof PlayerStatsSchema>[] = [];
-  const battingTable = $('.cb-plyr-tbl:contains("Batting Career Summary") table');
-  battingTable.find('tbody tr').each((_, row) => {
-    const $row = $(row);
-    const columns = $row.find('td');
-    if (columns.length === 14) {
-      battingStats.push({
-        format: columns.eq(0).text().trim(),
-        matches: columns.eq(1).text().trim(),
-        innings: columns.eq(2).text().trim(),
-        runs: columns.eq(3).text().trim(),
-        ballsFaced: columns.eq(4).text().trim(),
-        highest: columns.eq(5).text().trim(),
-        average: columns.eq(6).text().trim(),
-        strikeRate: columns.eq(7).text().trim(),
-        notOuts: columns.eq(8).text().trim(),
-        fours: columns.eq(9).text().trim(),
-        sixes: columns.eq(10).text().trim(),
-        fifties: columns.eq(11).text().trim(),
-        hundreds: columns.eq(12).text().trim(),
-        doubleHundreds: columns.eq(13).text().trim(),
+  const battingCareerSummary: z.infer<typeof BattingStatsRowSchema>[] = [];
+  
+  // Try to extract new format (Cricbuzz style: stats as rows, formats as columns)
+  $('h3:contains("Batting Career Summary")').next().find('table').each((_, table) => {
+    const $table = $(table);
+    const headers = $table.find('thead th').map((_, th) => $(th).text().trim()).get();
+    
+    // Check if this is the new format (Test, ODI, T20, IPL as columns)
+    if (headers.includes('Test') && headers.includes('ODI')) {
+      $table.find('tbody tr').each((_, row) => {
+        const $row = $(row);
+        const cells = $row.find('td');
+        if (cells.length >= 5) {
+          const statName = cells.eq(0).text().trim();
+          if (statName && statName !== '') {
+            battingCareerSummary.push({
+              stat: statName,
+              values: {
+                test: cells.eq(1).text().trim() || '0',
+                odi: cells.eq(2).text().trim() || '0',
+                t20: cells.eq(3).text().trim() || '0',
+                ipl: cells.eq(4).text().trim() || '0',
+              },
+            });
+          }
+        }
       });
+      return false; // break after finding the table
+    }
+  });
+  
+  // Try to find batting stats table by looking for specific text (old format)
+  let battingTable = $('h3:contains("Batting Career Summary"), h3:contains("BATTING CAREER SUMMARY")').next('table');
+  
+  if (battingTable.length === 0) {
+    // Try finding any table with batting-related headers
+    $('table').each((_, table) => {
+      const $table = $(table);
+      const headers = $table.find('thead th, thead td').map((_, th) => $(th).text().trim().toLowerCase()).get();
+      
+      // Check if this is a batting stats table
+      if (headers.includes('m') && headers.includes('runs') && headers.includes('avg')) {
+        battingTable = $table;
+        return false; // break
+      }
+    });
+  }
+  
+  if (battingTable.length > 0) {
+    battingTable.find('tbody tr').each((_, row) => {
+      const $row = $(row);
+      const cells = $row.find('td');
+      if (cells.length >= 10) {
+        const format = cells.eq(0).text().trim();
+        if (format && format !== 'Format' && format !== '') {
+          battingStats.push({
+            format,
+            matches: cells.eq(1).text().trim() || '0',
+            innings: cells.eq(2).text().trim() || '0',
+            notOuts: cells.eq(3).text().trim() || '0',
+            runs: cells.eq(4).text().trim() || '0',
+            ballsFaced: cells.eq(5).text().trim() || '0',
+            highest: cells.eq(6).text().trim() || '0',
+            average: cells.eq(7).text().trim() || '0',
+            strikeRate: cells.eq(8).text().trim() || '0',
+            fours: cells.eq(9).text().trim() || '0',
+            sixes: cells.eq(10).text().trim() || '0',
+            fifties: cells.eq(11).text().trim() || '0',
+            hundreds: cells.eq(12).text().trim() || '0',
+            doubleHundreds: cells.eq(13).text().trim() || '0',
+          });
+        }
+      }
+    });
+  }
+
+  // Fallback to old structure
+  if (battingStats.length === 0) {
+    const battingTable = $('.cb-plyr-tbl:contains("Batting Career Summary") table');
+    battingTable.find('tbody tr').each((_, row) => {
+      const $row = $(row);
+      const columns = $row.find('td');
+      if (columns.length === 14) {
+        battingStats.push({
+          format: columns.eq(0).text().trim(),
+          matches: columns.eq(1).text().trim(),
+          innings: columns.eq(2).text().trim(),
+          runs: columns.eq(3).text().trim(),
+          ballsFaced: columns.eq(4).text().trim(),
+          highest: columns.eq(5).text().trim(),
+          average: columns.eq(6).text().trim(),
+          strikeRate: columns.eq(7).text().trim(),
+          notOuts: columns.eq(8).text().trim(),
+          fours: columns.eq(9).text().trim(),
+          sixes: columns.eq(10).text().trim(),
+          fifties: columns.eq(11).text().trim(),
+          hundreds: columns.eq(12).text().trim(),
+          doubleHundreds: columns.eq(13).text().trim(),
+        });
+      }
+    });
+  }
+
+  const bowlingStats: z.infer<typeof PlayerBowlingStatsSchema>[] = [];
+  const bowlingCareerSummary: z.infer<typeof BowlingStatsRowSchema>[] = [];
+  
+  // Try to extract new format (Cricbuzz style: stats as rows, formats as columns)
+  $('h3:contains("Bowling Career Summary")').next().find('table').each((_, table) => {
+    const $table = $(table);
+    const headers = $table.find('thead th').map((_, th) => $(th).text().trim()).get();
+    
+    // Check if this is the new format (Test, ODI, T20, IPL as columns)
+    if (headers.includes('Test') && headers.includes('ODI')) {
+      $table.find('tbody tr').each((_, row) => {
+        const $row = $(row);
+        const cells = $row.find('td');
+        if (cells.length >= 5) {
+          const statName = cells.eq(0).text().trim();
+          if (statName && statName !== '') {
+            bowlingCareerSummary.push({
+              stat: statName,
+              values: {
+                test: cells.eq(1).text().trim() || '0',
+                odi: cells.eq(2).text().trim() || '0',
+                t20: cells.eq(3).text().trim() || '0',
+                ipl: cells.eq(4).text().trim() || '0',
+              },
+            });
+          }
+        }
+      });
+      return false; // break after finding the table
+    }
+  });
+  
+  // Try to find bowling stats table by looking for specific text (old format)
+  let bowlingTable = $('h3:contains("Bowling Career Summary"), h3:contains("BOWLING CAREER SUMMARY")').next('table');
+  
+  if (bowlingTable.length === 0) {
+    // Try finding any table with bowling-related headers
+    $('table').each((_, table) => {
+      const $table = $(table);
+      const headers = $table.find('thead th, thead td').map((_, th) => $(th).text().trim().toLowerCase()).get();
+      
+      // Check if this is a bowling stats table (and not the batting table we already found)
+      if ((headers.includes('wkts') || headers.includes('wickets')) && !headers.includes('runs')) {
+        bowlingTable = $table;
+        return false; // break
+      }
+    });
+  }
+  
+  if (bowlingTable.length > 0) {
+    bowlingTable.find('tbody tr').each((_, row) => {
+      const $row = $(row);
+      const cells = $row.find('td');
+      if (cells.length >= 10) {
+        const format = cells.eq(0).text().trim();
+        if (format && format !== 'Format' && format !== '' && !battingStats.find(s => s.format === format)) {
+          bowlingStats.push({
+            format,
+            matches: cells.eq(1).text().trim() || '0',
+            innings: cells.eq(2).text().trim() || '0',
+            balls: cells.eq(3).text().trim() || '0',
+            runs: cells.eq(4).text().trim() || '0',
+            wickets: cells.eq(5).text().trim() || '0',
+            average: cells.eq(6).text().trim() || '0',
+            economy: cells.eq(7).text().trim() || '0',
+            strikeRate: cells.eq(8).text().trim() || '0',
+            bbi: cells.eq(9).text().trim() || '0',
+            bbm: cells.eq(10).text().trim() || '0',
+            fiveWickets: cells.eq(11).text().trim() || '0',
+            tenWickets: cells.eq(12).text().trim() || '0',
+          });
+        }
+      }
+    });
+  }
+
+  // Fallback to old structure
+  if (bowlingStats.length === 0) {
+    const bowlingTable = $('.cb-plyr-tbl:contains("Bowling Career Summary") table');
+    bowlingTable.find('tbody tr').each((_, row) => {
+      const $row = $(row);
+      const columns = $row.find('td');
+      if (columns.length === 13) {
+        bowlingStats.push({
+          format: columns.eq(0).text().trim(),
+          matches: columns.eq(1).text().trim(),
+          innings: columns.eq(2).text().trim(),
+          balls: columns.eq(3).text().trim(),
+          runs: columns.eq(4).text().trim(),
+          wickets: columns.eq(5).text().trim(),
+          average: columns.eq(6).text().trim(),
+          economy: columns.eq(7).text().trim(),
+          strikeRate: columns.eq(8).text().trim(),
+          bbi: columns.eq(9).text().trim(),
+          bbm: columns.eq(10).text().trim(),
+          fiveWickets: columns.eq(11).text().trim(),
+          tenWickets: columns.eq(12).text().trim(),
+        });
+      }
+    });
+  }
+
+  // Extract Recent Form
+  const recentBattingForm: z.infer<typeof RecentBattingFormSchema>[] = [];
+  const recentBowlingForm: z.infer<typeof RecentBowlingFormSchema>[] = [];
+
+  // Find the Recent Form section
+  $('h3:contains("RECENT FORM")').parent().each((_, section) => {
+    const $section = $(section);
+    
+    // Find the container with both batting and bowling sections
+    const $formsContainer = $section.find('.flex.w-full.gap-4');
+    
+    if ($formsContainer.length > 0) {
+      // Get the two columns (batting and bowling)
+      const columns = $formsContainer.find('> div');
+      
+      // First column should be batting
+      const $battingColumn = columns.eq(0);
+      if ($battingColumn.find('div:contains("Batting Form")').length > 0) {
+        $battingColumn.find('a[href*="/live-cricket-scores/"]').each((_, row) => {
+          const $row = $(row);
+          const gridCells = $row.find('> div, > span');
+          if (gridCells.length >= 4) {
+            recentBattingForm.push({
+              opponent: gridCells.eq(0).find('span').text().trim() || gridCells.eq(0).text().trim(),
+              score: gridCells.eq(1).find('span').text().trim() || gridCells.eq(1).text().trim(),
+              format: gridCells.eq(2).find('span').text().trim() || gridCells.eq(2).text().trim(),
+              date: gridCells.eq(3).find('span').text().trim() || gridCells.eq(3).text().trim(),
+              matchUrl: $row.attr('href') || undefined,
+            });
+          }
+        });
+      }
+
+      // Second column should be bowling
+      const $bowlingColumn = columns.eq(1);
+      if ($bowlingColumn.find('div:contains("Bowling Form")').length > 0) {
+        $bowlingColumn.find('a[href*="/live-cricket-scores/"]').each((_, row) => {
+          const $row = $(row);
+          const gridCells = $row.find('> div, > span');
+          if (gridCells.length >= 4) {
+            recentBowlingForm.push({
+              opponent: gridCells.eq(0).find('span').text().trim() || gridCells.eq(0).text().trim(),
+              wickets: gridCells.eq(1).find('span').text().trim() || gridCells.eq(1).text().trim(),
+              format: gridCells.eq(2).find('span').text().trim() || gridCells.eq(2).text().trim(),
+              date: gridCells.eq(3).find('span').text().trim() || gridCells.eq(3).text().trim(),
+              matchUrl: $row.attr('href') || undefined,
+            });
+          }
+        });
+      }
     }
   });
 
-  const bowlingStats: z.infer<typeof PlayerBowlingStatsSchema>[] = [];
-  const bowlingTable = $('.cb-plyr-tbl:contains("Bowling Career Summary") table');
-  bowlingTable.find('tbody tr').each((_, row) => {
-    const $row = $(row);
-    const columns = $row.find('td');
-    if (columns.length === 13) {
-      bowlingStats.push({
-        format: columns.eq(0).text().trim(),
-        matches: columns.eq(1).text().trim(),
-        innings: columns.eq(2).text().trim(),
-        balls: columns.eq(3).text().trim(),
-        runs: columns.eq(4).text().trim(),
-        wickets: columns.eq(5).text().trim(),
-        average: columns.eq(6).text().trim(),
-        economy: columns.eq(7).text().trim(),
-        strikeRate: columns.eq(8).text().trim(),
-        bbi: columns.eq(9).text().trim(),
-        bbm: columns.eq(10).text().trim(),
-        fiveWickets: columns.eq(11).text().trim(),
-        tenWickets: columns.eq(12).text().trim(),
-      });
-    }
+  console.log('[Player Profile] Extracted from HTML:', {
+    name,
+    country,
+    bioLength: bio.length,
+    battingStatsCount: battingStats.length,
+    bowlingStatsCount: bowlingStats.length,
+    recentBattingFormCount: recentBattingForm.length,
+    recentBowlingFormCount: recentBowlingForm.length,
   });
 
   return PlayerProfileSchema.parse({
     info: { name, country, imageUrl, personal, teams },
     bio,
-    rankings: { batting: battingRankings, bowling: bowlingRankings },
+    rankings: { 
+      batting: battingRankings, 
+      bowling: bowlingRankings,
+      allRounder: allRounderRankings
+    },
     battingStats,
     bowlingStats,
+    battingCareerSummary: battingCareerSummary.length > 0 ? battingCareerSummary : undefined,
+    bowlingCareerSummary: bowlingCareerSummary.length > 0 ? bowlingCareerSummary : undefined,
+    recentForm: recentBattingForm.length > 0 || recentBowlingForm.length > 0 ? {
+      batting: recentBattingForm,
+      bowling: recentBowlingForm,
+    } : undefined,
   });
 }
 
@@ -1308,7 +1758,7 @@ export async function getScoreForMatchId(
   const formattedOvers = formatOvers(miniscore?.overs);
   const score = battingTeam && miniscore ? `${battingTeam?.shortName} ${miniscore.batTeam.teamScore ?? 0}/${miniscore.batTeam.teamWkts ?? 0} (${formattedOvers} ov)` : 'N/A';
 
-  const batsmen: { name: string; runs: string; balls: string, onStrike: boolean, strikeRate: string, fours: string, sixes: string }[] = [];
+  const batsmen: { name: string; runs: string; balls: string, onStrike: boolean, strikeRate: string, fours: string, sixes: string, profileId?: string }[] = [];
   if (miniscore?.batsmanStriker?.batName) {
     batsmen.push({
       name: miniscore.batsmanStriker.batName,
@@ -1318,6 +1768,7 @@ export async function getScoreForMatchId(
       strikeRate: String(miniscore.batsmanStriker.batStrikeRate ?? 0),
       fours: String(miniscore.batsmanStriker.batFours ?? 0),
       sixes: String(miniscore.batsmanStriker.batSixes ?? 0),
+      profileId: miniscore.batsmanStriker.batId ? String(miniscore.batsmanStriker.batId) : undefined,
     });
   }
   if (miniscore?.batsmanNonStriker?.batName) {
@@ -1329,10 +1780,11 @@ export async function getScoreForMatchId(
       strikeRate: String(miniscore.batsmanNonStriker.batStrikeRate ?? 0),
       fours: String(miniscore.batsmanNonStriker.batFours ?? 0),
       sixes: String(miniscore.batsmanNonStriker.batSixes ?? 0),
+      profileId: miniscore.batsmanNonStriker.batId ? String(miniscore.batsmanNonStriker.batId) : undefined,
     });
   }
 
-  const bowlers: { name: string; overs: string; maidens: string, runs: string, wickets: string, economy: string, onStrike: boolean }[] = [];
+  const bowlers: { name: string; overs: string; maidens: string, runs: string, wickets: string, economy: string, onStrike: boolean, profileId?: string }[] = [];
   if (miniscore?.bowlerStriker?.bowlName) {
     bowlers.push({
       name: miniscore.bowlerStriker.bowlName,
@@ -1342,6 +1794,7 @@ export async function getScoreForMatchId(
       wickets: String(miniscore.bowlerStriker.bowlWkts ?? 0),
       economy: String(miniscore.bowlerStriker.bowlEcon ?? 0),
       onStrike: true,
+      profileId: miniscore.bowlerStriker.bowlId ? String(miniscore.bowlerStriker.bowlId) : undefined,
     });
   }
   if (miniscore?.bowlerNonStriker?.bowlName) {
@@ -1353,6 +1806,7 @@ export async function getScoreForMatchId(
       wickets: String(miniscore.bowlerNonStriker.bowlWkts ?? 0),
       economy: String(miniscore.bowlerNonStriker.bowlEcon ?? 0),
       onStrike: false,
+      profileId: miniscore.bowlerNonStriker.bowlId ? String(miniscore.bowlerNonStriker.bowlId) : undefined,
     });
   }
 

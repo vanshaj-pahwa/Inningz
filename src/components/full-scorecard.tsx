@@ -429,23 +429,21 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
 
             {/* Player Profile Dialog */}
             <Dialog open={!!selectedProfileId} onOpenChange={handleDialogOpenChange}>
-                <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
+                <DialogContent className="max-w-[95vw] w-full max-h-[95vh] overflow-y-auto p-0">
+                    <DialogHeader className="sr-only">
                         <DialogTitle>Player Profile</DialogTitle>
-                        <DialogDescription>
-                            {profileLoading ? 'Loading profile...' : selectedProfile ? '' : 'No profile data available'}
-                        </DialogDescription>
                     </DialogHeader>
                     {profileLoading && (
-                        <div className="flex justify-center items-center p-8">
+                        <div className="flex justify-center items-center p-12">
                             <LoaderCircle className="w-8 h-8 animate-spin text-primary" />
+                            <p className="ml-4 text-muted-foreground">Loading player profile...</p>
                         </div>
                     )}
                     {selectedProfile && (
                         <PlayerProfileDisplay profile={selectedProfile} />
                     )}
                     {!profileLoading && !selectedProfile && selectedProfileId && (
-                        <div className="p-4 text-center text-muted-foreground">
+                        <div className="p-8 text-center text-muted-foreground">
                             Failed to load player profile
                         </div>
                     )}
