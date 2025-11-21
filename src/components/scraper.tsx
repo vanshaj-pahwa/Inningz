@@ -440,10 +440,18 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                     {data.venue}
                                 </p>
                             )}
-                            {data?.date && data.date !== 'N/A' && data.date.trim() !== '' && (
+                            {data?.matchStartTimestamp && (
                                 <p className="truncate">
                                     <span className="font-semibold">Date: </span>
-                                    {data.date}
+                                    {new Date(data.matchStartTimestamp).toLocaleDateString('en-US', { 
+                                        weekday: 'short', 
+                                        year: 'numeric', 
+                                        month: 'short', 
+                                        day: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                        timeZoneName: 'short'
+                                    }).replace(/GMT\+5:30/, 'IST').replace(/GMT([+-]\d{1,2}):?(\d{2})?/, 'GMT$1')}
                                 </p>
                             )}
                         </div>
