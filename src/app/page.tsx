@@ -5,13 +5,11 @@ import { useState } from "react";
 import LiveMatches from "@/components/live-matches";
 import RecentMatches from "@/components/recent-matches";
 import UpcomingMatches from "@/components/upcoming-matches";
-import CricketNews from "@/components/cricket-news";
-import CombinedRankings from "@/components/combined-rankings";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Sidebar, SidebarContent, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarSeparator, SidebarTrigger } from "@/components/ui/sidebar";
-import { Flame, History, Calendar, Newspaper, Trophy } from "lucide-react";
+import { Flame, History, Calendar } from "lucide-react";
 
-type View = 'live' | 'recent' | 'upcoming' | 'news' | 'rankings';
+type View = 'live' | 'recent' | 'upcoming';
 
 export default function Home() {
     const [view, setView] = useState<View>('live');
@@ -63,28 +61,6 @@ export default function Home() {
                                 <span>Upcoming</span>
                             </SidebarMenuButton>
                         </SidebarMenuItem>
-                        <SidebarMenuItem>
-                            <SidebarMenuButton
-                                onClick={() => setView('news')}
-                                isActive={view === 'news'}
-                                tooltip="Cricket News"
-                                className={`transition-all duration-200 ${view === 'news' ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-gray-100 dark:hover:bg-gray-800/50'}`}
-                            >
-                                <Newspaper className={view === 'news' ? 'text-primary' : ''} />
-                                <span>News</span>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                        <SidebarMenuItem>
-                            <SidebarMenuButton
-                                onClick={() => setView('rankings')}
-                                isActive={view === 'rankings'}
-                                tooltip="ICC Rankings"
-                                className={`transition-all duration-200 ${view === 'rankings' ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-gray-100 dark:hover:bg-gray-800/50'}`}
-                            >
-                                <Trophy className={view === 'rankings' ? 'text-primary' : ''} />
-                                <span>Rankings</span>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
                     </SidebarMenu>
                 </SidebarContent>
             </Sidebar>
@@ -97,16 +73,12 @@ export default function Home() {
                                 <h2 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent capitalize">
                                     {view === 'live' ? 'Live Matches' :
                                         view === 'recent' ? 'Recent Matches' :
-                                            view === 'upcoming' ? 'Upcoming Matches' :
-                                                view === 'news' ? 'Cricket News' :
-                                                    view === 'rankings' ? 'ICC Rankings' : view}
+                                            view === 'upcoming' ? 'Upcoming Matches' : view}
                                 </h2>
                                 <p className="text-sm text-muted-foreground">
                                     {view === 'live' ? 'Currently playing matches' :
                                         view === 'recent' ? 'Recently completed matches' :
-                                            view === 'upcoming' ? 'Upcoming fixtures' :
-                                                view === 'news' ? 'Latest cricket news and updates' :
-                                                    view === 'rankings' ? 'ICC player and team rankings across formats' : ''}
+                                            view === 'upcoming' ? 'Upcoming fixtures' : ''}
                                 </p>
                             </div>
                         </div>
@@ -120,8 +92,6 @@ export default function Home() {
                             {view === 'live' && <LiveMatches />}
                             {view === 'recent' && <RecentMatches />}
                             {view === 'upcoming' && <UpcomingMatches />}
-                            {view === 'news' && <CricketNews />}
-                            {view === 'rankings' && <CombinedRankings />}
                         </div>
                     </div>
                 </div>

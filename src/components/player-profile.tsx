@@ -34,7 +34,7 @@ export default function PlayerProfileDisplay({ profile }: { profile: PlayerProfi
                             <h1 className="text-2xl md:text-3xl font-bold text-white mb-1.5 tracking-tight">{info.name}</h1>
                             <div className="flex items-center gap-2.5 text-white/95">
                                 <span className="text-base font-medium">{info.country}</span>
-                                {info.personal.role && (
+                                {info.personal.role && info.personal.role !== '--' && (
                                     <>
                                         <span className="text-white/50">•</span>
                                         <span className="text-base">{info.personal.role}</span>

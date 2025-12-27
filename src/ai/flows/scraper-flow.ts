@@ -61,6 +61,7 @@ const ScrapeCricbuzzUrlOutputSchema = z.object({
   date: z.string().optional(),
   oldestCommentaryTimestamp: z.number().optional(),
   matchStartTimestamp: z.number().optional(),
+  currentInningsId: z.number().optional(),
 });
 
 const LiveMatchSchema = z.object({
@@ -268,84 +269,6 @@ const PlayerProfileSchema = z.object({
   }).optional(),
 });
 
-const NewsItemSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  summary: z.string(),
-  content: z.string().optional(),
-  category: z.enum(['Breaking', 'Match', 'Player', 'Tournament', 'General', 'News', 'Premium', 'Topics', 'Spotlight', 'Opinions', 'Special', 'Stats', 'Interviews', 'Live Blogs']),
-  timestamp: z.string(),
-  imageUrl: z.string().optional(),
-  url: z.string(),
-  newsType: z.string().optional(),
-});
-
-const PlayerRankingItemSchema = z.object({
-  rank: z.string(),
-  name: z.string(),
-  country: z.string(),
-  rating: z.string(),
-  profileId: z.string().optional(),
-  imageUrl: z.string().optional(),
-});
-
-const PlayerRankingsSchema = z.object({
-  men: z.object({
-    batting: z.object({
-      test: z.array(PlayerRankingItemSchema),
-      odi: z.array(PlayerRankingItemSchema),
-      t20: z.array(PlayerRankingItemSchema),
-    }),
-    bowling: z.object({
-      test: z.array(PlayerRankingItemSchema),
-      odi: z.array(PlayerRankingItemSchema),
-      t20: z.array(PlayerRankingItemSchema),
-    }),
-    allRounder: z.object({
-      test: z.array(PlayerRankingItemSchema),
-      odi: z.array(PlayerRankingItemSchema),
-      t20: z.array(PlayerRankingItemSchema),
-    }),
-  }),
-  women: z.object({
-    batting: z.object({
-      test: z.array(PlayerRankingItemSchema),
-      odi: z.array(PlayerRankingItemSchema),
-      t20: z.array(PlayerRankingItemSchema),
-    }),
-    bowling: z.object({
-      test: z.array(PlayerRankingItemSchema),
-      odi: z.array(PlayerRankingItemSchema),
-      t20: z.array(PlayerRankingItemSchema),
-    }),
-    allRounder: z.object({
-      test: z.array(PlayerRankingItemSchema),
-      odi: z.array(PlayerRankingItemSchema),
-      t20: z.array(PlayerRankingItemSchema),
-    }),
-  }),
-});
-
-const TeamRankingItemSchema = z.object({
-  rank: z.string(),
-  team: z.string(),
-  rating: z.string(),
-  points: z.string(),
-});
-
-const TeamRankingsSchema = z.object({
-  men: z.object({
-    test: z.array(TeamRankingItemSchema),
-    odi: z.array(TeamRankingItemSchema),
-    t20: z.array(TeamRankingItemSchema),
-  }),
-  women: z.object({
-    test: z.array(TeamRankingItemSchema),
-    odi: z.array(TeamRankingItemSchema),
-    t20: z.array(TeamRankingItemSchema),
-  }),
-});
-
 const MatchStatsSchema = z.object({
   matchId: z.string(),
   title: z.string(),
@@ -385,9 +308,6 @@ const MatchSquadsSchema = z.object({
 export type PlayerProfile = z.infer<typeof PlayerProfileSchema>;
 export type FullScorecard = z.infer<typeof FullScorecardSchema>;
 export type LiveMatch = z.infer<typeof LiveMatchSchema>;
-export type NewsItem = z.infer<typeof NewsItemSchema>;
-export type PlayerRankings = z.infer<typeof PlayerRankingsSchema>;
-export type TeamRankings = z.infer<typeof TeamRankingsSchema>;
 export type MatchStats = z.infer<typeof MatchStatsSchema>;
 export type MatchSquads = z.infer<typeof MatchSquadsSchema>;
 export type SquadPlayer = z.infer<typeof SquadPlayerSchema>;
@@ -422,6 +342,31 @@ export async function getPlayerProfile(profileId: string, playerName?: string): 
     url = `https://www.cricbuzz.com/profiles/${profileId}/${slug}`;
   }
 
+  // Helper function to create a minimal profile with just the name
+  const createMinimalProfile = (name: string): PlayerProfile => ({
+    info: {
+      name: name,
+      country: '',
+      imageUrl: `https://static.cricbuzz.com/a/img/v1/152x152/i1/c${profileId}/player.jpg`,
+      personal: {
+        born: '--',
+        birthPlace: '--',
+        height: '--',
+        role: '--',
+        battingStyle: '--',
+        bowlingStyle: '--',
+      },
+      teams: '--',
+    },
+    bio: '',
+    rankings: {
+      batting: { test: '--', testBest: '--', odi: '--', odiBest: '--', t20: '--', t20Best: '--' },
+      bowling: { test: '--', testBest: '--', odi: '--', odiBest: '--', t20: '--', t20Best: '--' },
+      allRounder: { test: '--', testBest: '--', odi: '--', odiBest: '--', t20: '--', t20Best: '--' },
+    },
+    battingStats: [],
+    bowlingStats: [],
+  });
 
   const response = await fetch(url, {
     headers: {
@@ -430,10 +375,24 @@ export async function getPlayerProfile(profileId: string, playerName?: string): 
   });
 
   if (!response.ok) {
+    // If fetch fails but we have a player name, return minimal profile
+    if (playerName) {
+      console.log('[Player Profile] Fetch failed, returning minimal profile for:', playerName);
+      return createMinimalProfile(playerName);
+    }
     throw new Error(`Failed to fetch player profile: ${response.statusText}`);
   }
 
   const html = await response.text();
+
+  // Check if player was not found
+  if (html.includes('Player Not Found') || html.includes('player you&#x27;re looking for')) {
+    if (playerName) {
+      console.log('[Player Profile] Player not found on Cricbuzz, returning minimal profile for:', playerName);
+      return createMinimalProfile(playerName);
+    }
+    throw new Error('Player not found');
+  }
 
   // Try to extract JSON data from Next.js page
   try {
@@ -598,21 +557,44 @@ export async function getPlayerProfile(profileId: string, playerName?: string): 
   // Fallback to HTML scraping
   const $ = cheerio.load(html);
 
-  // Extract player name from the header
-  let name = $('span.tb\\:font-bold.wb\\:text-xl.wb\\:mt-1').first().text().trim();
+  // Extract player name from the new header structure
+  // New format: <span class="text-xl font-bold text-[#000000DE]">Zak Crawley</span>
+  let name = $('span.text-xl.font-bold').first().text().trim();
+  if (!name) {
+    // Try old selectors
+    name = $('span.tb\\:font-bold.wb\\:text-xl.wb\\:mt-1').first().text().trim();
+  }
   if (!name) {
     name = $('h1').first().text().trim();
   }
+  // Use playerName as final fallback
+  if (!name && playerName) {
+    name = playerName;
+  }
 
-  // Extract country from the flag section - use first() to avoid duplicates
-  let country = $('.flex.items-center.w-full.justify-center').first().find('.text-xs.text-cbItmBkgDark, .wb\\:text-base').first().text().trim();
+  // Extract country from the new structure
+  // New format: <div class="inline-flex items-center"><span class="text-base text-gray-800">England</span></div>
+  let country = $('.inline-flex.items-center').first().find('.text-base.text-gray-800, .text-base').first().text().trim();
+  if (!country) {
+    // Try old selectors
+    country = $('.flex.items-center.w-full.justify-center').first().find('.text-xs.text-cbItmBkgDark, .wb\\:text-base').first().text().trim();
+  }
   if (!country) {
     country = $('h3.cb-font-18.text-gray').first().text().trim();
   }
 
-  // Extract image URL
+  // Extract image URL from the new structure
+  // New format: <img srcset="https://static.cricbuzz.com/a/img/v1/i1/c717783/zak-crawley.jpg...">
   let imageUrl = '';
-  const imgSrc = $('.h-avatarLarge.w-avatarLarge img, .wb\\:rounded-full').attr('src') || $('.h-avatarLarge.w-avatarLarge img, .wb\\:rounded-full').attr('srcset')?.split(' ')[0];
+  // Try new structure first - look for player image in the header card
+  const headerImg = $('.rounded-lg.overflow-hidden img, .w-16.h-16 img').first();
+  let imgSrc = headerImg.attr('src') || headerImg.attr('srcset')?.split(' ')[0];
+
+  if (!imgSrc) {
+    // Try old selectors
+    imgSrc = $('.h-avatarLarge.w-avatarLarge img, .wb\\:rounded-full').attr('src') || $('.h-avatarLarge.w-avatarLarge img, .wb\\:rounded-full').attr('srcset')?.split(' ')[0];
+  }
+
   if (imgSrc) {
     if (imgSrc.startsWith('http')) {
       imageUrl = imgSrc;
@@ -623,17 +605,26 @@ export async function getPlayerProfile(profileId: string, playerName?: string): 
     }
   }
 
+  // If still no image, construct from profile ID
+  if (!imageUrl && profileId) {
+    imageUrl = `https://static.cricbuzz.com/a/img/v1/152x152/i1/c${profileId}/player.jpg`;
+  }
+
   // Extract personal information from the new structure
   const getPersonalInfo = (label: string): string => {
     let value = '';
-    
-    // Try new structure first
-    $('.w-full.flex.tb\\:flex-col.gap-4').each((_, row) => {
+
+    // Try new structure with flex layout (Cricbuzz's current HTML)
+    // Each row has: label div (w-1/3) and value div (w-2/3 flex-grow)
+    $('div.flex.gap-4').each((_, row) => {
       const $row = $(row);
-      const labelText = $row.find('.text-cbItmBkgDark, .wb\\:text-black.wb\\:font-bold').first().text().trim();
-      if (labelText.toLowerCase() === label.toLowerCase()) {
-        value = $row.find('.flex-grow, .tb\\:font-bold, .wb\\:font-normal').last().text().trim();
-        return false; // break
+      const $children = $row.children('div');
+      if ($children.length >= 2) {
+        const labelText = $children.first().text().trim();
+        if (labelText.toLowerCase() === label.toLowerCase()) {
+          value = $children.last().text().trim();
+          return false; // break
+        }
       }
     });
 
@@ -1058,8 +1049,8 @@ export async function getPlayerProfile(profileId: string, playerName?: string): 
   return PlayerProfileSchema.parse({
     info: { name, country, imageUrl, personal, teams },
     bio,
-    rankings: { 
-      batting: battingRankings, 
+    rankings: {
+      batting: battingRankings,
       bowling: bowlingRankings,
       allRounder: allRounderRankings
     },
@@ -1820,7 +1811,41 @@ export async function getScoreForMatchId(
     return await getScoreFromHtml(matchId);
   }
 
-  const { matchHeader, miniscore, commentaryList } = data;
+  const { matchHeader, miniscore, commentaryList, matchCommentary } = data;
+
+  // Always fetch ball-by-ball commentary from pagination API
+  // Using a large timestamp returns the newest commentary
+  // This gives us proper overSeparator data and consistent format
+  let commentaryArray: any[] = [];
+
+  if (miniscore?.inningsId) {
+    try {
+      // Use a very large timestamp to get the newest commentary
+      const paginationUrl = `https://www.cricbuzz.com/api/mcenter/commentary-pagination/${matchId}/${miniscore.inningsId}/9999999999999`;
+      const paginationResponse = await fetch(paginationUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        },
+      });
+      if (paginationResponse.ok) {
+        const paginationData = await paginationResponse.json();
+        if (Array.isArray(paginationData) && paginationData.length > 0) {
+          commentaryArray = paginationData;
+        }
+      }
+    } catch (e) {
+      console.error('[getScoreForMatchId] Failed to fetch pagination commentary:', e);
+    }
+  }
+
+  // Fallback to commentaryList or matchCommentary if pagination failed
+  if (commentaryArray.length === 0) {
+    if (commentaryList) {
+      commentaryArray = commentaryList;
+    } else if (matchCommentary && typeof matchCommentary === 'object') {
+      commentaryArray = Object.values(matchCommentary);
+    }
+  }
 
   const title = matchHeader ? `${matchHeader.team1.name} vs ${matchHeader.team2.name}, ${matchHeader.matchDescription}` : 'Match';
   const status = matchHeader ? matchHeader.status : 'Status not available';
@@ -1882,7 +1907,7 @@ export async function getScoreForMatchId(
     });
   }
 
-  const commentary: Commentary[] = commentaryList
+  const commentary: Commentary[] = commentaryArray
     ?.filter((c: any) => c.commText)
     .map((c: any): Commentary => {
       let commText = c.commText.replace(/\\n/g, '<br />');
@@ -1912,29 +1937,42 @@ export async function getScoreForMatchId(
         }
       }
 
+      // Get over number from overNumber (legacy) or ballMetric (new API format)
       let overNumberStr = '';
       if (c.overNumber) {
         overNumberStr = c.overNumber.toString();
+      } else if (c.ballMetric) {
+        overNumberStr = c.ballMetric.toString();
       }
 
 
-      if (c.ballNbr > 0 && overNumberStr) {
+      // Check if this is a ball-by-ball commentary (has ballNbr > 0 OR has ballMetric)
+      if ((c.ballNbr > 0 || c.ballMetric) && overNumberStr) {
         const commentary: Commentary = {
           type: 'live',
           text: `${overNumberStr}: ${commText}`,
-          event: c.event,
+          event: Array.isArray(c.event) ? c.event.join(',') : c.event,
           runs: c.runs,
           milestone,
         };
 
-        // Add over summary if this is an over-break
+        // Add over summary if this is an over-break (support both old and new API formats)
         if (c.overSeparator) {
-          commentary.overSummary = c.overSeparator.o_summary;
+          commentary.overSummary = c.overSeparator.o_summary || c.overSeparator.overSummary;
           commentary.overRuns = c.overSeparator.runs;
-          commentary.overNumber = c.overSeparator.overNum;
-          commentary.teamShortName = c.overSeparator.batTeamName;
-          commentary.teamScore = c.overSeparator.score;
-          commentary.teamWickets = c.overSeparator.wickets;
+          commentary.overNumber = c.overSeparator.overNum || c.overSeparator.overNumber;
+          commentary.teamShortName = c.overSeparator.batTeamName || c.overSeparator.batTeamObj?.teamName;
+          // Parse score from batTeamObj.teamScore if available (format: "ENG 174-6")
+          if (c.overSeparator.batTeamObj?.teamScore) {
+            const scoreMatch = c.overSeparator.batTeamObj.teamScore.match(/(\d+)-(\d+)/);
+            if (scoreMatch) {
+              commentary.teamScore = parseInt(scoreMatch[1], 10);
+              commentary.teamWickets = parseInt(scoreMatch[2], 10);
+            }
+          } else {
+            commentary.teamScore = c.overSeparator.score;
+            commentary.teamWickets = c.overSeparator.wickets;
+          }
         }
 
         return commentary;
@@ -2006,10 +2044,15 @@ export async function getScoreForMatchId(
     return formatted.replace(/GMT\+5:30/, 'IST').replace(/GMT([+-]\d{1,2}):?(\d{2})?/, 'GMT$1');
   })() : undefined;
 
-  // Get the oldest timestamp from commentaryList for pagination
-  const oldestTimestamp = commentaryList && commentaryList.length > 0
-    ? commentaryList[commentaryList.length - 1]?.timestamp
-    : undefined;
+  // Get the oldest (minimum) timestamp from commentaryArray for pagination
+  let oldestTimestamp: number | undefined;
+  if (commentaryArray && commentaryArray.length > 0) {
+    const timestamps = commentaryArray.filter((c: any) => c.timestamp).map((c: any) => c.timestamp);
+    if (timestamps.length > 0) {
+      oldestTimestamp = Math.min(...timestamps);
+      console.log('[getScoreForMatchId] Initial fetch - min timestamp:', oldestTimestamp, 'max timestamp:', Math.max(...timestamps), 'commentary count:', commentaryArray.length);
+    }
+  }
 
   const result = {
     title,
@@ -2029,6 +2072,7 @@ export async function getScoreForMatchId(
     date: matchDate,
     oldestCommentaryTimestamp: oldestTimestamp,
     matchStartTimestamp: matchHeader?.matchStartTimestamp,
+    currentInningsId: miniscore?.inningsId,
   };
 
   const validation = ScrapeCricbuzzUrlOutputSchema.safeParse(result);
@@ -2048,517 +2092,6 @@ export async function getMatchIdFromUrl(url: string) {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-export async function scrapeCricketNews(): Promise<NewsItem[]> {
-  const response = await fetch('https://www.cricbuzz.com/cricket-news', {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-    },
-  });
-  if (!response.ok) {
-    throw new Error(`Failed to fetch cricket news: ${response.statusText}`);
-  }
-  const html = await response.text();
-  const $ = cheerio.load(html);
-
-  const news: NewsItem[] = [];
-
-  // Use the new structure you provided
-  $('#news-list .cb-lst-itm, .cb-lst-itm').each((index, element) => {
-    const $item = $(element);
-
-    // Get the main news link
-    const linkElement = $item.find('.cb-nws-hdln-ancr');
-    const href = linkElement.attr('href');
-
-    if (!href) return;
-
-    const title = linkElement.text().trim();
-    const summary = $item.find('.cb-nws-intr').text().trim();
-
-    // Get timestamp and news type
-    const timeElements = $item.find('.cb-nws-time');
-    let timestamp = 'Recently';
-    let newsType = '';
-
-    if (timeElements.length > 0) {
-      // First element might contain news type
-      const firstTimeElement = timeElements.first();
-      const newsTypeLink = firstTimeElement.find('a');
-      if (newsTypeLink.length > 0) {
-        newsType = newsTypeLink.text().trim();
-      }
-
-      // Last element contains the actual timestamp
-      timestamp = timeElements.last().text().trim() || 'Recently';
-    }
-
-    // Get image URL
-    let imageUrl = '';
-    const imgElement = $item.find('img');
-    if (imgElement.length) {
-      const src = imgElement.attr('src');
-      if (src) {
-        imageUrl = src.startsWith('http') ? src : `https://www.cricbuzz.com${src}`;
-      }
-    }
-
-    // Determine category based on news type and content
-    let category: NewsItem['category'] = 'General';
-    const newsTypeLower = newsType.toLowerCase();
-    const titleLower = title.toLowerCase();
-
-    if (newsTypeLower.includes('news')) {
-      category = 'News';
-    } else if (newsTypeLower.includes('premium')) {
-      category = 'Premium';
-    } else if (newsTypeLower.includes('spotlight')) {
-      category = 'Spotlight';
-    } else if (newsTypeLower.includes('opinion')) {
-      category = 'Opinions';
-    } else if (newsTypeLower.includes('special')) {
-      category = 'Special';
-    } else if (newsTypeLower.includes('stats')) {
-      category = 'Stats';
-    } else if (newsTypeLower.includes('interview')) {
-      category = 'Interviews';
-    } else if (newsTypeLower.includes('live blog')) {
-      category = 'Live Blogs';
-    } else if (titleLower.includes('breaking') || titleLower.includes('urgent')) {
-      category = 'Breaking';
-    } else if (titleLower.includes('match') || titleLower.includes('vs') || titleLower.includes('innings')) {
-      category = 'Match';
-    } else if (titleLower.includes('player') || titleLower.includes('captain') || titleLower.includes('century') || titleLower.includes('wicket')) {
-      category = 'Player';
-    } else if (titleLower.includes('ipl') || titleLower.includes('world cup') || titleLower.includes('series') || titleLower.includes('tournament')) {
-      category = 'Tournament';
-    }
-
-    // Create a unique ID using index and timestamp to avoid duplicates
-    const id = `news-${index}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const url = href.startsWith('http') ? href : `https://www.cricbuzz.com${href}`;
-
-    if (title && summary) {
-      news.push({
-        id,
-        title,
-        summary,
-        category,
-        timestamp,
-        imageUrl,
-        url,
-        newsType,
-      });
-    }
-  });
-
-  return news.slice(0, 20); // Return top 20 news items
-}
-
-export async function getNewsContent(newsUrl: string): Promise<string> {
-  try {
-    const response = await fetch(newsUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch news content: ${response.statusText}`);
-    }
-
-    const html = await response.text();
-    const $ = cheerio.load(html);
-
-    // Remove unwanted elements first
-    $('.cb-nws-sub-txt').remove();
-    $('.spt-nws-dtl-hdln').remove();
-    $('.cb-news-img-section').remove();
-    $('.cb-sptlt-hdr').remove();
-    $('.cb-news-copyright').remove();
-    $('.cb-sptlt-sctn').remove();
-
-    // Extract the main content from the news article
-    let content = '';
-
-    // Try different selectors for news content
-    const contentSelectors = [
-      '.cb-nws-dtl-cnt',
-      '.cb-col.cb-col-100.cb-nws-dtl-cnt',
-      '.cb-nws-cnt',
-      '.cb-col-100.cb-nws-cnt',
-      'article',
-      '.article-content'
-    ];
-
-    for (const selector of contentSelectors) {
-      const contentElement = $(selector);
-      if (contentElement.length > 0) {
-        content = contentElement.html() || contentElement.text();
-        break;
-      }
-    }
-
-    // If no specific content found, try to get paragraphs
-    if (!content) {
-      const paragraphs = $('p').map((_, el) => $(el).text()).get();
-      content = paragraphs.join('\n\n');
-    }
-
-    return content || 'Content not available';
-  } catch (error) {
-    console.error('Error fetching news content:', error);
-    return 'Content not available';
-  }
-}
-
-export async function scrapePlayerRankings(): Promise<PlayerRankings> {
-  const rankings: PlayerRankings = {
-    men: {
-      batting: { test: [], odi: [], t20: [] },
-      bowling: { test: [], odi: [], t20: [] },
-      allRounder: { test: [], odi: [], t20: [] },
-    },
-    women: {
-      batting: { test: [], odi: [], t20: [] },
-      bowling: { test: [], odi: [], t20: [] },
-      allRounder: { test: [], odi: [], t20: [] },
-    },
-  };
-
-  const categories = ['batting', 'bowling', 'all-rounder'];
-  const genders = ['men', 'women'];
-
-  for (const gender of genders) {
-    for (const category of categories) {
-      try {
-        // Try multiple URL patterns
-        const urls = [
-          `https://www.cricbuzz.com/cricket-stats/icc-rankings/${gender}/${category}`,
-          `https://www.cricbuzz.com/cricket-stats/icc-rankings/${category}` // fallback for men's rankings
-        ];
-
-        let response;
-        let html = '';
-
-        for (const url of urls) {
-          try {
-            response = await fetch(url, {
-              headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-              },
-            });
-
-            if (response.ok) {
-              html = await response.text();
-              break;
-            }
-          } catch (e) {
-          }
-        }
-
-        if (!html) {
-          continue;
-        }
-
-        const $ = cheerio.load(html);
-
-        // Extract rankings for all formats from the same page
-        // Player rankings pages have Angular directives similar to team rankings
-        const categoryMap = {
-          'batting': 'batsmen',
-          'bowling': 'bowlers',
-          'all-rounder': 'allrounders'
-        };
-
-        const mappedCategory = categoryMap[category as keyof typeof categoryMap] || category;
-        const formatMappings = {
-          'test': `${mappedCategory}-tests`,
-          'odi': `${mappedCategory}-odis`,
-          't20': `${mappedCategory}-t20s`
-        };
-
-        for (const [format, ngShowValue] of Object.entries(formatMappings)) {
-          const players: z.infer<typeof PlayerRankingItemSchema>[] = [];
-
-          // Look for the specific ng-show section for this format
-          const formatSection = $(`[ng-show="'${ngShowValue}' == act_rank_format"]`);
-
-          if (formatSection.length > 0) {
-            // Find player rows within this format section
-            formatSection.find('.cb-lst-itm').each((_, element) => {
-              const $row = $(element);
-
-              // Try different ways to get rank
-              let rank = $row.find('.cb-col.cb-col-16.cb-rank-tbl.cb-font-16').text().trim() ||
-                $row.find('.cb-col.cb-col-16').first().text().trim() ||
-                $row.find('.cb-rank-tbl').first().text().trim();
-
-              // Try different ways to get player name and link
-              let playerLink = $row.find('.cb-rank-plyr a').first();
-              if (!playerLink.length) {
-                playerLink = $row.find('a').first();
-              }
-
-              const name = playerLink.text().trim();
-
-              // Try different ways to get country
-              let country = $row.find('.cb-font-12.text-gray').text().trim() ||
-                $row.find('.text-gray').text().trim() ||
-                $row.find('.cb-col-20').text().trim();
-
-              // Try different ways to get rating
-              let rating = $row.find('.cb-col.cb-col-17.cb-rank-tbl.pull-right').text().trim() ||
-                $row.find('.pull-right').text().trim() ||
-                $row.find('.cb-col-14').text().trim();
-
-              // Get player image and extract profile ID from it
-              let imageUrl = '';
-              let profileId: string | undefined;
-
-              interface PlayerRowElements {
-                rank: string;
-                name: string;
-                country: string;
-                rating: string;
-                profileId?: string;
-                imageUrl?: string;
-              }  const imgElement = $row.find('.cb-rank-plyr-img, img').first();
-              if (imgElement.length) {
-                const src = imgElement.attr('src') || imgElement.attr('data-src');
-                if (src) {
-                  // Try to extract profile ID from the image URL
-                  const match = src.match(/\/i1\/c(\d+)\//);
-                  if (match) {
-                    profileId = match[1];
-                    imageUrl = src;
-                  }
-                }
-              }
-
-              // If no profile ID found from image, try from URL
-              if (!profileId) {
-                profileId = extractProfileId(playerLink.attr('href'));
-              }
-
-              // If we have a profile ID but no image URL, construct it
-              if (!imageUrl && profileId) {
-                imageUrl = `https://static.cricbuzz.com/a/img/v1/50x50/i1/c${profileId}/${name.toLowerCase().replace(/\s+/g, '-')}.jpg`;
-              }
-
-              if (rank && name && country && rating && !isNaN(Number(rank))) {
-                players.push({ rank, name, country, rating, profileId, imageUrl });
-              }
-            });
-          } else {
-            // Fallback: try to extract from the general structure
-
-            // For the first format (test), try to extract from visible data
-            if (format === 'test') {
-              $('.cb-lst-itm').each((_, element) => {
-                const $row = $(element);
-
-                // Skip if this row doesn't contain ranking data
-                if (!$row.find('.cb-rank-tbl, .cb-col-16').length) return;
-
-                let rank = $row.find('.cb-col.cb-col-16.cb-rank-tbl.cb-font-16').text().trim() ||
-                  $row.find('.cb-col.cb-col-16').first().text().trim() ||
-                  $row.find('.cb-rank-tbl').first().text().trim();
-
-                let playerLink = $row.find('.cb-rank-plyr a').first();
-                if (!playerLink.length) {
-                  playerLink = $row.find('a').first();
-                }
-
-                const name = playerLink.text().trim();
-
-                let country = $row.find('.cb-font-12.text-gray').text().trim() ||
-                  $row.find('.text-gray').text().trim() ||
-                  $row.find('.cb-col-20').text().trim();
-
-                let rating = $row.find('.cb-col.cb-col-17.cb-rank-tbl.pull-right').text().trim() ||
-                  $row.find('.pull-right').text().trim() ||
-                  $row.find('.cb-col-14').text().trim();
-
-                let imageUrl = '';
-                let profileId;
-                const imgElement = $row.find('.cb-rank-plyr-img, img').first();
-                if (imgElement.length) {
-                  const src = imgElement.attr('src') || imgElement.attr('data-src');
-                  if (src) {
-                    // Try to extract profile ID from the image URL
-                    const match = src.match(/\/i1\/c(\d+)\//);
-                    if (match) {
-                      profileId = match[1];
-                      imageUrl = src;
-                    }
-                  }
-                }
-
-                // If no profile ID found from image, try from URL
-                if (!profileId) {
-                  profileId = extractProfileId(playerLink.attr('href'));
-                }
-
-                // If we have a profile ID but no image URL, construct it
-                if (!imageUrl && profileId) {
-                  imageUrl = `https://static.cricbuzz.com/a/img/v1/50x50/i1/c${profileId}/${name.toLowerCase().replace(/\s+/g, '-')}.jpg`;
-                }
-
-                if (rank && name && country && rating && !isNaN(Number(rank))) {
-                  players.push({ rank, name, country, rating, profileId, imageUrl });
-                }
-              });
-            }
-          }
-
-
-          // Assign to the correct category and format
-          if (category === 'batting') {
-            rankings[gender as keyof PlayerRankings].batting[format as keyof PlayerRankings['men']['batting']] = players.slice(0, 15);
-          } else if (category === 'bowling') {
-            rankings[gender as keyof PlayerRankings].bowling[format as keyof PlayerRankings['men']['bowling']] = players.slice(0, 15);
-          } else if (category === 'all-rounder') {
-            rankings[gender as keyof PlayerRankings].allRounder[format as keyof PlayerRankings['men']['allRounder']] = players.slice(0, 15);
-          }
-        }
-      } catch (error) {
-        console.error(`Error scraping ${gender} ${category} rankings:`, error);
-      }
-    }
-  }
-
-  return rankings;
-}
-
-export async function scrapeTeamRankings(): Promise<TeamRankings> {
-  const rankings: TeamRankings = {
-    men: {
-      test: [],
-      odi: [],
-      t20: [],
-    },
-    women: {
-      test: [],
-      odi: [],
-      t20: [],
-    },
-  };
-
-  const genders = ['men', 'women'];
-
-  for (const gender of genders) {
-    try {
-      // Try multiple URL patterns for team rankings
-      const urls = [
-        `https://www.cricbuzz.com/cricket-stats/icc-rankings/${gender}/teams`,
-        `https://www.cricbuzz.com/cricket-stats/icc-rankings/teams` // fallback for men's rankings
-      ];
-
-      let response;
-      let html = '';
-
-      for (const url of urls) {
-        try {
-          response = await fetch(url, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            },
-          });
-
-          if (response.ok) {
-            html = await response.text();
-            break;
-          }
-        } catch (e) {
-        }
-      }
-
-      if (!html) {
-        continue;
-      }
-
-      const $ = cheerio.load(html);
-
-      // Extract rankings for all formats from the same page
-      // The page has Angular directives that show/hide different format data
-      const formatMappings = {
-        'test': 'teams-tests',
-        'odi': 'teams-odis',
-        't20': 'teams-t20s'
-      };
-
-      for (const [format, ngShowValue] of Object.entries(formatMappings)) {
-        const teams: z.infer<typeof TeamRankingItemSchema>[] = [];
-
-        // Look for the specific ng-show section for this format
-        const formatSection = $(`[ng-show="'${ngShowValue}' == act_rank_format"]`);
-
-        if (formatSection.length > 0) {
-          // Find team rows within this format section
-          formatSection.find('.cb-col.cb-col-100.cb-font-14.cb-brdr-thin-btm.text-center').each((_, element) => {
-            const $row = $(element);
-
-            // Extract team data from the specific column structure
-            const rankCol = $row.find('.cb-col.cb-col-20.cb-lst-itm-sm').first();
-            const teamCol = $row.find('.cb-col.cb-col-50.cb-lst-itm-sm.text-left');
-            const ratingCol = $row.find('.cb-col.cb-col-14.cb-lst-itm-sm').first();
-            const pointsCol = $row.find('.cb-col.cb-col-14.cb-lst-itm-sm').last();
-
-            const rank = rankCol.text().trim();
-            const team = teamCol.text().trim();
-            const rating = ratingCol.text().trim();
-            const points = pointsCol.text().trim();
-
-            if (rank && team && rating && points && !isNaN(Number(rank))) {
-              teams.push({ rank, team, rating, points });
-            }
-          });
-        } else {
-          // Fallback: try to extract from the general structure
-
-          // For the first format (test), try to extract from visible data
-          if (format === 'test') {
-            $('.cb-col.cb-col-100.cb-font-14.cb-brdr-thin-btm.text-center').each((_, element) => {
-              const $row = $(element);
-
-              const rankCol = $row.find('.cb-col.cb-col-20.cb-lst-itm-sm').first();
-              const teamCol = $row.find('.cb-col.cb-col-50.cb-lst-itm-sm.text-left');
-              const ratingCol = $row.find('.cb-col.cb-col-14.cb-lst-itm-sm').first();
-              const pointsCol = $row.find('.cb-col.cb-col-14.cb-lst-itm-sm').last();
-
-              const rank = rankCol.text().trim();
-              const team = teamCol.text().trim();
-              const rating = ratingCol.text().trim();
-              const points = pointsCol.text().trim();
-
-              if (rank && team && rating && points && !isNaN(Number(rank))) {
-                teams.push({ rank, team, rating, points });
-              }
-            });
-          }
-        }
-
-        rankings[gender as keyof TeamRankings][format as keyof TeamRankings['men']] = teams.slice(0, 20);
-      }
-    } catch (error) {
-      console.error(`Error scraping ${gender} team rankings:`, error);
-    }
-  }
-
-  return rankings;
-}
 
 export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]> {
   // seriesId can be either just the ID (9596) or the full path (9596/india-tour-of-australia-2025)

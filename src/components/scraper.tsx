@@ -49,7 +49,11 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
     const [view, setView] = useState<View>('live');
     const [loadingMore, setLoadingMore] = useState(false);
     const [lastTimestamp, setLastTimestamp] = useState<number | null>(null);
+    const lastTimestampRef = useRef<number | null>(null);
     const commentaryEndRef = useRef<HTMLDivElement>(null);
+    const newCommentaryStartRef = useRef<HTMLDivElement>(null);
+    const loadedExtraCommentaryRef = useRef<Commentary[]>([]);
+    const [newCommentaryStartIndex, setNewCommentaryStartIndex] = useState<number | null>(null);
     const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
     const [selectedPlayerName, setSelectedPlayerName] = useState<string | null>(null);
     const [selectedProfile, setSelectedProfile] = useState<PlayerProfile | null>(null);
@@ -61,62 +65,105 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
         if (!matchId) return;
         const newState = await getScoreForMatchId(matchId);
 
-        // If we already have extra commentary loaded (more than what API returns), preserve it
-        if (scoreState.data?.commentary && newState.data?.commentary) {
-            const apiCommentaryCount = newState.data.commentary.length;
-            const currentCommentaryCount = scoreState.data.commentary.length;
-
-            // If we have more commentary than the API returns, it means we loaded more
-            if (currentCommentaryCount > apiCommentaryCount) {
-                // Keep the new live commentary at the top, and append the old loaded commentary
-                const oldLoadedCommentary = scoreState.data.commentary.slice(apiCommentaryCount);
-                setScoreState({
-                    ...newState,
-                    data: {
-                        ...newState.data,
-                        commentary: [...newState.data.commentary, ...oldLoadedCommentary],
-                    },
-                });
-            } else {
-                setScoreState(newState);
-            }
+        // Always append the loaded extra commentary from ref (persists across refreshes)
+        if (newState.data?.commentary && loadedExtraCommentaryRef.current.length > 0) {
+            console.log('[fetchScore] Appending', loadedExtraCommentaryRef.current.length, 'extra commentary items to', newState.data.commentary.length, 'base items');
+            setScoreState({
+                ...newState,
+                data: {
+                    ...newState.data,
+                    commentary: [...newState.data.commentary, ...loadedExtraCommentaryRef.current],
+                },
+            });
         } else {
             setScoreState(newState);
         }
 
-        // Use the oldest commentary timestamp for pagination (only set once)
-        if (newState.data?.oldestCommentaryTimestamp && !lastTimestamp) {
+        // Set initial timestamp for pagination only once (when we first load)
+        if (newState.data?.oldestCommentaryTimestamp && lastTimestampRef.current === null) {
+            console.log('[fetchScore] Setting initial timestamp to', newState.data.oldestCommentaryTimestamp);
+            lastTimestampRef.current = newState.data.oldestCommentaryTimestamp;
             setLastTimestamp(newState.data.oldestCommentaryTimestamp);
         }
     };
 
     const loadMoreCommentary = async () => {
-        if (!matchId || !lastTimestamp || loadingMore) return;
+        const currentTimestamp = lastTimestampRef.current;
+        console.log('[loadMoreCommentary] Starting with timestamp:', currentTimestamp);
+        if (!matchId || !currentTimestamp || loadingMore || currentTimestamp === 0) {
+            console.log('[loadMoreCommentary] Skipping - matchId:', matchId, 'timestamp:', currentTimestamp, 'loadingMore:', loadingMore);
+            return;
+        }
 
         setLoadingMore(true);
         try {
-            const result = await loadMoreCommentaryAction(matchId, lastTimestamp);
+            const inningsId = scoreState.data?.currentInningsId || 1;
+            // Subtract 1 from timestamp to get strictly older commentary
+            console.log('[loadMoreCommentary] Fetching with timestamp:', currentTimestamp - 1, 'inningsId:', inningsId);
+            const result = await loadMoreCommentaryAction(matchId, currentTimestamp - 1, inningsId);
+            console.log('[loadMoreCommentary] Result:', result.success, 'commentary count:', result.commentary?.length, 'new timestamp:', result.timestamp);
 
-            if (result.success && result.commentary && result.commentary.length > 0 && scoreState.data) {
-                setScoreState({
-                    ...scoreState,
-                    data: {
-                        ...scoreState.data,
-                        commentary: [...scoreState.data.commentary, ...result.commentary],
-                    },
-                });
+            if (result.success && result.commentary && result.commentary.length > 0) {
+                // Deduplicate: only add commentary that isn't already loaded
+                // For live commentary, extract the ball number (e.g., "29.2") as the key
+                // For stat/user commentary, use the full text
+                const extractKey = (c: Commentary) => {
+                    if (c.type === 'live' && c.text.includes(':')) {
+                        // Extract ball number like "29.2" from "29.2: commentary text"
+                        return c.text.split(':')[0].trim();
+                    }
+                    return c.text;
+                };
 
-                if (result.timestamp) {
+                const currentCommentary = scoreState.data?.commentary || [];
+                const existingKeys = new Set([
+                    ...currentCommentary.map(extractKey),
+                    ...loadedExtraCommentaryRef.current.map(extractKey)
+                ]);
+                const newCommentary = result.commentary.filter(c => !existingKeys.has(extractKey(c)));
+                console.log('[loadMoreCommentary] Deduplication: got', result.commentary.length, 'items, existing keys:', existingKeys.size, 'adding', newCommentary.length, 'new items');
+
+                // Always update the timestamp to progress pagination, even if we got duplicates
+                if (result.timestamp && result.timestamp < (lastTimestampRef.current || Infinity)) {
+                    console.log('[loadMoreCommentary] Updating timestamp from', lastTimestampRef.current, 'to', result.timestamp);
+                    lastTimestampRef.current = result.timestamp;
                     setLastTimestamp(result.timestamp);
                 }
 
-                // Scroll to the newly loaded commentary
+                if (newCommentary.length === 0) {
+                    console.log('[loadMoreCommentary] All items were duplicates, will try next page with new timestamp');
+                    return;
+                }
+
+                // Mark where new commentary starts (current length before adding new items)
+                const currentCommentaryLength = scoreState.data?.commentary.length || 0;
+                setNewCommentaryStartIndex(currentCommentaryLength);
+
+                // Store in ref so it persists across API refreshes
+                loadedExtraCommentaryRef.current = [...loadedExtraCommentaryRef.current, ...newCommentary];
+                console.log('[loadMoreCommentary] Added to ref, total extra commentary:', loadedExtraCommentaryRef.current.length);
+
+                // Update display
+                setScoreState(prev => {
+                    if (!prev.data) return prev;
+                    return {
+                        ...prev,
+                        data: {
+                            ...prev.data,
+                            commentary: [...prev.data.commentary, ...newCommentary],
+                        },
+                    };
+                });
+
+                // Scroll to the first newly loaded commentary item
                 setTimeout(() => {
-                    commentaryEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                    newCommentaryStartRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }, 100);
             } else if (result.success && result.commentary && result.commentary.length === 0) {
                 // No more commentary available
-                setLastTimestamp(null); // Hide the load more button
+                console.log('[loadMoreCommentary] No more commentary, setting timestamp to 0');
+                lastTimestampRef.current = 0;
+                setLastTimestamp(0);
             }
         } catch (e) {
             console.error('[Client] Failed to load more commentary:', e);
@@ -277,7 +324,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
 
         const over = comment.text.split(':')[0];
         const text = comment.text.substring(comment.text.indexOf(':') + 1);
-        const events = comment.event?.split(',') || [];
+        const events = comment.event?.split(',').map(e => e.toUpperCase()) || [];
 
         const getEventDisplay = (event: string) => {
             switch (event) {
@@ -298,56 +345,79 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                             {/* Over Number */}
                             <div className="flex-shrink-0 flex flex-col items-center justify-center bg-primary/10 dark:bg-primary/20 rounded-lg px-2 md:px-3 py-1.5 md:py-2 border border-primary/30">
                                 <span className="text-[10px] md:text-xs text-muted-foreground font-medium">Over</span>
-                                <span className="text-lg md:text-xl font-bold text-primary">{Math.floor(comment.overNumber || 0) + 1}</span>
+                                <span className="text-lg md:text-xl font-bold text-primary">{Math.floor(comment.overNumber || 0)}</span>
                             </div>
                             
                             {/* Balls and Score */}
                             <div className="flex-1 flex items-center justify-between gap-3 flex-wrap">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                    {comment.overSummary.trim().split(/\s+/).map((ball, idx) => {
-                                        const ballStr = ball.trim();
-                                        if (!ballStr) return null;
-                                        
-                                        // Determine ball type and styling
-                                        let ballClass = "px-2 py-1 rounded-md font-bold text-xs md:text-sm transition-all";
-                                        let ballContent = ballStr;
-                                        
-                                        if (ballStr === '6') {
-                                            ballClass += " bg-purple-600 text-white shadow-md";
-                                        } else if (ballStr === '4') {
-                                            ballClass += " bg-blue-600 text-white shadow-md";
-                                        } else if (ballStr === 'W' || ballStr.includes('W')) {
-                                            ballClass += " bg-red-600 text-white shadow-md";
-                                        } else if (ballStr.toLowerCase().includes('wd') || ballStr.toLowerCase().includes('wide')) {
-                                            ballClass += " bg-orange-500 text-white text-[10px] md:text-xs";
-                                            ballContent = 'Wd';
-                                        } else if (ballStr.toLowerCase().includes('nb') || ballStr.toLowerCase().includes('noball')) {
-                                            ballClass += " bg-orange-500 text-white text-[10px] md:text-xs";
-                                            ballContent = 'Nb';
-                                        } else if (ballStr.toLowerCase().includes('lb') || ballStr.toLowerCase().includes('legbye')) {
-                                            ballClass += " bg-gray-500 text-white text-[10px] md:text-xs";
-                                            ballContent = 'Lb';
-                                        } else if (ballStr.toLowerCase().includes('b') && ballStr.length <= 2) {
-                                            ballClass += " bg-gray-500 text-white text-[10px] md:text-xs";
-                                            ballContent = 'B';
-                                        } else if (ballStr === '0' || ballStr === '.') {
-                                            ballClass += " bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300";
-                                            ballContent = '•';
-                                        } else if (/^\d+$/.test(ballStr)) {
-                                            ballClass += " bg-green-600 text-white";
-                                        } else {
-                                            ballClass += " bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-[10px] md:text-xs";
-                                        }
-                                        
+                                    {(() => {
+                                        // Parse overSummary - remove the "(X runs)" part at the end
+                                        const summaryStr = comment.overSummary || '';
+                                        const runsMatch = summaryStr.match(/\((\d+)\s*runs?\)/i);
+                                        const overRuns = runsMatch ? parseInt(runsMatch[1], 10) : comment.overRuns;
+                                        const ballsStr = summaryStr.replace(/\(\d+\s*runs?\)/i, '').trim();
+
                                         return (
-                                            <span key={idx} className={ballClass}>
-                                                {ballContent}
-                                            </span>
+                                            <>
+                                                {ballsStr.split(/\s+/).map((ball, idx) => {
+                                                    const ballStr = ball.trim();
+                                                    if (!ballStr) return null;
+
+                                                    // Skip non-ball strings
+                                                    if (ballStr.includes('(') || ballStr.includes(')') || ballStr.toLowerCase() === 'runs' || ballStr.toLowerCase() === 'run') {
+                                                        return null;
+                                                    }
+
+                                                    // Determine ball type and styling
+                                                    let ballClass = "px-2 py-1 rounded-md font-bold text-xs md:text-sm transition-all";
+                                                    let ballContent = ballStr;
+
+                                                    if (ballStr === '6') {
+                                                        ballClass += " bg-purple-600 text-white shadow-md";
+                                                    } else if (ballStr === '4') {
+                                                        ballClass += " bg-blue-600 text-white shadow-md";
+                                                    } else if (ballStr === 'W' || ballStr.includes('W')) {
+                                                        ballClass += " bg-red-600 text-white shadow-md";
+                                                    } else if (ballStr.toLowerCase().includes('wd') || ballStr.toLowerCase().includes('wide')) {
+                                                        ballClass += " bg-orange-500 text-white text-[10px] md:text-xs";
+                                                        ballContent = 'Wd';
+                                                    } else if (ballStr.toLowerCase().startsWith('n') && ballStr.length <= 3) {
+                                                        // Handle N1, N2, Nb etc (no ball with runs)
+                                                        ballClass += " bg-orange-500 text-white text-[10px] md:text-xs";
+                                                        ballContent = ballStr;
+                                                    } else if (ballStr.toLowerCase().includes('nb') || ballStr.toLowerCase().includes('noball')) {
+                                                        ballClass += " bg-orange-500 text-white text-[10px] md:text-xs";
+                                                        ballContent = 'Nb';
+                                                    } else if (ballStr.toLowerCase().includes('lb') || ballStr.toLowerCase().includes('legbye')) {
+                                                        ballClass += " bg-gray-500 text-white text-[10px] md:text-xs";
+                                                        ballContent = 'Lb';
+                                                    } else if (ballStr.toLowerCase().includes('b') && ballStr.length <= 2) {
+                                                        ballClass += " bg-gray-500 text-white text-[10px] md:text-xs";
+                                                        ballContent = 'B';
+                                                    } else if (ballStr === '0' || ballStr === '.') {
+                                                        ballClass += " bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300";
+                                                        ballContent = '•';
+                                                    } else if (/^\d+$/.test(ballStr)) {
+                                                        ballClass += " bg-green-600 text-white";
+                                                    } else {
+                                                        ballClass += " bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-[10px] md:text-xs";
+                                                    }
+
+                                                    return (
+                                                        <span key={idx} className={ballClass}>
+                                                            {ballContent}
+                                                        </span>
+                                                    );
+                                                })}
+                                                {overRuns !== undefined && (
+                                                    <span className="ml-1 font-bold text-sm md:text-base text-primary">
+                                                        ({overRuns} runs)
+                                                    </span>
+                                                )}
+                                            </>
                                         );
-                                    })}
-                                    <span className="ml-1 font-bold text-sm md:text-base text-primary">
-                                        ({comment.overRuns} runs)
-                                    </span>
+                                    })()}
                                 </div>
                                 <div className="flex items-center gap-2 bg-white/50 dark:bg-gray-900/50 px-3 py-1.5 rounded-full border border-primary/20">
                                     <span className="font-bold text-sm md:text-base text-primary">{comment.teamShortName}</span>
@@ -596,7 +666,14 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                     </CardHeader>
                                     <CardContent className="p-0">
                                         <div className="space-y-0.5 max-h-[80rem] overflow-y-auto hide-scrollbar">
-                                            {data?.commentary.map((comment, index) => renderCommentaryItem(comment, index))}
+                                            {data?.commentary.map((comment, index) => (
+                                                <div key={index}>
+                                                    {index === newCommentaryStartIndex && (
+                                                        <div ref={newCommentaryStartRef} />
+                                                    )}
+                                                    {renderCommentaryItem(comment, index)}
+                                                </div>
+                                            ))}
                                             <div ref={commentaryEndRef} />
                                         </div>
                                         {lastTimestamp && (
