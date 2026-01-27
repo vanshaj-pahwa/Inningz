@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { getLiveMatches } from '@/app/actions';
 import type { LiveMatch } from '@/app/actions';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { LoaderCircle, Calendar, ChevronRight, ChevronDown } from "lucide-react";
+import { Calendar } from "lucide-react";
 
 interface GroupedMatches {
   [seriesName: string]: LiveMatch[];
@@ -13,35 +13,45 @@ interface GroupedMatches {
 
 type MatchFilter = 'all' | 'international' | 'league' | 'domestic' | 'women';
 
+const filters: { value: MatchFilter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'international', label: 'International' },
+  { value: 'league', label: 'League' },
+  { value: 'domestic', label: 'Domestic' },
+  { value: 'women', label: 'Women' },
+];
+
+const categoryColors: Record<MatchFilter, string> = {
+  international: 'bg-blue-500',
+  league: 'bg-purple-500',
+  domestic: 'bg-orange-500',
+  women: 'bg-pink-500',
+  all: '',
+};
+
+const categoryTextColors: Record<MatchFilter, string> = {
+  international: 'text-blue-400',
+  league: 'text-purple-400',
+  domestic: 'text-orange-400',
+  women: 'text-pink-400',
+  all: '',
+};
+
 export default function LiveMatches() {
   const [matches, setMatches] = useState<LiveMatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [expandedSeries, setExpandedSeries] = useState<Set<string>>(new Set());
   const [activeFilter, setActiveFilter] = useState<MatchFilter>('all');
-
-  const toggleSeries = (seriesName: string) => {
-    setExpandedSeries(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(seriesName)) {
-        newSet.delete(seriesName);
-      } else {
-        newSet.add(seriesName);
-      }
-      return newSet;
-    });
-  };
 
   const getMatchCategory = (match: LiveMatch): MatchFilter => {
     const title = match.title.toLowerCase();
     const seriesName = (match.seriesName || '').toLowerCase();
     const combined = `${title} ${seriesName}`;
-
     if (combined.includes('women')) return 'women';
-    if (combined.includes('ipl') || combined.includes('bbl') || combined.includes('psl') || 
-        combined.includes('cpl') || combined.includes('league') || combined.includes('t20 league')) return 'league';
-    if (combined.includes('test') || combined.includes('odi') || combined.includes('t20i') || 
-        combined.includes('international')) return 'international';
+    if (combined.includes('ipl') || combined.includes('bbl') || combined.includes('psl') ||
+      combined.includes('cpl') || combined.includes('league') || combined.includes('t20 league')) return 'league';
+    if (combined.includes('test') || combined.includes('odi') || combined.includes('t20i') ||
+      combined.includes('international')) return 'international';
     return 'domestic';
   };
 
@@ -57,39 +67,42 @@ export default function LiveMatches() {
       const result = await getLiveMatches();
       if (result.success && result.matches) {
         setMatches(result.matches);
-        // Open first series by default
-        if (result.matches.length > 0 && expandedSeries.size === 0) {
-          const firstSeries = result.matches[0].seriesName || 'Other Matches';
-          setExpandedSeries(new Set([firstSeries]));
-        }
       } else {
         setError(result.error ?? "Failed to fetch live matches.");
       }
       setLoading(false);
     };
-
     fetchMatches();
-    const interval = setInterval(fetchMatches, 30000); // Refresh every 30 seconds
+    const interval = setInterval(fetchMatches, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  // Filter and group matches by series
   const filteredMatches = filterMatches(matches);
   const groupedMatches: GroupedMatches = filteredMatches.reduce((acc, match) => {
     const seriesName = match.seriesName || 'Other Matches';
-    if (!acc[seriesName]) {
-      acc[seriesName] = [];
-    }
+    if (!acc[seriesName]) acc[seriesName] = [];
     acc[seriesName].push(match);
     return acc;
   }, {} as GroupedMatches);
 
+  const isLive = (status: string) => {
+    const s = status.toLowerCase();
+    return s.includes('live') || s.includes('need') || s.includes('session') ||
+      s.includes('innings') || s.includes('lead') || s.includes('rain') ||
+      s.includes('weather') || s.includes('delay') || s.includes('stops play');
+  };
+
+  const isComplete = (status: string) => status.toLowerCase().includes('won');
+
   if (loading) {
     return (
-      <div className="w-full flex flex-col items-center justify-center min-h-[60vh] p-8">
-        <LoaderCircle className="w-12 h-12 animate-spin text-primary mb-4" />
-        <p className="text-lg font-medium text-primary">Finding live matches...</p>
-        <p className="text-sm text-muted-foreground mt-2">This may take a moment</p>
+      <div className="space-y-6">
+        <FilterBar activeFilter={activeFilter} setActiveFilter={setActiveFilter} />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="skeleton h-40 rounded-2xl" />
+          ))}
+        </div>
       </div>
     );
   }
@@ -97,7 +110,7 @@ export default function LiveMatches() {
   if (error) {
     return (
       <div className="w-full flex items-center justify-center min-h-[60vh]">
-        <Alert variant="destructive" className="max-w-xl">
+        <Alert variant="destructive" className="max-w-xl rounded-2xl">
           <AlertTitle className="text-lg">Unable to fetch matches</AlertTitle>
           <AlertDescription className="mt-2">{error}</AlertDescription>
         </Alert>
@@ -105,208 +118,154 @@ export default function LiveMatches() {
     );
   }
 
-  const filters: { value: MatchFilter; label: string }[] = [
-    { value: 'all', label: 'All' },
-    { value: 'international', label: 'International' },
-    { value: 'league', label: 'League' },
-    { value: 'domestic', label: 'Domestic' },
-    { value: 'women', label: 'Women' },
-  ];
-
   if (matches.length === 0) {
     return (
       <div className="w-full flex flex-col items-center justify-center min-h-[60vh] p-8">
-        <div className="p-4 rounded-full bg-primary/10 mb-4">
+        <div className="p-5 rounded-full bg-primary/10 mb-5">
           <Calendar className="w-8 h-8 text-primary" />
         </div>
-        <h3 className="text-xl font-semibold mb-2">No live matches at the moment</h3>
-        <p className="text-muted-foreground text-center max-w-sm">
+        <h3 className="text-xl font-display mb-2">No live matches at the moment</h3>
+        <p className="text-muted-foreground text-center max-w-sm text-sm">
           Check back later for live cricket action or explore recent matches
         </p>
       </div>
-    )
+    );
   }
 
-  const isLive = (status: string) => {
-    const lowerCaseStatus = status.toLowerCase();
-    return lowerCaseStatus.includes('live') ||
-      lowerCaseStatus.includes('need') ||
-      lowerCaseStatus.includes('session') ||
-      lowerCaseStatus.includes('innings') ||
-      lowerCaseStatus.includes('lead') ||
-      lowerCaseStatus.includes('rain') ||
-      lowerCaseStatus.includes('weather') ||
-      lowerCaseStatus.includes('delay') ||
-      lowerCaseStatus.includes('stops play');
-  };
-
-  const isComplete = (status: string) => {
-    return status.toLowerCase().includes('won');
-  };
-
-  const isUpcoming = (status: string) => {
-    const lowerStatus = status.toLowerCase();
-    return lowerStatus.includes('opt to') || lowerStatus.includes('toss') || lowerStatus.includes('preview');
-  };
-
-  const getCategoryDisplay = (category: MatchFilter) => {
-    const styles = {
-      international: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-      league: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
-      domestic: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
-      women: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300',
-      all: ''
-    };
-    const labels = {
-      international: 'International',
-      league: 'League',
-      domestic: 'Domestic',
-      women: 'Women',
-      all: ''
-    };
-    return { style: styles[category], label: labels[category] };
-  };
-
-
-
   return (
-    <div className="space-y-6">
-      {/* Filter Buttons */}
-      <div className="flex flex-wrap gap-2 pb-2 border-b border-border">
-        {filters.map((filter) => (
-          <button
-            key={filter.value}
-            onClick={() => setActiveFilter(filter.value)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              activeFilter === filter.value
-                ? 'bg-emerald-600 text-white'
-                : 'bg-card text-muted-foreground hover:bg-accent hover:text-foreground border border-border'
-            }`}
-          >
-            {filter.label}
-          </button>
-        ))}
-      </div>
+    <div className="space-y-8">
+      <FilterBar activeFilter={activeFilter} setActiveFilter={setActiveFilter} />
 
-      {/* No matches for filter */}
       {Object.keys(groupedMatches).length === 0 && (
         <div className="w-full flex flex-col items-center justify-center min-h-[40vh] p-8">
-          <div className="p-4 rounded-full bg-primary/10 mb-4">
+          <div className="p-5 rounded-full bg-primary/10 mb-5">
             <Calendar className="w-8 h-8 text-primary" />
           </div>
-          <h3 className="text-xl font-semibold mb-2">No matches found</h3>
-          <p className="text-muted-foreground text-center max-w-sm">
+          <h3 className="text-xl font-display mb-2">No matches found</h3>
+          <p className="text-muted-foreground text-center max-w-sm text-sm">
             Try selecting a different filter
           </p>
         </div>
       )}
 
-      {Object.entries(groupedMatches).map(([seriesName, seriesMatches]) => {
-        const isExpanded = expandedSeries.has(seriesName);
+      {Object.entries(groupedMatches).map(([seriesName, seriesMatches]) => (
+        <section key={seriesName}>
+          {/* Series Header */}
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-px flex-1 bg-gradient-to-r from-primary/30 to-transparent" />
+            <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground px-1">
+              {seriesName}
+            </h3>
+            <div className="h-px flex-1 bg-gradient-to-l from-primary/30 to-transparent" />
+          </div>
 
-        return (
-          <div key={seriesName} className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
-            {/* Series Header - Accordion Toggle */}
-            <button
-              onClick={() => toggleSeries(seriesName)}
-              className="flex w-full items-center justify-between bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-3 text-white transition-opacity hover:opacity-90"
-            >
-              <h3 className="text-sm font-bold uppercase tracking-wide">{seriesName}</h3>
-              {isExpanded ? (
-                <ChevronDown className="h-5 w-5" />
-              ) : (
-                <ChevronRight className="h-5 w-5" />
-              )}
-            </button>
+          {/* Match Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {seriesMatches.map((match, index) => {
+              const matchIsLive = isLive(match.status);
+              const matchIsComplete = isComplete(match.status);
+              const category = getMatchCategory(match);
 
-            {/* Matches in this series - Collapsible */}
-            {isExpanded && (
-              <div className="divide-y divide-border">
-                {seriesMatches.map((match) => {
-                  const matchIsLive = isLive(match.status);
-                  const matchIsComplete = isComplete(match.status);
+              return (
+                <Link
+                  key={match.matchId}
+                  href={`/match/${match.matchId}`}
+                  className="stagger-in"
+                  style={{ '--stagger-index': index } as React.CSSProperties}
+                >
+                  <div className={`
+                    glass-card card-hover p-5 h-full
+                    ${matchIsLive ? 'ring-1 ring-red-500/30 live-pulse' : ''}
+                  `}>
+                    {/* Top row: Category + Live badge */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        {activeFilter === 'all' && (
+                          <span className="flex items-center gap-1.5 text-xs font-medium">
+                            <span className={`w-1.5 h-1.5 rounded-full ${categoryColors[category]}`} />
+                            <span className={categoryTextColors[category]}>{category.charAt(0).toUpperCase() + category.slice(1)}</span>
+                          </span>
+                        )}
+                      </div>
+                      {matchIsLive && (
+                        <span className="flex items-center gap-1.5 text-xs font-bold text-red-500">
+                          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                          LIVE
+                        </span>
+                      )}
+                    </div>
 
-                  return (
-                    <Link
-                      key={match.matchId}
-                      href={`/match/${match.matchId}`}
-                      className="block bg-card transition-colors hover:bg-accent/50"
-                    >
-                      <div className="p-4">
-                        {/* Match info and venue */}
-                        <div className="mb-3 flex items-start justify-between gap-2">
-                          <div className="flex-1 text-xs text-muted-foreground">
-                            <span>{match.title.split(',').slice(0, 2).join(',')}</span>
-                            {match.venue && (
-                              <span className="ml-1.5">• {match.venue}</span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            {activeFilter === 'all' && (() => {
-                              const category = getMatchCategory(match);
-                              const display = getCategoryDisplay(category);
-                              return (
-                                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${display.style}`}>
-                                  {display.label}
-                                </span>
-                              );
-                            })()}
-                            {matchIsLive && (
-                              <span className="flex items-center gap-1 rounded-full bg-red-600 px-2 py-0.5 text-xs font-semibold text-white">
-                                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white"></span>
-                                LIVE
+                    {/* Teams and Scores */}
+                    <div className="space-y-3">
+                      {match.teams.map((team, idx) => {
+                        const isBatting = idx === 0 && matchIsLive;
+                        return (
+                          <div key={idx} className="flex items-center justify-between gap-3">
+                            <span className={`text-sm font-semibold truncate ${isBatting ? 'text-foreground' : 'text-muted-foreground'}`}>
+                              {team.name}
+                            </span>
+                            {team.score && (
+                              <span className={`
+                                font-display text-lg tabular-nums flex-shrink-0
+                                ${isBatting ? 'text-amber-400 score-glow' : 'text-muted-foreground'}
+                              `}>
+                                {team.score}
                               </span>
                             )}
                           </div>
-                        </div>
+                        );
+                      })}
+                    </div>
 
-                        {/* Teams and scores */}
-                        <div className="space-y-2.5">
-                          {match.teams.map((team, idx) => {
-                            const isBatting = idx === 0 && matchIsLive;
-                            return (
-                              <div key={idx} className="flex items-center justify-between gap-4">
-                                <div className="flex items-center gap-2">
-                                  <span className={`font-medium ${isBatting ? 'text-foreground' : 'text-muted-foreground'}`}>
-                                    {team.name}
-                                  </span>
-                                </div>
-                                {team.score && (
-                                  <span className={`text-base font-semibold tabular-nums ${isBatting ? 'text-foreground' : 'text-muted-foreground'}`}>
-                                    {team.score}
-                                  </span>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        {/* Status */}
-                        {match.status && match.status.toLowerCase() !== 'status not available' && (
-                          <div className="mt-3 pt-2 border-t border-border/50">
-                            <span
-                              className={`text-sm font-medium ${matchIsLive
-                                ? 'text-red-600 dark:text-red-400'
-                                : matchIsComplete
-                                  ? 'text-blue-600 dark:text-blue-400'
-                                  : isUpcoming(match.status)
-                                    ? 'text-amber-600 dark:text-amber-400'
-                                    : 'text-muted-foreground'
-                                }`}
-                            >
-                              {match.status}
-                            </span>
-                          </div>
-                        )}
+                    {/* Status */}
+                    {match.status && match.status.toLowerCase() !== 'status not available' && (
+                      <div className="mt-4 pt-3 border-t border-border/50">
+                        <p className={`text-xs font-medium leading-relaxed ${matchIsLive
+                          ? 'text-red-400'
+                          : matchIsComplete
+                            ? 'text-amber-400'
+                            : 'text-muted-foreground'
+                          }`}>
+                          {match.status}
+                        </p>
                       </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
+                    )}
+
+                    {/* Venue */}
+                    {match.venue && (
+                      <p className="text-xs text-muted-foreground mt-2 truncate">
+                        {match.venue}
+                      </p>
+                    )}
+                  </div>
+                </Link>
+              );
+            })}
           </div>
-        );
-      })}
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function FilterBar({ activeFilter, setActiveFilter }: { activeFilter: MatchFilter; setActiveFilter: (f: MatchFilter) => void }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {filters.map((filter) => (
+        <button
+          key={filter.value}
+          onClick={() => setActiveFilter(filter.value)}
+          className={`
+            px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200
+            ${activeFilter === filter.value
+              ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25'
+              : 'bg-zinc-100 dark:bg-zinc-900 text-muted-foreground hover:text-foreground hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-transparent'
+            }
+          `}
+        >
+          {filter.label}
+        </button>
+      ))}
     </div>
   );
 }

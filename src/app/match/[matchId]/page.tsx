@@ -1,7 +1,6 @@
 'use client';
 
 import ScoreDisplay from '@/components/scraper';
-import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
@@ -15,9 +14,9 @@ export default function MatchPage() {
     return (
         <main className="flex min-h-screen flex-col items-center justify-center p-4">
             <div className="text-center">
-                <p className="text-lg font-semibold">Match ID not found.</p>
-                <p className="text-muted-foreground">Could not load match details.</p>
-                <Button asChild variant="outline" className="mt-4">
+                <p className="text-lg font-display">Match ID not found.</p>
+                <p className="text-muted-foreground text-sm mt-1">Could not load match details.</p>
+                <Button asChild variant="outline" className="mt-6 rounded-xl">
                     <Link href="/">
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Back to Matches
@@ -29,13 +28,8 @@ export default function MatchPage() {
   }
 
   return (
-    <main className="container mx-auto p-1 md:p-4">
-      <div className="flex justify-end mb-2 md:mb-4 px-1 md:px-0">
-        <ThemeToggle />
-      </div>
-      <div className="w-full">
-        <ScoreDisplay matchId={matchId} />
-      </div>
+    <main className="min-h-screen py-4">
+      <ScoreDisplay matchId={matchId} />
     </main>
   );
 }

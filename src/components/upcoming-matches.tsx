@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { getUpcomingMatches } from '@/app/actions';
 import type { LiveMatch } from '@/app/actions';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { LoaderCircle, Calendar, ChevronRight, ChevronDown } from "lucide-react";
+import { Calendar } from "lucide-react";
 
 interface GroupedMatches {
   [seriesName: string]: LiveMatch[];
@@ -14,35 +14,45 @@ interface GroupedMatches {
 
 type MatchFilter = 'all' | 'international' | 'league' | 'domestic' | 'women';
 
+const filters: { value: MatchFilter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'international', label: 'International' },
+  { value: 'league', label: 'League' },
+  { value: 'domestic', label: 'Domestic' },
+  { value: 'women', label: 'Women' },
+];
+
+const categoryColors: Record<MatchFilter, string> = {
+  international: 'bg-blue-500',
+  league: 'bg-purple-500',
+  domestic: 'bg-orange-500',
+  women: 'bg-pink-500',
+  all: '',
+};
+
+const categoryTextColors: Record<MatchFilter, string> = {
+  international: 'text-blue-400',
+  league: 'text-purple-400',
+  domestic: 'text-orange-400',
+  women: 'text-pink-400',
+  all: '',
+};
+
 export default function UpcomingMatches() {
   const [matches, setMatches] = useState<LiveMatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [expandedSeries, setExpandedSeries] = useState<Set<string>>(new Set());
   const [activeFilter, setActiveFilter] = useState<MatchFilter>('all');
-
-  const toggleSeries = (seriesName: string) => {
-    setExpandedSeries(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(seriesName)) {
-        newSet.delete(seriesName);
-      } else {
-        newSet.add(seriesName);
-      }
-      return newSet;
-    });
-  };
 
   const getMatchCategory = (match: LiveMatch): MatchFilter => {
     const title = match.title.toLowerCase();
     const seriesName = (match.seriesName || '').toLowerCase();
     const combined = `${title} ${seriesName}`;
-
     if (combined.includes('women')) return 'women';
-    if (combined.includes('ipl') || combined.includes('bbl') || combined.includes('psl') || 
-        combined.includes('cpl') || combined.includes('league') || combined.includes('t20 league')) return 'league';
-    if (combined.includes('test') || combined.includes('odi') || combined.includes('t20i') || 
-        combined.includes('international')) return 'international';
+    if (combined.includes('ipl') || combined.includes('bbl') || combined.includes('psl') ||
+      combined.includes('cpl') || combined.includes('league') || combined.includes('t20 league')) return 'league';
+    if (combined.includes('test') || combined.includes('odi') || combined.includes('t20i') ||
+      combined.includes('international')) return 'international';
     return 'domestic';
   };
 
@@ -58,26 +68,31 @@ export default function UpcomingMatches() {
       const result = await getUpcomingMatches();
       if (result.success && result.matches) {
         setMatches(result.matches);
-        // Open first series by default
-        if (result.matches.length > 0) {
-          const firstSeries = result.matches[0].seriesName || 'Other Matches';
-          setExpandedSeries(new Set([firstSeries]));
-        }
       } else {
         setError(result.error ?? "Failed to fetch upcoming matches.");
       }
       setLoading(false);
     };
-
     fetchMatches();
   }, []);
 
+  const filteredMatches = filterMatches(matches);
+  const groupedMatches: GroupedMatches = filteredMatches.reduce((acc, match) => {
+    const seriesName = match.seriesName || 'Other Matches';
+    if (!acc[seriesName]) acc[seriesName] = [];
+    acc[seriesName].push(match);
+    return acc;
+  }, {} as GroupedMatches);
+
   if (loading) {
     return (
-      <div className="w-full flex flex-col items-center justify-center min-h-[60vh] p-8">
-        <LoaderCircle className="w-12 h-12 animate-spin text-primary mb-4" />
-        <p className="text-lg font-medium text-primary">Finding upcoming matches...</p>
-        <p className="text-sm text-muted-foreground mt-2">This may take a moment</p>
+      <div className="space-y-6">
+        <FilterBar activeFilter={activeFilter} setActiveFilter={setActiveFilter} />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="skeleton h-40 rounded-2xl" />
+          ))}
+        </div>
       </div>
     );
   }
@@ -85,7 +100,7 @@ export default function UpcomingMatches() {
   if (error) {
     return (
       <div className="w-full flex items-center justify-center min-h-[60vh]">
-        <Alert variant="destructive" className="max-w-xl">
+        <Alert variant="destructive" className="max-w-xl rounded-2xl">
           <AlertTitle className="text-lg">Unable to fetch matches</AlertTitle>
           <AlertDescription className="mt-2">{error}</AlertDescription>
         </Alert>
@@ -96,178 +111,126 @@ export default function UpcomingMatches() {
   if (matches.length === 0) {
     return (
       <div className="w-full flex flex-col items-center justify-center min-h-[60vh] p-8">
-        <div className="p-4 rounded-full bg-primary/10 mb-4">
-          <Calendar className="w-8 h-8 text-primary" />
+        <div className="p-5 rounded-full bg-amber-500/10 mb-5">
+          <Calendar className="w-8 h-8 text-amber-400" />
         </div>
-        <h3 className="text-xl font-semibold mb-2">No upcoming matches found</h3>
-        <p className="text-muted-foreground text-center max-w-sm">
+        <h3 className="text-xl font-display mb-2">No upcoming matches found</h3>
+        <p className="text-muted-foreground text-center max-w-sm text-sm">
           Check back later for scheduled matches
         </p>
       </div>
     );
   }
 
-  // Filter and group matches by series
-  const filteredMatches = filterMatches(matches);
-  const groupedMatches: GroupedMatches = filteredMatches.reduce((acc, match) => {
-    const seriesName = match.seriesName || 'Other Matches';
-    if (!acc[seriesName]) {
-      acc[seriesName] = [];
-    }
-    acc[seriesName].push(match);
-    return acc;
-  }, {} as GroupedMatches);
-
-  const isUpcoming = (status: string) => {
-    const lowerStatus = status.toLowerCase();
-    return lowerStatus.includes('opt to') || lowerStatus.includes('toss') || lowerStatus.includes('preview');
-  };
-
-  const getCategoryDisplay = (category: MatchFilter) => {
-    const styles = {
-      international: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-      league: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
-      domestic: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
-      women: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300',
-      all: ''
-    };
-    const labels = {
-      international: 'International',
-      league: 'League',
-      domestic: 'Domestic',
-      women: 'Women',
-      all: ''
-    };
-    return { style: styles[category], label: labels[category] };
-  };
-
-  const filters: { value: MatchFilter; label: string }[] = [
-    { value: 'all', label: 'All' },
-    { value: 'international', label: 'International' },
-    { value: 'league', label: 'League' },
-    { value: 'domestic', label: 'Domestic' },
-    { value: 'women', label: 'Women' },
-  ];
-
   return (
-    <div className="space-y-6">
-      {/* Filter Buttons */}
-      <div className="flex flex-wrap gap-2 pb-2 border-b border-border">
-        {filters.map((filter) => (
-          <button
-            key={filter.value}
-            onClick={() => setActiveFilter(filter.value)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              activeFilter === filter.value
-                ? 'bg-amber-600 text-white'
-                : 'bg-card text-muted-foreground hover:bg-accent hover:text-foreground border border-border'
-            }`}
-          >
-            {filter.label}
-          </button>
-        ))}
-      </div>
+    <div className="space-y-8">
+      <FilterBar activeFilter={activeFilter} setActiveFilter={setActiveFilter} />
 
-      {/* No matches for filter */}
       {Object.keys(groupedMatches).length === 0 && (
         <div className="w-full flex flex-col items-center justify-center min-h-[40vh] p-8">
-          <div className="p-4 rounded-full bg-primary/10 mb-4">
-            <Calendar className="w-8 h-8 text-primary" />
+          <div className="p-5 rounded-full bg-amber-500/10 mb-5">
+            <Calendar className="w-8 h-8 text-amber-400" />
           </div>
-          <h3 className="text-xl font-semibold mb-2">No matches found</h3>
-          <p className="text-muted-foreground text-center max-w-sm">
+          <h3 className="text-xl font-display mb-2">No matches found</h3>
+          <p className="text-muted-foreground text-center max-w-sm text-sm">
             Try selecting a different filter
           </p>
         </div>
       )}
 
-      {Object.entries(groupedMatches).map(([seriesName, seriesMatches]) => {
-        const isExpanded = expandedSeries.has(seriesName);
+      {Object.entries(groupedMatches).map(([seriesName, seriesMatches]) => (
+        <section key={seriesName}>
+          {/* Series Header */}
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-px flex-1 bg-gradient-to-r from-amber-500/30 to-transparent" />
+            <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground px-1">
+              {seriesName}
+            </h3>
+            <div className="h-px flex-1 bg-gradient-to-l from-amber-500/30 to-transparent" />
+          </div>
 
-        return (
-          <div key={seriesName} className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
-            {/* Series Header - Accordion Toggle */}
-            <button
-              onClick={() => toggleSeries(seriesName)}
-              className="flex w-full items-center justify-between bg-gradient-to-r from-amber-600 to-orange-600 px-4 py-3 text-white transition-opacity hover:opacity-90"
-            >
-              <h3 className="text-sm font-bold uppercase tracking-wide">{seriesName}</h3>
-              {isExpanded ? (
-                <ChevronDown className="h-5 w-5" />
-              ) : (
-                <ChevronRight className="h-5 w-5" />
-              )}
-            </button>
+          {/* Match Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {seriesMatches.map((match, index) => {
+              const category = getMatchCategory(match);
 
-            {/* Matches in this series - Collapsible */}
-            {isExpanded && (
-              <div className="divide-y divide-border">
-                {seriesMatches.map((match) => (
-                  <Link
-                    key={match.matchId}
-                    href={`/match/${match.matchId}`}
-                    className="block bg-card transition-colors hover:bg-accent/50"
-                  >
-                    <div className="p-4">
-                      {/* Match info and venue */}
-                      <div className="mb-3 space-y-1">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 text-xs text-muted-foreground">
-                            <span>{match.title.split(',').slice(0, 2).join(',')}</span>
-                          </div>
-                          {activeFilter === 'all' && (() => {
-                            const category = getMatchCategory(match);
-                            const display = getCategoryDisplay(category);
-                            return (
-                              <span className={`rounded-full px-2 py-0.5 text-xs font-medium flex-shrink-0 ${display.style}`}>
-                                {display.label}
-                              </span>
-                            );
-                          })()}
-                        </div>
-                        {match.venue && match.venue !== 'N/A' && (
-                          <div className="text-xs text-muted-foreground">
-                            <span className="font-semibold">Venue: </span>
-                            <span>{match.venue}</span>
-                          </div>
-                        )}
-                      </div>
+              return (
+                <Link
+                  key={match.matchId}
+                  href={`/match/${match.matchId}`}
+                  className="stagger-in"
+                  style={{ '--stagger-index': index } as React.CSSProperties}
+                >
+                  <div className="glass-card card-hover p-5 h-full">
+                    {/* Top row */}
+                    <div className="flex items-center justify-between mb-4">
+                      {activeFilter === 'all' && (
+                        <span className="flex items-center gap-1.5 text-xs font-medium">
+                          <span className={`w-1.5 h-1.5 rounded-full ${categoryColors[category]}`} />
+                          <span className={categoryTextColors[category]}>{category.charAt(0).toUpperCase() + category.slice(1)}</span>
+                        </span>
+                      )}
+                      <span className="text-xs text-muted-foreground">
+                        {match.title.split(',').slice(0, 1).join('')}
+                      </span>
+                    </div>
 
-                      {/* Teams */}
-                      <div className="space-y-2.5">
-                        {match.teams.map((team, idx) => (
-                          <div key={idx} className="flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-foreground">
-                                {team.name}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Status */}
-                      {match.status && match.status.toLowerCase() !== 'status not available' && (
-                        <div className="mt-3 pt-2 border-t border-border/50">
-                          <span
-                            className={`text-sm font-medium ${
-                              isUpcoming(match.status)
-                                ? 'text-amber-600 dark:text-amber-400'
-                                : 'text-muted-foreground'
-                            }`}
-                          >
-                            {match.status}
+                    {/* Teams */}
+                    <div className="space-y-3">
+                      {match.teams.map((team, idx) => (
+                        <div key={idx} className="flex items-center gap-3">
+                          <span className="text-sm font-semibold text-foreground">
+                            {team.name}
                           </span>
                         </div>
-                      )}
+                      ))}
                     </div>
-                  </Link>
-                ))}
-              </div>
-            )}
+
+                    {/* Venue */}
+                    {match.venue && match.venue !== 'N/A' && (
+                      <div className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Calendar className="w-3 h-3" />
+                        <span className="truncate">{match.venue}</span>
+                      </div>
+                    )}
+
+                    {/* Status */}
+                    {match.status && match.status.toLowerCase() !== 'status not available' && (
+                      <div className="mt-3 pt-3 border-t border-border/50">
+                        <p className="text-xs font-medium text-amber-400">
+                          {match.status}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </Link>
+              );
+            })}
           </div>
-        );
-      })}
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function FilterBar({ activeFilter, setActiveFilter }: { activeFilter: MatchFilter; setActiveFilter: (f: MatchFilter) => void }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {filters.map((filter) => (
+        <button
+          key={filter.value}
+          onClick={() => setActiveFilter(filter.value)}
+          className={`
+            px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200
+            ${activeFilter === filter.value
+              ? 'bg-amber-500 text-black shadow-md shadow-amber-500/25'
+              : 'bg-zinc-100 dark:bg-zinc-900 text-muted-foreground hover:text-foreground hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-transparent'
+            }
+          `}
+        >
+          {filter.label}
+        </button>
+      ))}
     </div>
   );
 }

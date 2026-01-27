@@ -6,96 +6,85 @@ import LiveMatches from "@/components/live-matches";
 import RecentMatches from "@/components/recent-matches";
 import UpcomingMatches from "@/components/upcoming-matches";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Sidebar, SidebarContent, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarSeparator, SidebarTrigger } from "@/components/ui/sidebar";
 import { Flame, History, Calendar } from "lucide-react";
 
 type View = 'live' | 'recent' | 'upcoming';
+
+const tabs: { value: View; label: string; icon: typeof Flame }[] = [
+    { value: 'live', label: 'Live', icon: Flame },
+    { value: 'recent', label: 'Recent', icon: History },
+    { value: 'upcoming', label: 'Upcoming', icon: Calendar },
+];
 
 export default function Home() {
     const [view, setView] = useState<View>('live');
 
     return (
-        <div className="flex w-full">
-            <Sidebar className="backdrop-blur-sm bg-white/50 dark:bg-gray-950/50 border-r border-primary/10">
-                <SidebarHeader className="p-6">
-                    <h1 className="text-3xl font-black font-logo tracking-tight">
-                        <span className="bg-gradient-to-r from-primary via-emerald-500 to-primary bg-clip-text text-transparent">
-                            Inningz
-                        </span>
-                    </h1>
-                    <p className="text-sm text-muted-foreground mt-1">Live Cricket Scores</p>
-                </SidebarHeader>
-                <SidebarSeparator className="opacity-50" />
-                <SidebarContent className="p-4">
-                    <SidebarMenu>
-                        <SidebarMenuItem>
-                            <SidebarMenuButton
-                                onClick={() => setView('live')}
-                                isActive={view === 'live'}
-                                tooltip="Live Matches"
-                                className={`transition-all duration-200 ${view === 'live' ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-gray-100 dark:hover:bg-gray-800/50'}`}
-                            >
-                                <Flame className={view === 'live' ? 'text-primary' : ''} />
-                                <span>Live</span>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                        <SidebarMenuItem>
-                            <SidebarMenuButton
-                                onClick={() => setView('recent')}
-                                isActive={view === 'recent'}
-                                tooltip="Recent Matches"
-                                className={`transition-all duration-200 ${view === 'recent' ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-gray-100 dark:hover:bg-gray-800/50'}`}
-                            >
-                                <History className={view === 'recent' ? 'text-primary' : ''} />
-                                <span>Recent</span>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                        <SidebarMenuItem>
-                            <SidebarMenuButton
-                                onClick={() => setView('upcoming')}
-                                isActive={view === 'upcoming'}
-                                tooltip="Upcoming Matches"
-                                className={`transition-all duration-200 ${view === 'upcoming' ? 'bg-primary/10 hover:bg-primary/20' : 'hover:bg-gray-100 dark:hover:bg-gray-800/50'}`}
-                            >
-                                <Calendar className={view === 'upcoming' ? 'text-primary' : ''} />
-                                <span>Upcoming</span>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                    </SidebarMenu>
-                </SidebarContent>
-            </Sidebar>
-            <SidebarInset className="relative">
-                <div className="sticky top-0 z-10 backdrop-blur-md bg-background/80 border-b border-primary/10">
-                    <div className="p-4 md:p-6 flex justify-between items-center">
-                        <div className="flex items-center gap-3">
-                            <SidebarTrigger className="md:hidden hover:bg-primary/10" />
-                            <div>
-                                <h2 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent capitalize">
-                                    {view === 'live' ? 'Live Matches' :
-                                        view === 'recent' ? 'Recent Matches' :
-                                            view === 'upcoming' ? 'Upcoming Matches' : view}
-                                </h2>
-                                <p className="text-sm text-muted-foreground">
-                                    {view === 'live' ? 'Currently playing matches' :
-                                        view === 'recent' ? 'Recently completed matches' :
-                                            view === 'upcoming' ? 'Upcoming fixtures' : ''}
-                                </p>
-                            </div>
-                        </div>
-                        <ThemeToggle />
-                    </div>
-                </div>
+        <div className="min-h-screen">
+            {/* Sticky Header */}
+            <header className="sticky top-0 z-50 w-full gradient-border">
+                <div className="bg-background/90 backdrop-blur-xl">
+                    <div className="max-w-7xl mx-auto px-4 md:px-6">
+                        <div className="flex items-center justify-between h-16">
+                            {/* Logo */}
+                            <h1 className="text-2xl md:text-3xl font-display tracking-tight">
+                                <span className="text-primary">Inningz</span>
+                            </h1>
 
-                <div className="w-full max-w-7xl mx-auto">
-                    <div className="p-4 md:p-6 pt-4">
-                        <div className="min-h-[80vh]">
-                            {view === 'live' && <LiveMatches />}
-                            {view === 'recent' && <RecentMatches />}
-                            {view === 'upcoming' && <UpcomingMatches />}
+                            {/* Navigation Tabs */}
+                            <nav className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-900 p-1 rounded-xl">
+                                {tabs.map((tab) => {
+                                    const Icon = tab.icon;
+                                    const isActive = view === tab.value;
+                                    return (
+                                        <button
+                                            key={tab.value}
+                                            onClick={() => setView(tab.value)}
+                                            className={`
+                                                flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-lg text-sm font-medium
+                                                transition-all duration-200 ease-out
+                                                ${isActive
+                                                    ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25'
+                                                    : 'text-muted-foreground hover:text-foreground hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'
+                                                }
+                                            `}
+                                        >
+                                            <Icon className={`w-4 h-4 ${isActive && tab.value === 'live' ? 'animate-pulse' : ''}`} />
+                                            <span className="hidden sm:inline">{tab.label}</span>
+                                        </button>
+                                    );
+                                })}
+                            </nav>
+
+                            {/* Theme Toggle */}
+                            <ThemeToggle />
                         </div>
                     </div>
                 </div>
-            </SidebarInset>
+            </header>
+
+            {/* Page Title */}
+            <div className="max-w-7xl mx-auto px-4 md:px-6 pt-8 pb-4">
+                <h2 className="text-3xl md:text-4xl font-display tracking-tight">
+                    {view === 'live' ? 'Live Matches' :
+                        view === 'recent' ? 'Recent Matches' :
+                            'Upcoming Matches'}
+                </h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                    {view === 'live' ? 'Currently playing matches' :
+                        view === 'recent' ? 'Recently completed matches' :
+                            'Upcoming fixtures'}
+                </p>
+            </div>
+
+            {/* Content */}
+            <main className="max-w-7xl mx-auto px-4 md:px-6 pb-12">
+                <div className="min-h-[70vh]">
+                    {view === 'live' && <LiveMatches />}
+                    {view === 'recent' && <RecentMatches />}
+                    {view === 'upcoming' && <UpcomingMatches />}
+                </div>
+            </main>
         </div>
     );
 }

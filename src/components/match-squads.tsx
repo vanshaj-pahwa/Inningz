@@ -95,12 +95,12 @@ export default function MatchSquadsDisplay({ matchId }: { matchId: string }) {
         return (
             <div
                 key={player.name}
-                className={`flex gap-2 p-2 md:p-3 border-b border-cbBorderGrey items-center h-[70px] md:h-[80px] hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors cursor-pointer ${isRightSide ? 'justify-end text-right border-l-0' : 'border-r-2'}`}
+                className={`flex gap-2 p-2 md:p-3 border-b border-cbBorderGrey items-center h-[70px] md:h-[80px] hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors cursor-pointer ${isRightSide ? 'justify-end text-right border-l-0' : 'border-r-2'}`}
                 onClick={() => handleProfileClick(player.profileId, player.name)}
             >
                 {!isRightSide && (
                     <div className="relative flex-shrink-0">
-                        <div className="rounded-full overflow-hidden w-10 h-10 md:w-12 md:h-12 bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                        <div className="rounded-full overflow-hidden w-10 h-10 md:w-12 md:h-12 bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center">
                             {player.imageUrl ? (
                                 <Image
                                     src={player.imageUrl}
@@ -110,7 +110,7 @@ export default function MatchSquadsDisplay({ matchId }: { matchId: string }) {
                                     className="w-full h-full object-cover"
                                 />
                             ) : (
-                                <span className="text-lg md:text-xl font-bold text-gray-400">
+                                <span className="text-lg md:text-xl font-bold text-zinc-500">
                                     {player.name.charAt(0)}
                                 </span>
                             )}
@@ -130,7 +130,7 @@ export default function MatchSquadsDisplay({ matchId }: { matchId: string }) {
                 </div>
                 {isRightSide && (
                     <div className="relative flex-shrink-0">
-                        <div className="rounded-full overflow-hidden w-10 h-10 md:w-12 md:h-12 bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                        <div className="rounded-full overflow-hidden w-10 h-10 md:w-12 md:h-12 bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center">
                             {player.imageUrl ? (
                                 <Image
                                     src={player.imageUrl}
@@ -140,7 +140,7 @@ export default function MatchSquadsDisplay({ matchId }: { matchId: string }) {
                                     className="w-full h-full object-cover"
                                 />
                             ) : (
-                                <span className="text-lg md:text-xl font-bold text-gray-400">
+                                <span className="text-lg md:text-xl font-bold text-zinc-500">
                                     {player.name.charAt(0)}
                                 </span>
                             )}
@@ -154,7 +154,7 @@ export default function MatchSquadsDisplay({ matchId }: { matchId: string }) {
     return (
         <div className="max-w-7xl mx-auto space-y-3 md:space-y-6">
             {/* Team Headers */}
-            <div className="flex justify-between bg-gray-100 dark:bg-gray-800 p-2 md:p-4 rounded-none md:rounded-md">
+            <div className="flex justify-between bg-zinc-100 dark:bg-zinc-900 p-2 md:p-4 rounded-2xl">
                 <div className="flex items-center gap-2">
                     {squads.team1.teamFlagUrl && (
                         <div className="rounded overflow-hidden w-6 h-4 md:w-7 md:h-5 flex-shrink-0">
@@ -167,10 +167,10 @@ export default function MatchSquadsDisplay({ matchId }: { matchId: string }) {
                             />
                         </div>
                     )}
-                    <h1 className="font-bold text-sm md:text-base">{squads.team1.teamShortName}</h1>
+                        <h1 className="font-display text-sm md:text-base">{squads.team1.teamShortName}</h1>
                 </div>
                 <div className="flex items-center gap-2">
-                    <h1 className="font-bold text-sm md:text-base">{squads.team2.teamShortName}</h1>
+                    <h1 className="font-display text-sm md:text-base">{squads.team2.teamShortName}</h1>
                     {squads.team2.teamFlagUrl && (
                         <div className="rounded overflow-hidden w-6 h-4 md:w-7 md:h-5 flex-shrink-0">
                             <Image
@@ -187,7 +187,7 @@ export default function MatchSquadsDisplay({ matchId }: { matchId: string }) {
 
             {/* Playing XI / Squad */}
             <div className="pb-3 md:pb-5">
-                <h1 className="capitalize p-2 font-bold text-sm md:text-lg text-center bg-gray-100 dark:bg-gray-800">
+                <h1 className="capitalize p-2 font-bold text-sm md:text-lg text-center bg-zinc-100 dark:bg-zinc-900">
                     {squads.team1.playingXI.length > 11 || squads.team2.playingXI.length > 11 ? 'Squad' : 'Playing XI'}
                 </h1>
                 <div className="w-full flex">
@@ -203,7 +203,7 @@ export default function MatchSquadsDisplay({ matchId }: { matchId: string }) {
             {/* Bench */}
             {(squads.team1.bench.length > 0 || squads.team2.bench.length > 0) && (
                 <div className="pb-3 md:pb-5">
-                    <h1 className="capitalize p-2 font-bold text-sm md:text-lg text-center bg-gray-100 dark:bg-gray-800">
+                    <h1 className="capitalize p-2 font-bold text-sm md:text-lg text-center bg-zinc-100 dark:bg-zinc-900">
                         Bench
                     </h1>
                     <div className="w-full flex">
@@ -219,7 +219,7 @@ export default function MatchSquadsDisplay({ matchId }: { matchId: string }) {
 
             {/* Player Profile Dialog */}
             <Dialog open={!!selectedProfileId} onOpenChange={handleDialogOpenChange}>
-                <DialogContent className="max-w-[95vw] w-full max-h-[95vh] overflow-y-auto p-0">
+                <DialogContent className="max-w-[95vw] w-full max-h-[95vh] overflow-y-auto p-0 rounded-2xl">
                     <DialogHeader className="sr-only">
                         <DialogTitle>Player Profile</DialogTitle>
                     </DialogHeader>

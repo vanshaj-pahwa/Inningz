@@ -18,7 +18,8 @@ export default {
     extend: {
       fontFamily: {
         sans: ["var(--font-sans)", ...fontFamily.sans],
-        logo: ["var(--font-logo)", ...fontFamily.sans],
+        display: ["var(--font-display)", "Georgia", "serif"],
+        mono: ["var(--font-mono)", ...fontFamily.mono],
       },
       colors: {
         border: "hsl(var(--border))",

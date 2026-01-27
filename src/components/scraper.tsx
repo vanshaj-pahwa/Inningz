@@ -4,19 +4,18 @@
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { getScoreForMatchId, loadMoreCommentary as loadMoreCommentaryAction, getPlayerProfile } from '@/app/actions';
-import type { ScrapeCricbuzzUrlOutput, Commentary, PlayerProfile } from '@/app/actions';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { getScoreForMatchId, loadMoreCommentary as loadMoreCommentaryAction, getPlayerProfile, getPlayerHighlights } from '@/app/actions';
+import type { ScrapeCricbuzzUrlOutput, Commentary, PlayerProfile, PlayerHighlights } from '@/app/actions';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { LoaderCircle, User, ArrowLeft } from "lucide-react";
 import { Button } from './ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Badge } from './ui/badge';
 import { cn } from '@/lib/utils';
 import FullScorecard from './full-scorecard';
 import PlayerProfileDisplay from './player-profile';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import MatchSquadsDisplay from './match-squads';
+import { ThemeToggle } from './theme-toggle';
 
 export interface ScrapeState {
     success: boolean;
@@ -32,14 +31,6 @@ type LastEventType = {
 };
 
 type View = 'live' | 'scorecard' | 'squads';
-
-const CricketBatIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlnsXlink="http://www.w3.org/1999/xlink" width="16" height="16" x="0" y="0" viewBox="0 0 512 512" className="inline-block ml-1 text-primary" xmlSpace="preserve"><g fill="currentColor"><path d="m148.67 150.612-22.453 43.502a7.834 7.834 0 0 0 1.534 8.906l96.127 90.728-1.671 12.502 203.456 203.456a7.834 7.834 0 0 0 8.906 1.534l7.782-3.704a137.76 137.76 0 0 0 65.183-65.183l3.704-7.782a7.834 7.834 0 0 0-1.534-8.906L306.248 222.208l-12.104 1.671-91.196-96.057a7.834 7.834 0 0 0-8.906-1.534z" opacity="1"></path><path d="m511.237 434.57-3.698 7.777a130.779 130.779 0 0 1-3.295 6.466L315.536 260.11 186.165 127.612c-.857-.843-.663-2.264.422-2.78l9.477-.85c2.995-1.425 8.717 5.03 11.062 7.375l79.161 84.945 19.962 5.906 203.459 203.459a7.827 7.827 0 0 1 1.529 8.903z" opacity="1"></path><path d="m204.592 120.557 101.654 101.654 22.921 93.554c1.98 8.082-5.32 15.382-13.402 13.402l-93.554-22.921-101.655-101.653a7.846 7.846 0 0 1-1.54-8.901l24.725-51.949 51.949-24.725a7.846 7.846 0 0 1 8.902 1.539z" opacity="1"></path><path d="M315.533 260.112 183.092 127.67a8.515 8.515 0 0 0-2.21-1.601v-.011l14.811-7.044a7.865 7.865 0 0 1 8.903 1.539l101.653 101.653z" opacity="1"></path><path d="M223.643 223.644c-8.504 8.504-22.291 8.504-30.795 0L3 33.795c-3.998-3.998-3.998-10.481 0-14.48L19.315 3.001c3.998-3.998 10.481-3.998 14.48 0L223.644 192.85c8.503 8.503 8.503 22.29-.001 30.794z" opacity="1"></path><path d="M223.641 223.642a21.705 21.705 0 0 1-8.965 5.412c2.324-7.467.516-15.937-5.391-21.845L19.437 17.362c-3.997-4.008-10.483-4.008-14.481 0L19.313 3.006a10.222 10.222 0 0 1 14.48 0L223.64 192.853c8.512 8.5 8.512 22.289.001 30.789z" opacity="1"></path></g></svg>
-)
-
-const CricketBallIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlnsXlink="http://www.w3.org/1999/xlink" width="14" height="14" x="0" y="0" viewBox="0 0 173.397 173.397" className="inline-block ml-1 text-primary" xmlSpace="preserve" fillRule="evenodd"><g fill="currentColor"><path d="M154.034 128.243a79.182 79.182 0 0 1-10.213 13.183L31.97 29.576a79.182 79.182 0 0 1 13.183-10.213 3.498 3.498 0 0 1 4.353.507l104.02 104.019a3.498 3.498 0 0 1 .507 4.354zm-27.008 11.207a1.693 1.693 0 0 0-2.395 2.394l2.98 2.98a1.693 1.693 0 0 0 2.394-2.395zm-8.005-8.005a1.693 1.693 0 0 0-2.395 2.394l2.98 2.98a1.693 1.693 0 0 0 2.394-2.395zm-8.005-8.005a1.693 1.693 0 0 0-2.394 2.395l2.979 2.979a1.693 1.693 0 0 0 2.395-2.395zm-8.005-8.005a1.693 1.693 0 0 0-2.394 2.395l2.98 2.98a1.693 1.693 0 0 0 2.394-2.395zm-8.005-8.005a1.693 1.693 0 0 0-2.394 2.395l2.98 2.98a1.693 1.693 0 0 0 2.394-2.395zm-8.004-8.005a1.693 1.693 0 0 0-2.395 2.395l2.98 2.98a1.693 1.693 0 0 0 2.394-2.395zm-8.005-8.004a1.693 1.693 0 0 0-2.395 2.394l2.98 2.98a1.693 1.693 0 0 0 2.394-2.395zm-8.005-8.005a1.693 1.693 0 0 0-2.395 2.394l2.98 2.98a1.693 1.693 0 0 0 2.394-2.395zm-8.005-8.005a1.693 1.693 0 0 0-2.394 2.394l2.979 2.98a1.693 1.693 0 0 0 2.395-2.395zm-8.005-8.005a1.693 1.693 0 0 0-2.394 2.395l2.98 2.98a1.693 1.693 0 0 0 2.394-2.396zm-8.004-8.005a1.693 1.693 0 0 0-2.395 2.395l2.98 2.98a1.693 1.693 0 0 0 2.394-2.395zm-8.005-8.005a1.693 1.693 0 0 0-2.395 2.395l2.98 2.98a1.693 1.693 0 0 0 2.394-2.395zm-8.005-8.004a1.693 1.693 0 0 0-2.395 2.394l2.98 2.98a1.693 1.693 0 0 0 2.394-2.395zm110.876 81.239a1.693 1.693 0 0 0-2.395 2.395l2.98 2.979a1.693 1.693 0 0 0 2.394-2.395zm-8.005-8.005a1.693 1.693 0 0 0-2.395 2.395l2.98 2.98a1.693 1.693 0 0 0 2.394-2.395zm-8.005-8.005a1.693 1.693 0 0 0-2.394 2.395l2.979 2.98a1.693 1.693 0 0 0 2.395-2.395zm-8.005-8.004a1.693 1.693 0 0 0-2.394 2.394l2.98 2.98a1.693 1.693 0 0 0 2.394-2.395zm-8.004-8.005a1.693 1.693 0 0 0-2.395 2.394l2.98 2.98a1.693 1.693 0 0 0 2.394-2.395zm-8.005-8.005A1.693 1.693 0 0 0 99.425 87l2.98 2.98a1.693 1.693 0 0 0 2.394-2.395zm-8.005-8.005a1.693 1.693 0 0 0-2.395 2.395l2.98 2.98a1.693 1.693 0 0 0 2.394-2.396zm-8.005-8.005a1.693 1.693 0 0 0-2.395 2.395l2.98 2.98a1.693 1.693 0 0 0 2.394-2.395zm-8.005-8.005a1.693 1.693 0 0 0-2.394 2.395l2.98 2.98a1.693 1.693 0 0 0 2.394-2.395zM69.8 52.588a1.693 1.693 0 0 0-2.394 2.394l2.98 2.98a1.693 1.693 0 0 0 2.394-2.395zm-8.004-8.005a1.693 1.693 0 0 0-2.395 2.394l2.98 2.98a1.693 1.693 0 0 0 2.394-2.395zm-8.005-8.005a1.693 1.693 0 0 0-2.395 2.395l2.98 2.979a1.693 1.693 0 0 0 2.394-2.395zm-8.005-8.005a1.693 1.693 0 0 0-2.395 2.395l2.98 2.98a1.693 1.693 0 0 0 2.394-2.396zm95.64 115.248a79.19 79.19 0 0 1-13.183 10.213 3.498 3.498 0 0 1-4.354-.507L19.87 49.508a3.498 3.498 0 0 1-.507-4.354 79.19 79.19 0 0 1 10.213-13.182l111.85 111.85zM18.415 52.841C4.28 81.34 9.078 116.842 32.817 140.581c23.738 23.738 59.24 28.536 87.74 14.402L18.414 52.842zm79.277 98.539a1.69 1.69 0 0 0-.556-3.334c-4.122.697-8.292.98-12.443.847a62.506 62.506 0 0 1-12.355-1.642 1.691 1.691 0 0 0-.767 3.294 65.844 65.844 0 0 0 13.016 1.721c4.39.14 8.781-.155 13.105-.886zm-41.237-6.442a1.692 1.692 0 0 0 1.56-3.003 61.847 61.847 0 0 1-15.314-11.24 1.693 1.693 0 0 0-2.394 2.395c2.4 2.401 4.957 4.586 7.64 6.555a65.209 65.209 0 0 0 8.508 5.293zm60.487-116.48a1.692 1.692 0 0 0-1.56 3.004A61.847 61.847 0 0 1 130.695 42.7a1.693 1.693 0 0 0 2.394-2.395 66.122 66.122 0 0 0-7.639-6.554 65.209 65.209 0 0 0-8.509-5.293zm-41.237-6.441a1.69 1.69 0 0 0 .556 3.334 62.617 62.617 0 0 1 12.443-.847c4.138.132 8.278.68 12.355 1.642a1.691 1.691 0 0 0 .767-3.294A65.844 65.844 0 0 0 88.81 21.13c-4.39-.14-8.781.155-13.105.887zm79.277 98.539c14.135-28.499 9.337-64.001-14.401-87.74C116.842 9.078 81.34 4.28 52.84 18.414l102.141 102.141z" opacity="1"></path></g></svg>
-);
 
 
 export default function ScoreDisplay({ matchId }: { matchId: string }) {
@@ -58,6 +49,9 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
     const [selectedPlayerName, setSelectedPlayerName] = useState<string | null>(null);
     const [selectedProfile, setSelectedProfile] = useState<PlayerProfile | null>(null);
     const [profileLoading, setProfileLoading] = useState(false);
+    const [highlightsData, setHighlightsData] = useState<PlayerHighlights | null>(null);
+    const [highlightsLoading, setHighlightsLoading] = useState(false);
+    const [highlightsUrl, setHighlightsUrl] = useState<string | null>(null);
     const [timeLeft, setTimeLeft] = useState<{ hours: number; minutes: number; seconds: number } | null>(null);
 
 
@@ -65,9 +59,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
         if (!matchId) return;
         const newState = await getScoreForMatchId(matchId);
 
-        // Always append the loaded extra commentary from ref (persists across refreshes)
         if (newState.data?.commentary && loadedExtraCommentaryRef.current.length > 0) {
-            console.log('[fetchScore] Appending', loadedExtraCommentaryRef.current.length, 'extra commentary items to', newState.data.commentary.length, 'base items');
             setScoreState({
                 ...newState,
                 data: {
@@ -79,9 +71,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
             setScoreState(newState);
         }
 
-        // Set initial timestamp for pagination only once (when we first load)
         if (newState.data?.oldestCommentaryTimestamp && lastTimestampRef.current === null) {
-            console.log('[fetchScore] Setting initial timestamp to', newState.data.oldestCommentaryTimestamp);
             lastTimestampRef.current = newState.data.oldestCommentaryTimestamp;
             setLastTimestamp(newState.data.oldestCommentaryTimestamp);
         }
@@ -89,29 +79,16 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
 
     const loadMoreCommentary = async () => {
         const currentTimestamp = lastTimestampRef.current;
-        console.log('[loadMoreCommentary] Starting with timestamp:', currentTimestamp);
-        if (!matchId || !currentTimestamp || loadingMore || currentTimestamp === 0) {
-            console.log('[loadMoreCommentary] Skipping - matchId:', matchId, 'timestamp:', currentTimestamp, 'loadingMore:', loadingMore);
-            return;
-        }
+        if (!matchId || !currentTimestamp || loadingMore || currentTimestamp === 0) return;
 
         setLoadingMore(true);
         try {
             const inningsId = scoreState.data?.currentInningsId || 1;
-            // Subtract 1 from timestamp to get strictly older commentary
-            console.log('[loadMoreCommentary] Fetching with timestamp:', currentTimestamp - 1, 'inningsId:', inningsId);
             const result = await loadMoreCommentaryAction(matchId, currentTimestamp - 1, inningsId);
-            console.log('[loadMoreCommentary] Result:', result.success, 'commentary count:', result.commentary?.length, 'new timestamp:', result.timestamp);
 
             if (result.success && result.commentary && result.commentary.length > 0) {
-                // Deduplicate: only add commentary that isn't already loaded
-                // For live commentary, extract the ball number (e.g., "29.2") as the key
-                // For stat/user commentary, use the full text
                 const extractKey = (c: Commentary) => {
-                    if (c.type === 'live' && c.text.includes(':')) {
-                        // Extract ball number like "29.2" from "29.2: commentary text"
-                        return c.text.split(':')[0].trim();
-                    }
+                    if (c.type === 'live' && c.text.includes(':')) return c.text.split(':')[0].trim();
                     return c.text;
                 };
 
@@ -121,29 +98,19 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                     ...loadedExtraCommentaryRef.current.map(extractKey)
                 ]);
                 const newCommentary = result.commentary.filter(c => !existingKeys.has(extractKey(c)));
-                console.log('[loadMoreCommentary] Deduplication: got', result.commentary.length, 'items, existing keys:', existingKeys.size, 'adding', newCommentary.length, 'new items');
 
-                // Always update the timestamp to progress pagination, even if we got duplicates
                 if (result.timestamp && result.timestamp < (lastTimestampRef.current || Infinity)) {
-                    console.log('[loadMoreCommentary] Updating timestamp from', lastTimestampRef.current, 'to', result.timestamp);
                     lastTimestampRef.current = result.timestamp;
                     setLastTimestamp(result.timestamp);
                 }
 
-                if (newCommentary.length === 0) {
-                    console.log('[loadMoreCommentary] All items were duplicates, will try next page with new timestamp');
-                    return;
-                }
+                if (newCommentary.length === 0) return;
 
-                // Mark where new commentary starts (current length before adding new items)
                 const currentCommentaryLength = scoreState.data?.commentary.length || 0;
                 setNewCommentaryStartIndex(currentCommentaryLength);
 
-                // Store in ref so it persists across API refreshes
                 loadedExtraCommentaryRef.current = [...loadedExtraCommentaryRef.current, ...newCommentary];
-                console.log('[loadMoreCommentary] Added to ref, total extra commentary:', loadedExtraCommentaryRef.current.length);
 
-                // Update display
                 setScoreState(prev => {
                     if (!prev.data) return prev;
                     return {
@@ -155,13 +122,10 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                     };
                 });
 
-                // Scroll to the first newly loaded commentary item
                 setTimeout(() => {
                     newCommentaryStartRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }, 100);
             } else if (result.success && result.commentary && result.commentary.length === 0) {
-                // No more commentary available
-                console.log('[loadMoreCommentary] No more commentary, setting timestamp to 0');
                 lastTimestampRef.current = 0;
                 setLastTimestamp(0);
             }
@@ -183,37 +147,26 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
             if (!selectedProfileId) return;
             setProfileLoading(true);
             const result = await getPlayerProfile(selectedProfileId, selectedPlayerName || undefined);
-            if (result.success && result.data) {
-                setSelectedProfile(result.data);
-            }
+            if (result.success && result.data) setSelectedProfile(result.data);
             setProfileLoading(false);
         };
         fetchProfile();
     }, [selectedProfileId, selectedPlayerName]);
 
-    // Countdown timer for upcoming matches
     useEffect(() => {
         if (!scoreState.data?.matchStartTimestamp) return;
-        
         const updateCountdown = () => {
             const now = Date.now();
             const diff = scoreState.data!.matchStartTimestamp! - now;
-            
-            if (diff <= 0) {
-                setTimeLeft(null);
-                return;
-            }
-            
-            const hours = Math.floor(diff / (1000 * 60 * 60));
-            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-            
-            setTimeLeft({ hours, minutes, seconds });
+            if (diff <= 0) { setTimeLeft(null); return; }
+            setTimeLeft({
+                hours: Math.floor(diff / (1000 * 60 * 60)),
+                minutes: Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)),
+                seconds: Math.floor((diff % (1000 * 60)) / 1000),
+            });
         };
-        
         updateCountdown();
         const interval = setInterval(updateCountdown, 1000);
-        
         return () => clearInterval(interval);
     }, [scoreState.data?.matchStartTimestamp]);
 
@@ -242,44 +195,30 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
             const prevScore = parseScore(previousData.current.score);
             const currentOvers = parseOvers(scoreState.data.score);
             const prevOvers = parseOvers(previousData.current.score);
-
             const isLive = !scoreState.data.status.toLowerCase().includes('complete') && !scoreState.data.status.toLowerCase().includes('won');
 
             let eventToShow: Omit<LastEventType, 'key'> | null = null;
-
             if (currentScore && prevScore && isLive) {
                 const runDiff = currentScore.runs - prevScore.runs;
                 const wicketDiff = currentScore.wickets - prevScore.wickets;
                 const oversChanged = currentOvers !== null && prevOvers !== null && currentOvers > prevOvers;
 
-                if (wicketDiff > 0) {
-                    eventToShow = { text: 'W', variant: 'destructive' };
-                } else if (runDiff === 6) {
-                    eventToShow = { text: '6', variant: 'six' };
-                } else if (runDiff === 4) {
-                    eventToShow = { text: '4', variant: 'four' };
-                } else if (runDiff > 0 && runDiff < 4) {
-                    eventToShow = { text: `+${runDiff}`, variant: 'default' };
-                } else if (runDiff === 0 && wicketDiff === 0 && oversChanged) {
-                    eventToShow = { text: 'DOT', variant: 'default' };
-                }
+                if (wicketDiff > 0) eventToShow = { text: 'W', variant: 'destructive' };
+                else if (runDiff === 6) eventToShow = { text: '6', variant: 'six' };
+                else if (runDiff === 4) eventToShow = { text: '4', variant: 'four' };
+                else if (runDiff > 0 && runDiff < 4) eventToShow = { text: `+${runDiff}`, variant: 'default' };
+                else if (runDiff === 0 && wicketDiff === 0 && oversChanged) eventToShow = { text: 'DOT', variant: 'default' };
             }
-
-            if (eventToShow) {
-                setLastEvent({ ...eventToShow, key: Date.now() });
-            }
+            if (eventToShow) setLastEvent({ ...eventToShow, key: Date.now() });
         }
-
-        if (scoreState.data) {
-            previousData.current = scoreState.data;
-        }
+        if (scoreState.data) previousData.current = scoreState.data;
     }, [scoreState.data]);
 
 
     if (scoreState.error) {
         return (
-            <div className="max-w-4xl mx-auto">
-                <Alert variant="destructive" className="mt-8">
+            <div className="max-w-4xl mx-auto px-4">
+                <Alert variant="destructive" className="mt-8 rounded-2xl">
                     <AlertTitle>Error</AlertTitle>
                     <AlertDescription>{scoreState.error}</AlertDescription>
                 </Alert>
@@ -299,16 +238,14 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
     }
 
     const renderCommentaryItem = (comment: Commentary, index: number) => {
-        const baseClasses = "p-2.5 md:p-3 flex gap-2 md:gap-3 items-start text-xs md:text-sm";
-
         if (comment.type === 'user' && comment.author) {
             return (
-                <div key={index} className={`${baseClasses} border-t`}>
-                    <User size={14} className="text-muted-foreground mt-0.5 flex-shrink-0 md:w-4 md:h-4" />
-                    <div>
-                        <p className="font-semibold text-primary text-xs md:text-sm">{comment.author}</p>
-                        <p className="text-foreground/80 italic text-xs md:text-sm" dangerouslySetInnerHTML={{ __html: `"${comment.text}"` }} />
+                <div key={index} className="slide-in-left ml-8 md:ml-12 py-2 px-3 my-1 rounded-xl bg-zinc-100 dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/50">
+                    <div className="flex items-center gap-2 mb-1">
+                        <User size={12} className="text-muted-foreground" />
+                        <span className="text-xs font-semibold text-primary">{comment.author}</span>
                     </div>
+                    <p className="text-xs text-muted-foreground italic" dangerouslySetInnerHTML={{ __html: `"${comment.text}"` }} />
                 </div>
             );
         }
@@ -316,10 +253,10 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
         if (comment.type === 'stat') {
             const isShortText = comment.text.length < 100;
             return (
-                <div key={index} className={`${baseClasses} bg-slate-50 dark:bg-gray-800/20 border-t`}>
-                    <p className={`text-muted-foreground w-full text-xs md:text-sm ${isShortText ? 'text-center' : ''}`} dangerouslySetInnerHTML={{ __html: comment.text }} />
+                <div key={index} className="slide-in-left py-3 px-4 my-2 rounded-xl bg-zinc-50 dark:bg-zinc-900/30 border border-zinc-200/30 dark:border-zinc-800/30">
+                    <p className={`text-xs text-muted-foreground ${isShortText ? 'text-center font-medium' : ''}`} dangerouslySetInnerHTML={{ __html: comment.text }} />
                 </div>
-            )
+            );
         }
 
         const over = comment.text.split(':')[0];
@@ -331,28 +268,27 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                 case 'FOUR': return { text: '4', className: 'bg-blue-500 text-white' };
                 case 'SIX': return { text: '6', className: 'bg-purple-600 text-white' };
                 case 'WICKET': return { text: 'W', className: 'bg-red-600 text-white' };
-                case 'FIFTY': return { text: '50', className: 'bg-green-500 text-white text-[10px] md:text-xs px-1 md:px-1.5' };
-                case 'HUNDRED': return { text: '100', className: 'bg-amber-500 text-white text-[10px] md:text-xs px-1 md:px-1.5' };
+                case 'FIFTY': return { text: '50', className: 'bg-green-500 text-white text-[10px] px-1' };
+                case 'HUNDRED': return { text: '100', className: 'bg-amber-500 text-white text-[10px] px-1' };
                 default: return null;
             }
         }
 
         return (
-            <div key={index}>
+            <div key={index} className="slide-in-left">
                 {comment.overSummary && (
-                    <div className="bg-gradient-to-r from-primary/5 via-primary/3 to-primary/5 border-y border-primary/20 dark:border-primary/30 px-3 md:px-4 py-3 md:py-3.5">
+                    <div className="my-3 p-4 rounded-2xl bg-gradient-to-r from-primary/8 via-primary/4 to-primary/8 dark:from-primary/10 dark:via-primary/5 dark:to-primary/10 border border-primary/15">
                         <div className="flex items-center gap-3 md:gap-4">
                             {/* Over Number */}
-                            <div className="flex-shrink-0 flex flex-col items-center justify-center bg-primary/10 dark:bg-primary/20 rounded-lg px-2 md:px-3 py-1.5 md:py-2 border border-primary/30">
-                                <span className="text-[10px] md:text-xs text-muted-foreground font-medium">Over</span>
-                                <span className="text-lg md:text-xl font-bold text-primary">{Math.floor(comment.overNumber || 0)}</span>
+                            <div className="flex-shrink-0 flex flex-col items-center bg-primary/15 dark:bg-primary/20 rounded-xl px-3 py-2 min-w-[48px]">
+                                <span className="text-[10px] text-muted-foreground font-medium">Over</span>
+                                <span className="text-xl font-display text-primary">{Math.floor(comment.overNumber || 0)}</span>
                             </div>
-                            
-                            {/* Balls and Score */}
+
+                            {/* Balls */}
                             <div className="flex-1 flex items-center justify-between gap-3 flex-wrap">
-                                <div className="flex items-center gap-2 flex-wrap">
+                                <div className="flex items-center gap-1.5 flex-wrap">
                                     {(() => {
-                                        // Parse overSummary - remove the "(X runs)" part at the end
                                         const summaryStr = comment.overSummary || '';
                                         const runsMatch = summaryStr.match(/\((\d+)\s*runs?\)/i);
                                         const overRuns = runsMatch ? parseInt(runsMatch[1], 10) : comment.overRuns;
@@ -362,93 +298,61 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                             <>
                                                 {ballsStr.split(/\s+/).map((ball, idx) => {
                                                     const ballStr = ball.trim();
-                                                    if (!ballStr) return null;
+                                                    if (!ballStr || ballStr.includes('(') || ballStr.includes(')') || ballStr.toLowerCase() === 'runs' || ballStr.toLowerCase() === 'run') return null;
 
-                                                    // Skip non-ball strings
-                                                    if (ballStr.includes('(') || ballStr.includes(')') || ballStr.toLowerCase() === 'runs' || ballStr.toLowerCase() === 'run') {
-                                                        return null;
-                                                    }
-
-                                                    // Determine ball type and styling
-                                                    let ballClass = "px-2 py-1 rounded-md font-bold text-xs md:text-sm transition-all";
+                                                    let ballClass = "w-7 h-7 md:w-8 md:h-8 rounded-lg font-bold text-xs flex items-center justify-center";
                                                     let ballContent = ballStr;
 
-                                                    if (ballStr === '6') {
-                                                        ballClass += " bg-purple-600 text-white shadow-md";
-                                                    } else if (ballStr === '4') {
-                                                        ballClass += " bg-blue-600 text-white shadow-md";
-                                                    } else if (ballStr === 'W' || ballStr.includes('W')) {
-                                                        ballClass += " bg-red-600 text-white shadow-md";
-                                                    } else if (ballStr.toLowerCase().includes('wd') || ballStr.toLowerCase().includes('wide')) {
-                                                        ballClass += " bg-orange-500 text-white text-[10px] md:text-xs";
-                                                        ballContent = 'Wd';
-                                                    } else if (ballStr.toLowerCase().startsWith('n') && ballStr.length <= 3) {
-                                                        // Handle N1, N2, Nb etc (no ball with runs)
-                                                        ballClass += " bg-orange-500 text-white text-[10px] md:text-xs";
-                                                        ballContent = ballStr;
-                                                    } else if (ballStr.toLowerCase().includes('nb') || ballStr.toLowerCase().includes('noball')) {
-                                                        ballClass += " bg-orange-500 text-white text-[10px] md:text-xs";
-                                                        ballContent = 'Nb';
-                                                    } else if (ballStr.toLowerCase().includes('lb') || ballStr.toLowerCase().includes('legbye')) {
-                                                        ballClass += " bg-gray-500 text-white text-[10px] md:text-xs";
-                                                        ballContent = 'Lb';
-                                                    } else if (ballStr.toLowerCase().includes('b') && ballStr.length <= 2) {
-                                                        ballClass += " bg-gray-500 text-white text-[10px] md:text-xs";
-                                                        ballContent = 'B';
-                                                    } else if (ballStr === '0' || ballStr === '.') {
-                                                        ballClass += " bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300";
-                                                        ballContent = '•';
-                                                    } else if (/^\d+$/.test(ballStr)) {
-                                                        ballClass += " bg-green-600 text-white";
-                                                    } else {
-                                                        ballClass += " bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-[10px] md:text-xs";
-                                                    }
+                                                    if (ballStr === '6') ballClass += " bg-purple-600 text-white";
+                                                    else if (ballStr === '4') ballClass += " bg-blue-600 text-white";
+                                                    else if (ballStr === 'W' || ballStr.includes('W')) ballClass += " bg-red-600 text-white";
+                                                    else if (ballStr.toLowerCase().includes('wd') || ballStr.toLowerCase().includes('wide')) { ballClass += " bg-orange-500 text-white text-[10px]"; ballContent = 'Wd'; }
+                                                    else if (ballStr.toLowerCase().startsWith('n') && ballStr.length <= 3) ballClass += " bg-orange-500 text-white text-[10px]";
+                                                    else if (ballStr.toLowerCase().includes('nb') || ballStr.toLowerCase().includes('noball')) { ballClass += " bg-orange-500 text-white text-[10px]"; ballContent = 'Nb'; }
+                                                    else if (ballStr.toLowerCase().includes('lb') || ballStr.toLowerCase().includes('legbye')) { ballClass += " bg-zinc-500 text-white text-[10px]"; ballContent = 'Lb'; }
+                                                    else if (ballStr.toLowerCase().includes('b') && ballStr.length <= 2) { ballClass += " bg-zinc-500 text-white text-[10px]"; ballContent = 'B'; }
+                                                    else if (ballStr === '0' || ballStr === '.') { ballClass += " bg-zinc-200 dark:bg-zinc-800 text-zinc-500"; ballContent = '\u2022'; }
+                                                    else if (/^\d+$/.test(ballStr)) ballClass += " bg-green-600 text-white";
+                                                    else ballClass += " bg-zinc-200 dark:bg-zinc-800 text-zinc-500 text-[10px]";
 
-                                                    return (
-                                                        <span key={idx} className={ballClass}>
-                                                            {ballContent}
-                                                        </span>
-                                                    );
+                                                    return <span key={idx} className={ballClass}>{ballContent}</span>;
                                                 })}
                                                 {overRuns !== undefined && (
-                                                    <span className="ml-1 font-bold text-sm md:text-base text-primary">
-                                                        ({overRuns} runs)
+                                                    <span className="ml-1 font-bold text-sm text-primary">
+                                                        ({overRuns})
                                                     </span>
                                                 )}
                                             </>
                                         );
                                     })()}
                                 </div>
-                                <div className="flex items-center gap-2 bg-white/50 dark:bg-gray-900/50 px-3 py-1.5 rounded-full border border-primary/20">
-                                    <span className="font-bold text-sm md:text-base text-primary">{comment.teamShortName}</span>
-                                    <span className="font-bold text-base md:text-lg text-foreground">{comment.teamScore}-{comment.teamWickets}</span>
+                                <div className="flex items-center gap-2 bg-zinc-100/80 dark:bg-zinc-900/80 px-3 py-1.5 rounded-full border border-zinc-200/50 dark:border-zinc-800/50">
+                                    <span className="font-bold text-xs text-primary">{comment.teamShortName}</span>
+                                    <span className="font-display text-base text-foreground">{comment.teamScore}-{comment.teamWickets}</span>
                                 </div>
                             </div>
                         </div>
                     </div>
                 )}
-                <div className={`${baseClasses} border-t`}>
-                    <div className="flex flex-col items-center flex-shrink-0 w-9 md:w-12 space-y-1">
-                        <div className="font-mono text-[10px] md:text-xs text-muted-foreground">{over}</div>
-                        <div className="flex flex-col items-center space-y-1">
-                            {events.map((event, i) => {
-                                const eventDisplay = getEventDisplay(event);
-                                if (!eventDisplay) return null;
-
-                                const isRound = ['FOUR', 'SIX', 'WICKET'].includes(event);
-
-                                return (
-                                    <div key={i} className={cn(`flex-shrink-0 flex items-center justify-center font-bold text-xs md:text-sm`,
-                                        isRound ? 'w-5 h-5 md:w-6 md:h-6 rounded-full' : 'rounded',
-                                        eventDisplay.className
-                                    )}>
-                                        {eventDisplay.text}
-                                    </div>
-                                )
-                            })}
-                        </div>
+                <div className="flex gap-3 items-start py-2.5 px-1">
+                    <div className="flex flex-col items-center flex-shrink-0 w-10 md:w-12 gap-1">
+                        <span className="font-mono text-[11px] text-muted-foreground">{over}</span>
+                        {events.map((event, i) => {
+                            const eventDisplay = getEventDisplay(event);
+                            if (!eventDisplay) return null;
+                            const isRound = ['FOUR', 'SIX', 'WICKET'].includes(event);
+                            return (
+                                <span key={i} className={cn(
+                                    "flex items-center justify-center font-bold text-xs",
+                                    isRound ? 'w-6 h-6 rounded-full' : 'rounded px-1',
+                                    eventDisplay.className
+                                )}>
+                                    {eventDisplay.text}
+                                </span>
+                            );
+                        })}
                     </div>
-                    <p className="text-foreground flex-1 text-xs md:text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: text }} />
+                    <p className="text-sm text-foreground/80 flex-1 leading-relaxed" dangerouslySetInnerHTML={{ __html: text }} />
                 </div>
             </div>
         );
@@ -458,7 +362,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
         switch (variant) {
             case 'destructive': return 'destructive';
             case 'four': return 'default';
-            case 'six': return 'secondary'; // Or create a custom variant
+            case 'six': return 'secondary';
             default: return 'default';
         }
     }
@@ -479,6 +383,29 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
         }
     }
 
+    const handleHighlightsClick = async (url: string) => {
+        setHighlightsUrl(url);
+        setHighlightsData(null);
+        setHighlightsLoading(true);
+        try {
+            const result = await getPlayerHighlights(url);
+            if (result.success && result.data) {
+                setHighlightsData(result.data);
+            }
+        } catch {
+            // silently fail
+        } finally {
+            setHighlightsLoading(false);
+        }
+    };
+
+    const handleHighlightsDialogClose = (open: boolean) => {
+        if (!open) {
+            setHighlightsUrl(null);
+            setHighlightsData(null);
+        }
+    };
+
     const handleDialogOpenChange = (open: boolean) => {
         if (!open) {
             setSelectedProfileId(null);
@@ -488,389 +415,375 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
     }
 
     return (
-        <div className="w-full max-w-7xl mx-auto px-2 md:px-4">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4 mb-4 md:mb-6 py-3 md:py-4 border-b dark:border-gray-800">
-                <div className="flex items-center gap-2 md:gap-4">
-                    <Button asChild variant="outline" size="icon" className="shrink-0 h-8 w-8 md:h-10 md:w-10">
+        <div className="w-full mx-auto px-2 md:px-6 lg:px-8">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4 mb-6 py-4 gradient-border">
+                <div className="flex items-center gap-3 md:gap-4">
+                    <Button asChild variant="ghost" size="icon" className="shrink-0 h-9 w-9 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900">
                         <Link href="/">
-                            <ArrowLeft className="h-3 w-3 md:h-4 md:w-4" />
+                            <ArrowLeft className="h-4 w-4" />
                         </Link>
                     </Button>
                     <div className="flex-1 min-w-0">
-                        <h1 className="text-base md:text-2xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent truncate">
+                        <h1 className="text-lg md:text-2xl font-display tracking-tight text-foreground truncate">
                             {data?.title}
                         </h1>
-                        <div className="text-xs md:text-sm text-muted-foreground mt-0.5 md:mt-1 space-y-0.5">
-                            {data?.toss && data.toss !== 'N/A' && data.toss.trim() !== '' ? (
-                                <p className="truncate">{data.toss}</p>
-                            ) : null}
-                            {data?.venue && data.venue !== 'N/A' && data.venue.trim() !== '' && (
-                                <p className="truncate">
-                                    <span className="font-semibold">Venue: </span>
-                                    {data.venue}
-                                </p>
-                            )}
+                        <div className="text-xs text-muted-foreground mt-0.5 space-y-0.5">
+                            {data?.toss && data.toss !== 'N/A' && data.toss.trim() !== '' && <p className="truncate">{data.toss}</p>}
+                            {data?.venue && data.venue !== 'N/A' && data.venue.trim() !== '' && <p className="truncate">{data.venue}</p>}
                             {data?.matchStartTimestamp && (
                                 <p className="truncate">
-                                    <span className="font-semibold">Date: </span>
-                                    {new Date(data.matchStartTimestamp).toLocaleDateString('en-US', { 
-                                        weekday: 'short', 
-                                        year: 'numeric', 
-                                        month: 'short', 
-                                        day: 'numeric',
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                        timeZoneName: 'short'
+                                    {new Date(data.matchStartTimestamp).toLocaleDateString('en-US', {
+                                        weekday: 'short', year: 'numeric', month: 'short', day: 'numeric',
+                                        hour: '2-digit', minute: '2-digit', timeZoneName: 'short'
                                     }).replace(/GMT\+5:30/, 'IST').replace(/GMT([+-]\d{1,2}):?(\d{2})?/, 'GMT$1')}
                                 </p>
                             )}
                         </div>
                     </div>
                 </div>
-                <div className="flex items-center gap-1 md:gap-1.5 bg-gray-100/50 dark:bg-gray-800/30 p-1 rounded-lg backdrop-blur-sm self-start md:self-auto">
-                    <Button
-                        variant={view === 'live' ? 'default' : 'ghost'}
-                        onClick={() => setView('live')}
-                        size="sm"
-                        className="rounded-md text-xs md:text-sm h-8 md:h-9 px-2 md:px-4"
-                    >
-                        Live
-                    </Button>
-                    <Button
-                        variant={view === 'scorecard' ? 'default' : 'ghost'}
-                        onClick={() => setView('scorecard')}
-                        size="sm"
-                        className="rounded-md text-xs md:text-sm h-8 md:h-9 px-2 md:px-4"
-                    >
-                        Scorecard
-                    </Button>
-                    <Button
-                        variant={view === 'squads' ? 'default' : 'ghost'}
-                        onClick={() => setView('squads')}
-                        size="sm"
-                        className="rounded-md text-xs md:text-sm h-8 md:h-9 px-2 md:px-4"
-                    >
-                        Squads
-                    </Button>
+                <div className="flex items-center gap-3 self-start md:self-auto">
+                    {/* View Tabs */}
+                    <div className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-900 p-1 rounded-xl">
+                        {(['live', 'scorecard', 'squads'] as View[]).map((v) => (
+                            <button
+                                key={v}
+                                onClick={() => setView(v)}
+                                className={`
+                                    px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium
+                                    transition-all duration-200
+                                    ${view === v
+                                        ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25'
+                                        : 'text-muted-foreground hover:text-foreground'
+                                    }
+                                `}
+                            >
+                                {v.charAt(0).toUpperCase() + v.slice(1)}
+                            </button>
+                        ))}
+                    </div>
+                    <ThemeToggle />
                 </div>
             </div>
 
             <div>
                 {view === 'live' && (
-                    <div className="space-y-4 md:space-y-6">
-                        {/* Countdown Timer for Upcoming Matches */}
+                    <div className="space-y-4">
+                        {/* Countdown Timer */}
                         {timeLeft && data?.batsmen.length === 0 && (
-                            <Card className="backdrop-blur-sm bg-gradient-to-br from-primary/10 via-primary/5 to-primary/10 border-primary/20">
-                                <CardContent className="p-6 md:p-8">
-                                    <div className="flex flex-col gap-4 md:gap-6">
-                                        {/* Countdown */}
-                                        <div className="flex justify-center">
-                                            <div className="flex items-end gap-1 md:gap-2 font-bold text-2xl md:text-4xl">
-                                                <div className="flex flex-col items-center">
-                                                    <span className="text-3xl md:text-5xl text-primary">{String(timeLeft.hours).padStart(2, '0')}</span>
-                                                    <span className="text-xs md:text-sm text-muted-foreground mt-1">hours</span>
-                                                </div>
-                                                <span className="text-3xl md:text-5xl text-primary mb-6">:</span>
-                                                <div className="flex flex-col items-center">
-                                                    <span className="text-3xl md:text-5xl text-primary">{String(timeLeft.minutes).padStart(2, '0')}</span>
-                                                    <span className="text-xs md:text-sm text-muted-foreground mt-1">minutes</span>
-                                                </div>
-                                                <span className="text-3xl md:text-5xl text-primary mb-6">:</span>
-                                                <div className="flex flex-col items-center">
-                                                    <span className="text-3xl md:text-5xl text-primary">{String(timeLeft.seconds).padStart(2, '0')}</span>
-                                                    <span className="text-xs md:text-sm text-muted-foreground mt-1">seconds</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                        {/* Match Start Info */}
-                                        <div className="text-center">
-                                            <p className="text-sm md:text-base text-muted-foreground">{data?.status}</p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        )}
-                        
-                        {/* Score Card - Full width */}
-                        {(!timeLeft || data?.batsmen.length > 0) && (
-                            <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-950/50 border-primary/10">
-                                <CardContent className="p-4 md:p-6 relative">
-                                    {lastEvent && (
-                                        <Badge
-                                            key={lastEvent.key}
-                                            variant={getEventBadgeVariant(lastEvent.variant)}
-                                            className={`absolute top-[-0.75rem] right-4 text-base md:text-lg font-bold event-animation tabular-nums shadow-lg ${getEventBadgeClass(lastEvent.variant)}`}
-                                        >
-                                            {lastEvent.text}
-                                        </Badge>
-                                    )}
-                                    <div className="space-y-3 md:space-y-4">
-                                    {data?.previousInnings.map((inning, index) => (
-                                        <div key={index}
-                                            className="p-2.5 md:p-3 rounded-lg bg-gray-50/50 dark:bg-gray-900/30 hover:bg-gray-100/50 dark:hover:bg-gray-800/40 transition-colors"
-                                        >
-                                            <div className="flex justify-between items-center gap-3 md:gap-4">
-                                                <div className="flex items-center gap-2">
-                                                    {inning.teamFlagUrl && (
-                                                        <div className="rounded overflow-hidden w-6 h-4 md:w-7 md:h-5 flex-shrink-0">
-                                                            <Image
-                                                                src={inning.teamFlagUrl}
-                                                                alt={inning.teamShortName || inning.teamName}
-                                                                width={25}
-                                                                height={18}
-                                                                className="w-full h-full object-cover"
-                                                            />
-                                                        </div>
-                                                    )}
-                                                    <span className="font-semibold text-sm md:text-base text-primary/90">{inning.teamName}</span>
-                                                </div>
-                                                <span className="font-bold text-base md:text-lg bg-primary/10 text-primary px-2.5 md:px-3 py-0.5 rounded-full">
-                                                    {inning.score}
+                            <div className="glass-card p-8 md:p-12 text-center">
+                                <div className="flex justify-center gap-2 md:gap-4 mb-4">
+                                    {[
+                                        { value: timeLeft.hours, label: 'hours' },
+                                        { value: timeLeft.minutes, label: 'minutes' },
+                                        { value: timeLeft.seconds, label: 'seconds' },
+                                    ].map((unit, i) => (
+                                        <div key={unit.label} className="flex items-center gap-2 md:gap-4">
+                                            <div className="flex flex-col items-center">
+                                                <span className="text-4xl md:text-6xl font-display text-primary tabular-nums">
+                                                    {String(unit.value).padStart(2, '0')}
                                                 </span>
+                                                <span className="text-xs text-muted-foreground mt-1">{unit.label}</span>
                                             </div>
+                                            {i < 2 && <span className="text-3xl md:text-5xl font-display text-primary/40 mb-5">:</span>}
                                         </div>
                                     ))}
-                                    <div className="p-3 md:p-4 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5">
-                                        <div className="flex justify-between items-baseline gap-3 md:gap-4 flex-wrap">
-                                            <span className="text-xl md:text-2xl font-bold tracking-tight">{data?.score}</span>
-                                            <div className="flex items-center gap-3 md:gap-4">
-                                                <div className="flex items-center gap-1.5">
-                                                    <span className="text-xs md:text-sm text-muted-foreground">CRR:</span>
-                                                    <span className="font-semibold text-sm md:text-base text-primary">{data?.currentRunRate}</span>
+                                </div>
+                                <p className="text-sm text-muted-foreground">{data?.status}</p>
+                            </div>
+                        )}
+
+                        {/* Score Hero */}
+                        {(!timeLeft || (data && data.batsmen.length > 0)) && (
+                            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-zinc-100 via-zinc-50 to-white dark:from-zinc-900 dark:via-zinc-950 dark:to-black border border-zinc-200 dark:border-zinc-800/50">
+                                {/* Atmospheric background layers */}
+                                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(34,197,94,0.08)_0%,_transparent_60%)]" />
+                                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_rgba(251,191,36,0.05)_0%,_transparent_60%)]" />
+
+                                {/* Last Event Badge */}
+                                {lastEvent && (
+                                    <Badge
+                                        key={lastEvent.key}
+                                        variant={getEventBadgeVariant(lastEvent.variant)}
+                                        className={`absolute top-4 right-4 z-10 text-lg font-bold event-animation tabular-nums shadow-lg rounded-xl px-3 py-1 ${getEventBadgeClass(lastEvent.variant)}`}
+                                    >
+                                        {lastEvent.text}
+                                    </Badge>
+                                )}
+
+                                <div className="relative z-[1] p-5 md:p-7">
+                                    {/* Previous Innings */}
+                                    {data?.previousInnings && data.previousInnings.length > 0 && (
+                                        <div className="space-y-1 mb-4">
+                                            {data.previousInnings.map((inning, index) => (
+                                                <div key={index} className="flex items-baseline gap-2 opacity-50">
+                                                    {inning.teamFlagUrl && (
+                                                        <div className="rounded overflow-hidden w-5 h-3.5 flex-shrink-0 relative top-[2px]">
+                                                            <Image src={inning.teamFlagUrl} alt={inning.teamShortName || inning.teamName} width={20} height={14} className="w-full h-full object-cover" />
+                                                        </div>
+                                                    )}
+                                                    <span className="text-sm font-semibold text-zinc-400 dark:text-zinc-500 mr-1">{inning.teamShortName || inning.teamName}</span>
+                                                    <span className="text-2xl md:text-3xl font-display tracking-tight text-zinc-500 dark:text-zinc-400">
+                                                        {inning.score}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Current Score - the hero */}
+                                    <div>
+                                        <span className="text-4xl md:text-5xl lg:text-6xl font-display tracking-tight text-amber-600 dark:text-amber-400 score-breathe dark:drop-shadow-[0_0_20px_rgba(251,191,36,0.15)]">
+                                            {data?.score}
+                                        </span>
+
+                                        {/* Status + Rates row */}
+                                        <div className="mt-3 flex items-center justify-between gap-4 flex-wrap">
+                                            <div className="flex items-center gap-2">
+                                                {data?.status && (
+                                                    <>
+                                                        <div className="w-2 h-2 rounded-full bg-red-500 live-pulse" />
+                                                        <p className="text-sm font-semibold text-zinc-600 dark:text-zinc-300">{data.status}</p>
+                                                    </>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                                                    <span className="text-xs font-mono font-semibold text-emerald-400 tracking-wide">
+                                                        CRR {data?.currentRunRate}
+                                                    </span>
                                                 </div>
                                                 {data?.requiredRunRate && (
-                                                    <div className="flex items-center gap-1.5">
-                                                        <span className="text-xs md:text-sm font-bold text-muted-foreground">REQ:</span>
-                                                        <span className="font-semibold text-sm md:text-base text-orange-600 dark:text-orange-400">{data.requiredRunRate}</span>
+                                                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/20">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-orange-400" />
+                                                        <span className="text-xs font-mono font-semibold text-orange-400 tracking-wide">
+                                                            REQ {data.requiredRunRate}
+                                                        </span>
                                                     </div>
                                                 )}
                                             </div>
                                         </div>
-                                        <p className="text-sm md:text-base text-red-600 dark:text-red-400 font-semibold mt-2 md:mt-3">{data?.status}</p>
                                     </div>
                                 </div>
-                            </CardContent>
-                        </Card>
+
+                                {/* Bottom accent line */}
+                                <div className="h-[2px] bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent" />
+                            </div>
                         )}
 
-                        {/* Desktop: 2-column grid, Mobile: Stack with reordering */}
-                        <div className={`grid grid-cols-1 gap-4 md:gap-6 ${data?.batsmen.length === 0 && data?.bowlers.length === 0 ? '' : 'lg:grid-cols-5'}`}>
-                            {/* Commentary - Desktop: Left (3/5 or full width), Mobile: Bottom */}
-                            <div className={`order-3 lg:order-1 space-y-4 md:space-y-6 ${data?.batsmen.length === 0 && data?.bowlers.length === 0 ? '' : 'lg:col-span-3'}`}>
-                                <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-950/50 border-primary/10">
-                                    <CardHeader className="border-b dark:border-gray-800 p-3 md:p-6">
-                                        <CardTitle className="text-base md:text-lg flex items-center gap-2">
-                                            Commentary
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="p-0">
-                                        <div className="space-y-0.5 max-h-[80rem] overflow-y-auto hide-scrollbar">
-                                            {data?.commentary.map((comment, index) => (
-                                                <div key={index}>
-                                                    {index === newCommentaryStartIndex && (
-                                                        <div ref={newCommentaryStartRef} />
-                                                    )}
-                                                    {renderCommentaryItem(comment, index)}
-                                                </div>
-                                            ))}
-                                            <div ref={commentaryEndRef} />
-                                        </div>
-                                        {lastTimestamp && (
-                                            <div className="p-3 md:p-4 border-t dark:border-gray-800">
-                                                <Button
-                                                    onClick={loadMoreCommentary}
-                                                    disabled={loadingMore}
-                                                    variant="outline"
-                                                    className="w-full text-xs md:text-sm"
-                                                >
-                                                    {loadingMore ? (
-                                                        <>
-                                                            <LoaderCircle className="w-3 h-3 md:w-4 md:h-4 animate-spin mr-2" />
-                                                            Loading...
-                                                        </>
-                                                    ) : (
-                                                        'Load More Commentary'
-                                                    )}
-                                                </Button>
-                                            </div>
-                                        )}
-                                    </CardContent>
-                                </Card>
-                            </div>
-
-                            {/* Scoreboard & Match Info - Desktop: Right sidebar (2/5), Mobile: Top */}
-                            {(data.batsmen.length !== 0 || data.bowlers.length !== 0) && (
-                            <div className="lg:col-span-2 space-y-4 md:space-y-6">
-                                {/* Scoreboard - Mobile: First */}
-                                <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-950/50 border-primary/10 order-1 lg:order-none">
-                            <CardHeader className="border-b dark:border-gray-800 p-3 md:p-6">
-                                <CardTitle className="text-base md:text-lg flex items-center gap-2">
-                                    Scoreboard
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className='p-3 md:pt-6 md:px-6 md:pb-6'>
-                                <div className="space-y-4 md:space-y-6">
-                                    {/* Batting */}
-                                    <div>
-                                        <div className="flex items-center gap-2 mb-3 md:mb-4">
-                                            <h4 className="font-semibold text-sm md:text-base">Batting</h4>
-                                        </div>
-                                        <div className="overflow-x-auto -mx-3 md:mx-0">
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow>
-                                                        <TableHead className="text-xs md:text-sm min-w-[120px] md:w-auto">Batter</TableHead>
-                                                        <TableHead className="text-right text-xs md:text-sm">R</TableHead>
-                                                        <TableHead className="text-right text-xs md:text-sm">B</TableHead>
-                                                        <TableHead className="text-right text-xs md:text-sm">4s</TableHead>
-                                                        <TableHead className="text-right text-xs md:text-sm">6s</TableHead>
-                                                        <TableHead className="text-right text-xs md:text-sm">SR</TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {data?.batsmen.map((batsman, index) => (
-                                                        <TableRow key={index}
-                                                            className={cn(
-                                                                "transition-colors",
-                                                                batsman.onStrike
-                                                                    ? "bg-primary/5 hover:bg-primary/10"
-                                                                    : "even:bg-gray-50/50 dark:even:bg-gray-800/20 hover:bg-gray-100/50 dark:hover:bg-gray-800/40"
-                                                            )}
-                                                        >
-                                                            <TableCell className="font-medium text-xs md:text-sm py-2 md:py-3">
-                                                                <span className="flex items-center gap-1 md:gap-2">
-                                                                    <span
-                                                                        className={batsman.profileId ? "cursor-pointer hover:text-primary transition-colors truncate" : "truncate"}
-                                                                        onClick={() => handleProfileClick(batsman.profileId, batsman.name)}
-                                                                    >
-                                                                        {batsman.name}
-                                                                    </span>
-                                                                    {batsman.onStrike && <CricketBatIcon />}
+                        {/* Scorecard + Commentary Layout */}
+                        <div className={`grid grid-cols-1 gap-6 ${data && data.batsmen.length === 0 && data.bowlers.length === 0 ? '' : 'lg:grid-cols-[1fr_440px]'}`}>
+                            {/* Left Column: Scorecard */}
+                            <div className="min-w-0">
+                                {/* Scorecard - Cricbuzz style */}
+                                {data && (data.batsmen.length !== 0 || data.bowlers.length !== 0) && (
+                                    <div className="glass-card overflow-hidden">
+                                        {/* Batting */}
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-sm">
+                                                <thead>
+                                                    <tr className="bg-green-50/80 dark:bg-green-950/30 border-b border-green-200/50 dark:border-green-900/30">
+                                                        <th className="text-left text-xs font-bold text-green-800 dark:text-green-400 px-4 py-3">Batter</th>
+                                                        <th className="text-center text-xs font-bold text-green-800 dark:text-green-400 px-3 py-3 w-12">R</th>
+                                                        <th className="text-center text-xs font-bold text-green-800 dark:text-green-400 px-3 py-3 w-12">B</th>
+                                                        <th className="text-center text-xs font-bold text-green-800 dark:text-green-400 px-3 py-3 w-12">4s</th>
+                                                        <th className="text-center text-xs font-bold text-green-800 dark:text-green-400 px-3 py-3 w-12">6s</th>
+                                                        <th className="text-center text-xs font-bold text-green-800 dark:text-green-400 px-3 py-3 w-16">SR</th>
+                                                        <th className="w-8"></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {data?.batsmen.map((batsman, index) => {
+                                                        const runs = Number(batsman.runs);
+                                                        const sr = parseFloat(batsman.strikeRate);
+                                                        return (
+                                                        <tr key={index} className={`border-b border-zinc-100 dark:border-zinc-800/40 hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors ${
+                                                            runs >= 50 ? 'bg-green-50/50 dark:bg-green-950/20' :
+                                                            runs >= 30 ? 'bg-emerald-50/30 dark:bg-emerald-950/10' : ''
+                                                        }`}>
+                                                            <td className="px-4 py-3">
+                                                                <span
+                                                                    className={`font-medium cursor-pointer hover:text-primary transition-colors ${
+                                                                        runs >= 50 ? 'text-green-600 dark:text-green-400' : ''
+                                                                    }`}
+                                                                    onClick={() => handleProfileClick(batsman.profileId, batsman.name)}
+                                                                >
+                                                                    {batsman.name}{batsman.onStrike ? ' *' : ''}
                                                                 </span>
-                                                            </TableCell>
-                                                            <TableCell className="text-right font-bold text-primary text-xs md:text-sm">{batsman.runs}</TableCell>
-                                                            <TableCell className="text-right text-xs md:text-sm">{batsman.balls}</TableCell>
-                                                            <TableCell className="text-right text-blue-600 dark:text-blue-400 text-xs md:text-sm">{batsman.fours}</TableCell>
-                                                            <TableCell className="text-right text-purple-600 dark:text-purple-400 text-xs md:text-sm">{batsman.sixes}</TableCell>
-                                                            <TableCell className="text-right font-medium text-xs md:text-sm">{parseFloat(batsman.strikeRate).toFixed(2)}</TableCell>
-                                                        </TableRow>
-                                                    ))}
-                                                </TableBody>
-                                            </Table>
+                                                            </td>
+                                                            <td className={`text-center font-bold px-3 py-3 ${runs >= 50 ? 'text-green-600 dark:text-green-400' : ''}`}>{batsman.runs}</td>
+                                                            <td className="text-center text-muted-foreground px-3 py-3">{batsman.balls}</td>
+                                                            <td className={`text-center px-3 py-3 ${Number(batsman.fours) > 0 ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-muted-foreground'}`}>{batsman.fours}</td>
+                                                            <td className={`text-center px-3 py-3 ${Number(batsman.sixes) > 0 ? 'text-purple-600 dark:text-purple-400 font-medium' : 'text-muted-foreground'}`}>{batsman.sixes}</td>
+                                                            <td className={`text-center font-mono px-3 py-3 ${
+                                                                sr >= 150 ? 'text-green-600 dark:text-green-400 font-bold' :
+                                                                sr >= 100 ? 'text-emerald-600 dark:text-emerald-400' :
+                                                                'text-muted-foreground'
+                                                            }`}>{sr.toFixed(2)}</td>
+                                                            <td className="text-center px-2 py-3">
+                                                                {batsman.highlightsUrl ? (
+                                                                    <span
+                                                                        className="text-primary hover:text-primary/80 transition-colors text-xs cursor-pointer"
+                                                                        title="View Highlights"
+                                                                        onClick={() => handleHighlightsClick(batsman.highlightsUrl!)}
+                                                                    >▶</span>
+                                                                ) : (
+                                                                    <span className="text-muted-foreground cursor-pointer" onClick={() => handleProfileClick(batsman.profileId, batsman.name)}>›</span>
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        {/* Bowling */}
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-sm">
+                                                <thead>
+                                                    <tr className="bg-orange-50/80 dark:bg-orange-950/30 border-b border-orange-200/50 dark:border-orange-900/30">
+                                                        <th className="text-left text-xs font-bold text-orange-800 dark:text-orange-400 px-4 py-3">Bowler</th>
+                                                        <th className="text-center text-xs font-bold text-orange-800 dark:text-orange-400 px-3 py-3 w-12">O</th>
+                                                        <th className="text-center text-xs font-bold text-orange-800 dark:text-orange-400 px-3 py-3 w-12">M</th>
+                                                        <th className="text-center text-xs font-bold text-orange-800 dark:text-orange-400 px-3 py-3 w-12">R</th>
+                                                        <th className="text-center text-xs font-bold text-orange-800 dark:text-orange-400 px-3 py-3 w-12">W</th>
+                                                        <th className="text-center text-xs font-bold text-orange-800 dark:text-orange-400 px-3 py-3 w-16">ECO</th>
+                                                        <th className="w-8"></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {data?.bowlers.map((bowler, index) => {
+                                                        const wkts = Number(bowler.wickets);
+                                                        const eco = parseFloat(bowler.economy);
+                                                        return (
+                                                        <tr key={index} className={`border-b border-zinc-100 dark:border-zinc-800/40 hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors ${
+                                                            wkts >= 3 ? 'bg-orange-50/50 dark:bg-orange-950/20' :
+                                                            wkts >= 2 ? 'bg-amber-50/30 dark:bg-amber-950/10' : ''
+                                                        }`}>
+                                                            <td className="px-4 py-3">
+                                                                <span
+                                                                    className={`font-medium cursor-pointer hover:text-primary transition-colors ${
+                                                                        wkts >= 3 ? 'text-orange-600 dark:text-orange-400' : ''
+                                                                    }`}
+                                                                    onClick={() => handleProfileClick(bowler.profileId, bowler.name)}
+                                                                >
+                                                                    {bowler.name}{bowler.onStrike ? ' *' : ''}
+                                                                </span>
+                                                            </td>
+                                                            <td className="text-center text-muted-foreground px-3 py-3">{bowler.overs}</td>
+                                                            <td className={`text-center px-3 py-3 ${Number(bowler.maidens) > 0 ? 'text-green-600 dark:text-green-400 font-medium' : 'text-muted-foreground'}`}>{bowler.maidens}</td>
+                                                            <td className="text-center text-muted-foreground px-3 py-3">{bowler.runs}</td>
+                                                            <td className={`text-center font-bold px-3 py-3 ${
+                                                                wkts >= 3 ? 'text-orange-600 dark:text-orange-400' :
+                                                                wkts >= 1 ? 'text-amber-600 dark:text-amber-400' : ''
+                                                            }`}>{bowler.wickets}</td>
+                                                            <td className={`text-center font-mono px-3 py-3 ${
+                                                                eco <= 4 ? 'text-green-600 dark:text-green-400' :
+                                                                eco >= 10 ? 'text-red-500 dark:text-red-400' :
+                                                                'text-muted-foreground'
+                                                            }`}>{bowler.economy}</td>
+                                                            <td className="text-center px-2 py-3">
+                                                                {bowler.highlightsUrl ? (
+                                                                    <span
+                                                                        className="text-primary hover:text-primary/80 transition-colors text-xs cursor-pointer"
+                                                                        title="View Highlights"
+                                                                        onClick={() => handleHighlightsClick(bowler.highlightsUrl!)}
+                                                                    >▶</span>
+                                                                ) : (
+                                                                    <span className="text-muted-foreground cursor-pointer" onClick={() => handleProfileClick(bowler.profileId, bowler.name)}>›</span>
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
                                         </div>
                                     </div>
+                                )}
 
-                                    {/* Bowling */}
-                                    <div>
-                                        <div className="flex items-center gap-2 mb-3">
-                                            <h4 className="font-semibold text-sm md:text-base">Bowling</h4>
+                            </div>
+
+                            {/* Right Column: Key Stats (desktop only) */}
+                            {data && (data.batsmen.length !== 0 || data.bowlers.length !== 0) && (
+                                <div className="hidden lg:block self-start">
+                                    <div className="glass-card overflow-hidden">
+                                        <div className="px-4 py-2.5 bg-gradient-to-r from-primary/10 to-emerald-500/10 dark:from-primary/20 dark:to-emerald-500/20 border-b border-primary/20 dark:border-primary/30">
+                                            <span className="text-xs font-bold text-primary uppercase tracking-wide">Key Stats</span>
                                         </div>
-                                        <div className="overflow-x-auto -mx-3 md:mx-0">
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow>
-                                                        <TableHead className="text-xs md:text-sm min-w-[120px] md:w-auto">Bowler</TableHead>
-                                                        <TableHead className="text-right text-xs md:text-sm">O</TableHead>
-                                                        <TableHead className="text-right text-xs md:text-sm">M</TableHead>
-                                                        <TableHead className="text-right text-xs md:text-sm">R</TableHead>
-                                                        <TableHead className="text-right text-xs md:text-sm">W</TableHead>
-                                                        <TableHead className="text-right text-xs md:text-sm">ECO</TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {data?.bowlers.map((bowler, index) => (
-                                                        <TableRow key={index}
-                                                            className={cn(
-                                                                "transition-colors",
-                                                                bowler.onStrike
-                                                                    ? "bg-primary/5 hover:bg-primary/10"
-                                                                    : "even:bg-gray-50/50 dark:even:bg-gray-800/20 hover:bg-gray-100/50 dark:hover:bg-gray-800/40"
-                                                            )}
-                                                        >
-                                                            <TableCell className="font-medium text-xs md:text-sm py-2 md:py-3">
-                                                                <span className="flex items-center gap-1 md:gap-2">
-                                                                    <span
-                                                                        className={bowler.profileId ? "cursor-pointer hover:text-primary transition-colors truncate" : "truncate"}
-                                                                        onClick={() => handleProfileClick(bowler.profileId, bowler.name)}
-                                                                    >
-                                                                        {bowler.name}
-                                                                    </span>
-                                                                    {bowler.onStrike && <CricketBallIcon />}
-                                                                </span>
-                                                            </TableCell>
-                                                            <TableCell className="text-right text-primary font-medium text-xs md:text-sm">{bowler.overs}</TableCell>
-                                                            <TableCell className="text-right text-xs md:text-sm">{bowler.maidens}</TableCell>
-                                                            <TableCell className="text-right text-xs md:text-sm">{bowler.runs}</TableCell>
-                                                            <TableCell className="text-right font-bold text-orange-600 dark:text-orange-400 text-xs md:text-sm">{bowler.wickets}</TableCell>
-                                                            <TableCell className="text-right text-xs md:text-sm">
-                                                                <span className={cn(
-                                                                    "font-medium",
-                                                                    parseFloat(bowler.economy) <= 6 ? "text-green-600 dark:text-green-400" :
-                                                                        parseFloat(bowler.economy) >= 10 ? "text-red-600 dark:text-red-400" :
-                                                                            "text-primary"
-                                                                )}>
-                                                                    {bowler.economy}
-                                                                </span>
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    ))}
-                                                </TableBody>
-                                            </Table>
+                                        <div className="divide-y divide-zinc-100 dark:divide-zinc-800/40">
+                                            <div className="px-4 py-3 flex items-start gap-3">
+                                                <div className="w-0.5 self-stretch rounded-full bg-blue-500 shrink-0"></div>
+                                                <span className="text-[11px] font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400 shrink-0 mt-0.5">Partnership</span>
+                                                <p className="text-sm font-semibold text-foreground ml-auto text-right">{data?.partnership}</p>
+                                            </div>
+                                            <div className="px-4 py-3 flex items-start gap-3">
+                                                <div className="w-0.5 self-stretch rounded-full bg-red-500 shrink-0"></div>
+                                                <span className="text-[11px] font-bold uppercase tracking-wide text-red-600 dark:text-red-400 shrink-0 mt-0.5">Last Wkt</span>
+                                                <p className="text-sm font-semibold text-foreground ml-auto text-right">{data?.lastWicket}</p>
+                                            </div>
+                                            <div className="px-4 py-3 flex items-start gap-3">
+                                                <div className="w-0.5 self-stretch rounded-full bg-amber-500 shrink-0"></div>
+                                                <span className="text-[11px] font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400 shrink-0 mt-0.5">Recent</span>
+                                                <p className="text-sm font-mono font-semibold text-foreground ml-auto text-right">{data?.recentOvers}</p>
+                                            </div>
+                                            {data?.toss && data.toss !== 'N/A' && (
+                                                <div className="px-4 py-3 flex items-start gap-3">
+                                                    <div className="w-0.5 self-stretch rounded-full bg-purple-500 shrink-0"></div>
+                                                    <span className="text-[11px] font-bold uppercase tracking-wide text-purple-600 dark:text-purple-400 shrink-0 mt-0.5">Toss</span>
+                                                    <p className="text-sm font-semibold text-foreground ml-auto text-right">{data.toss}</p>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
-                            </CardContent>
-                        </Card>
-
-                                {/* Match Info - Mobile: Second */}
-                                <Card className="backdrop-blur-sm bg-white/50 dark:bg-gray-950/50 border-primary/10 order-2 lg:order-none">
-                                    <CardHeader className="border-b dark:border-gray-800 p-3 md:p-6">
-                                        <CardTitle className="text-base md:text-lg flex items-center gap-2">
-                                            Match Info
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="divide-y dark:divide-gray-800 p-3 md:pt-6 md:px-6 md:pb-6">
-                                        <div className="py-3 md:py-4 first:pt-0 last:pb-0">
-                                            <p className="font-semibold text-primary mb-2 text-sm md:text-base">Partnership</p>
-                                            <p className="text-muted-foreground bg-gray-50/50 dark:bg-gray-900/30 p-2 rounded text-xs md:text-sm">
-                                                {data?.partnership}
-                                            </p>
-                                        </div>
-                                        <div className="py-3 md:py-4 first:pt-0 last:pb-0">
-                                            <p className="font-semibold text-destructive mb-2 text-sm md:text-base">Last Wicket</p>
-                                            <p className="text-muted-foreground bg-gray-50/50 dark:bg-gray-900/30 p-2 rounded text-xs md:text-sm">
-                                                {data?.lastWicket}
-                                            </p>
-                                        </div>
-                                        <div className="py-3 md:py-4 first:pt-0 last:pb-0">
-                                            <p className="font-semibold text-orange-600 dark:text-orange-400 mb-2 text-sm md:text-base">Recent Overs</p>
-                                            <p className="font-mono text-xs md:text-sm bg-gray-50/50 dark:bg-gray-900/30 p-2 rounded tracking-wider">
-                                                {data?.recentOvers}
-                                            </p>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </div>
                             )}
+                        </div>
+
+                        {/* Commentary - Full Width below Scorecard + Key Stats */}
+                        <div className="glass-card overflow-hidden mt-6">
+                            <div className="px-5 py-4 border-b border-zinc-200/50 dark:border-zinc-800/50">
+                                <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Commentary</h3>
+                            </div>
+                            <div className="p-3 md:p-4">
+                                <div className="space-y-0.5 max-h-[80rem] overflow-y-auto hide-scrollbar">
+                                    {data?.commentary.map((comment, index) => (
+                                        <div key={index}>
+                                            {index === newCommentaryStartIndex && <div ref={newCommentaryStartRef} />}
+                                            {renderCommentaryItem(comment, index)}
+                                        </div>
+                                    ))}
+                                    <div ref={commentaryEndRef} />
+                                </div>
+                                {lastTimestamp !== null && lastTimestamp !== 0 && (
+                                    <div className="pt-4 mt-4 border-t border-zinc-200/50 dark:border-zinc-800/50">
+                                        <Button
+                                            onClick={loadMoreCommentary}
+                                            disabled={loadingMore}
+                                            variant="outline"
+                                            className="w-full rounded-xl text-sm"
+                                        >
+                                            {loadingMore ? (
+                                                <><LoaderCircle className="w-4 h-4 animate-spin mr-2" />Loading...</>
+                                            ) : (
+                                                'Load More Commentary'
+                                            )}
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 )}
-                {view === 'scorecard' && (
-                    <>
-                        <FullScorecard matchId={matchId} />
-                    </>
-                )}
-                {view === 'squads' && (
-                    <>
-                        <MatchSquadsDisplay matchId={matchId} />
-                    </>
-                )}
+                {view === 'scorecard' && <FullScorecard matchId={matchId} />}
+                {view === 'squads' && <MatchSquadsDisplay matchId={matchId} />}
             </div>
 
             {/* Player Profile Dialog */}
             <Dialog open={!!selectedProfileId} onOpenChange={handleDialogOpenChange}>
-                <DialogContent className="max-w-[95vw] w-full max-h-[95vh] overflow-y-auto p-0">
+                <DialogContent className="max-w-[95vw] w-full max-h-[95vh] overflow-y-auto p-0 rounded-2xl">
                     <DialogHeader className="sr-only">
                         <DialogTitle>Player Profile</DialogTitle>
                     </DialogHeader>
@@ -880,13 +793,65 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                             <p className="ml-4 text-muted-foreground">Loading player profile...</p>
                         </div>
                     )}
-                    {selectedProfile && (
-                        <PlayerProfileDisplay profile={selectedProfile} />
-                    )}
+                    {selectedProfile && <PlayerProfileDisplay profile={selectedProfile} />}
                     {!profileLoading && !selectedProfile && selectedProfileId && (
-                        <div className="p-8 text-center text-muted-foreground">
-                            Failed to load player profile
+                        <div className="p-8 text-center text-muted-foreground">Failed to load player profile</div>
+                    )}
+                </DialogContent>
+            </Dialog>
+
+            {/* Highlights Dialog */}
+            <Dialog open={!!highlightsUrl} onOpenChange={handleHighlightsDialogClose}>
+                <DialogContent className="max-w-2xl w-full max-h-[85vh] overflow-y-auto p-0 rounded-2xl">
+                    <DialogHeader className="px-5 pt-5 pb-3 border-b border-zinc-200/50 dark:border-zinc-800/50">
+                        <DialogTitle className="font-display text-lg">
+                            {highlightsData ? (
+                                <span>{highlightsData.playerName} <span className="text-muted-foreground font-mono text-base">{highlightsData.playerScore}</span></span>
+                            ) : (
+                                'Player Highlights'
+                            )}
+                        </DialogTitle>
+                    </DialogHeader>
+                    {highlightsLoading && (
+                        <div className="flex justify-center items-center p-12">
+                            <LoaderCircle className="w-8 h-8 animate-spin text-primary" />
+                            <p className="ml-4 text-muted-foreground">Loading highlights...</p>
                         </div>
+                    )}
+                    {highlightsData && (
+                        <div className="px-4 pb-4 space-y-0.5">
+                            {highlightsData.highlights.map((item, index) => {
+                                const text = item.text;
+                                // Detect events via bold-wrapped keywords from Cricbuzz HTML or standalone uppercase words
+                                const hasBold = (kw: string) => text.includes(`<b>${kw}</b>`) || text.includes(`<b>${kw.toUpperCase()}</b>`) || text.includes(`<b>${kw.charAt(0).toUpperCase() + kw.slice(1)}</b>`);
+                                const event = hasBold('four') || /\bFOUR\b/.test(text) ? 'FOUR'
+                                    : hasBold('six') || /\bSIX\b/.test(text) ? 'SIX'
+                                    : hasBold('out') || /\bOUT\b/.test(text) || /\bout!\b/i.test(text) ? 'WICKET'
+                                    : hasBold('wide') || /\bWIDE\b/.test(text) ? 'WIDE'
+                                    : /\bno run\b/i.test(text) ? 'DOT'
+                                    : null;
+                                return (
+                                    <div key={index} className="flex gap-3 py-2.5 border-b border-dotted border-zinc-200/50 dark:border-zinc-800/30 last:border-0">
+                                        <div className="flex flex-col items-center shrink-0 w-10 gap-1">
+                                            <span className="font-mono font-bold text-[11px] text-muted-foreground">
+                                                {item.over}
+                                            </span>
+                                            {event === 'FOUR' && <span className="w-6 h-6 rounded-full bg-blue-500 text-white font-bold text-xs flex items-center justify-center">4</span>}
+                                            {event === 'SIX' && <span className="w-6 h-6 rounded-full bg-purple-600 text-white font-bold text-xs flex items-center justify-center">6</span>}
+                                            {event === 'WICKET' && <span className="w-6 h-6 rounded-full bg-red-600 text-white font-bold text-xs flex items-center justify-center">W</span>}
+                                            {event === 'WIDE' && <span className="w-6 h-6 rounded-full bg-orange-500 text-white font-bold text-[10px] flex items-center justify-center">Wd</span>}
+                                        </div>
+                                        <p className="text-sm text-foreground/80 flex-1 leading-relaxed" dangerouslySetInnerHTML={{ __html: item.text }} />
+                                    </div>
+                                );
+                            })}
+                            {highlightsData.highlights.length === 0 && (
+                                <p className="text-center text-muted-foreground py-8">No highlights available.</p>
+                            )}
+                        </div>
+                    )}
+                    {!highlightsLoading && !highlightsData && highlightsUrl && (
+                        <div className="p-8 text-center text-muted-foreground">Failed to load highlights</div>
                     )}
                 </DialogContent>
             </Dialog>

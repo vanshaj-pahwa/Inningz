@@ -1,16 +1,26 @@
 import type {Metadata} from 'next';
-import { Inter, Bricolage_Grotesque } from 'next/font/google';
+import { DM_Serif_Display, DM_Sans, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { cn } from '@/lib/utils';
 import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/components/theme-provider';
-import { SidebarProvider } from '@/components/ui/sidebar';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
-const bricolage = Bricolage_Grotesque({ 
-    subsets: ['latin'], 
-    variable: '--font-logo',
-    weight: ['400', '700'] 
+const dmSerifDisplay = DM_Serif_Display({
+    subsets: ['latin'],
+    variable: '--font-display',
+    weight: ['400']
+});
+
+const dmSans = DM_Sans({
+    subsets: ['latin'],
+    variable: '--font-sans',
+    weight: ['400', '500', '600', '700']
+});
+
+const jetbrainsMono = JetBrains_Mono({
+    subsets: ['latin'],
+    variable: '--font-mono',
+    weight: ['400', '500', '700']
 });
 
 export const metadata: Metadata = {
@@ -28,19 +38,18 @@ export default function RootLayout({
       <body
         className={cn(
           'min-h-screen bg-background font-sans antialiased',
-          inter.variable,
-          bricolage.variable
+          dmSerifDisplay.variable,
+          dmSans.variable,
+          jetbrainsMono.variable
         )}
       >
         <ThemeProvider
             attribute="class"
-            defaultTheme="system"
+            defaultTheme="dark"
             enableSystem
             disableTransitionOnChange
         >
-          <SidebarProvider>
-            {children}
-          </SidebarProvider>
+          {children}
           <Toaster />
         </ThemeProvider>
       </body>

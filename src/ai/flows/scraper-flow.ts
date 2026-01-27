@@ -33,6 +33,7 @@ const ScrapeCricbuzzUrlOutputSchema = z.object({
     fours: z.string(),
     sixes: z.string(),
     profileId: z.string().optional(),
+    highlightsUrl: z.string().optional(),
   })).describe('The current batsmen.'),
   bowlers: z.array(z.object({
     name: z.string(),
@@ -43,6 +44,7 @@ const ScrapeCricbuzzUrlOutputSchema = z.object({
     economy: z.string(),
     onStrike: z.boolean(),
     profileId: z.string().optional(),
+    highlightsUrl: z.string().optional(),
   })).describe('The current bowlers.'),
   commentary: z.array(CommentarySchema).describe('The latest commentary, including live and user comments.'),
   previousInnings: z.array(z.object({
@@ -317,6 +319,11 @@ export type ScrapeCricbuzzUrlOutput = z.infer<
 >;
 export type Commentary = z.infer<typeof CommentarySchema>;
 
+export type PlayerHighlights = {
+  playerName: string;
+  playerScore: string;
+  highlights: { over: string; text: string }[];
+};
 
 function extractMatchId(url: string): string | null {
   if (!url) return null;
@@ -1813,14 +1820,17 @@ export async function getScoreForMatchId(
 
   const { matchHeader, miniscore, commentaryList, matchCommentary } = data;
 
-  // Always fetch ball-by-ball commentary from pagination API
-  // Using a large timestamp returns the newest commentary
-  // This gives us proper overSeparator data and consistent format
+  // Fetch ball-by-ball commentary from pagination API and merge with main commentaryList
+  // The main API commentaryList has the very latest balls, while pagination gives us
+  // older commentary with proper overSeparator data
   let commentaryArray: any[] = [];
+
+  // Get the commentaryList from the main API (has most recent balls)
+  const mainCommentary: any[] = commentaryList ?? (matchCommentary && typeof matchCommentary === 'object' ? Object.values(matchCommentary) : []);
 
   if (miniscore?.inningsId) {
     try {
-      // Use a very large timestamp to get the newest commentary
+      // Use a very large timestamp to get the newest commentary from pagination
       const paginationUrl = `https://www.cricbuzz.com/api/mcenter/commentary-pagination/${matchId}/${miniscore.inningsId}/9999999999999`;
       const paginationResponse = await fetch(paginationUrl, {
         headers: {
@@ -1830,7 +1840,13 @@ export async function getScoreForMatchId(
       if (paginationResponse.ok) {
         const paginationData = await paginationResponse.json();
         if (Array.isArray(paginationData) && paginationData.length > 0) {
-          commentaryArray = paginationData;
+          // Merge: use mainCommentary for the latest balls, then add any pagination items
+          // that aren't already in mainCommentary (by timestamp)
+          const mainTimestamps = new Set(mainCommentary.filter((c: any) => c.timestamp).map((c: any) => c.timestamp));
+          const uniquePaginationItems = paginationData.filter((c: any) => !c.timestamp || !mainTimestamps.has(c.timestamp));
+          // Merge and sort by timestamp descending (newest first)
+          commentaryArray = [...mainCommentary, ...uniquePaginationItems]
+            .sort((a: any, b: any) => (b.timestamp || 0) - (a.timestamp || 0));
         }
       }
     } catch (e) {
@@ -1838,14 +1854,11 @@ export async function getScoreForMatchId(
     }
   }
 
-  // Fallback to commentaryList or matchCommentary if pagination failed
+  // Fallback if pagination failed entirely
   if (commentaryArray.length === 0) {
-    if (commentaryList) {
-      commentaryArray = commentaryList;
-    } else if (matchCommentary && typeof matchCommentary === 'object') {
-      commentaryArray = Object.values(matchCommentary);
-    }
+    commentaryArray = mainCommentary;
   }
+
 
   const title = matchHeader ? `${matchHeader.team1.name} vs ${matchHeader.team2.name}, ${matchHeader.matchDescription}` : 'Match';
   const status = matchHeader ? matchHeader.status : 'Status not available';
@@ -1855,55 +1868,64 @@ export async function getScoreForMatchId(
   const formattedOvers = formatOvers(miniscore?.overs);
   const score = battingTeam && miniscore ? `${battingTeam?.shortName} ${miniscore.batTeam.teamScore ?? 0}/${miniscore.batTeam.teamWkts ?? 0} (${formattedOvers} ov)` : 'N/A';
 
-  const batsmen: { name: string; runs: string; balls: string, onStrike: boolean, strikeRate: string, fours: string, sixes: string, profileId?: string }[] = [];
-  if (miniscore?.batsmanStriker?.batName) {
+  const batsmen: { name: string; runs: string; balls: string, onStrike: boolean, strikeRate: string, fours: string, sixes: string, profileId?: string, highlightsUrl?: string }[] = [];
+  const striker = miniscore?.batsmanStriker;
+  const nonStriker = miniscore?.batsmanNonStriker;
+  // API may return fields as batName/batRuns or name/runs depending on endpoint
+  if (striker && (striker.batName || striker.name)) {
     batsmen.push({
-      name: miniscore.batsmanStriker.batName,
-      runs: String(miniscore.batsmanStriker.batRuns ?? 0),
-      balls: String(miniscore.batsmanStriker.batBalls ?? 0),
+      name: striker.batName || striker.name,
+      runs: String(striker.batRuns ?? striker.runs ?? 0),
+      balls: String(striker.batBalls ?? striker.balls ?? 0),
       onStrike: true,
-      strikeRate: String(miniscore.batsmanStriker.batStrikeRate ?? 0),
-      fours: String(miniscore.batsmanStriker.batFours ?? 0),
-      sixes: String(miniscore.batsmanStriker.batSixes ?? 0),
-      profileId: miniscore.batsmanStriker.batId ? String(miniscore.batsmanStriker.batId) : undefined,
+      strikeRate: String(striker.batStrikeRate ?? striker.strikeRate ?? 0),
+      fours: String(striker.batFours ?? striker.fours ?? 0),
+      sixes: String(striker.batSixes ?? striker.sixes ?? 0),
+      profileId: (striker.batId || striker.id) ? String(striker.batId || striker.id) : undefined,
+      highlightsUrl: striker.playerMatchHighlightsUrl || undefined,
     });
   }
-  if (miniscore?.batsmanNonStriker?.batName) {
+  if (nonStriker && (nonStriker.batName || nonStriker.name)) {
     batsmen.push({
-      name: miniscore.batsmanNonStriker.batName,
-      runs: String(miniscore.batsmanNonStriker.batRuns ?? 0),
-      balls: String(miniscore.batsmanNonStriker.batBalls ?? 0),
+      name: nonStriker.batName || nonStriker.name,
+      runs: String(nonStriker.batRuns ?? nonStriker.runs ?? 0),
+      balls: String(nonStriker.batBalls ?? nonStriker.balls ?? 0),
       onStrike: false,
-      strikeRate: String(miniscore.batsmanNonStriker.batStrikeRate ?? 0),
-      fours: String(miniscore.batsmanNonStriker.batFours ?? 0),
-      sixes: String(miniscore.batsmanNonStriker.batSixes ?? 0),
-      profileId: miniscore.batsmanNonStriker.batId ? String(miniscore.batsmanNonStriker.batId) : undefined,
+      strikeRate: String(nonStriker.batStrikeRate ?? nonStriker.strikeRate ?? 0),
+      fours: String(nonStriker.batFours ?? nonStriker.fours ?? 0),
+      sixes: String(nonStriker.batSixes ?? nonStriker.sixes ?? 0),
+      profileId: (nonStriker.batId || nonStriker.id) ? String(nonStriker.batId || nonStriker.id) : undefined,
+      highlightsUrl: nonStriker.playerMatchHighlightsUrl || undefined,
     });
   }
 
-  const bowlers: { name: string; overs: string; maidens: string, runs: string, wickets: string, economy: string, onStrike: boolean, profileId?: string }[] = [];
-  if (miniscore?.bowlerStriker?.bowlName) {
+  const bowlers: { name: string; overs: string; maidens: string, runs: string, wickets: string, economy: string, onStrike: boolean, profileId?: string, highlightsUrl?: string }[] = [];
+  const bowlStriker = miniscore?.bowlerStriker;
+  const bowlNonStriker = miniscore?.bowlerNonStriker;
+  if (bowlStriker && (bowlStriker.bowlName || bowlStriker.name)) {
     bowlers.push({
-      name: miniscore.bowlerStriker.bowlName,
-      overs: String(miniscore.bowlerStriker.bowlOvs ?? 0),
-      maidens: String(miniscore.bowlerStriker.bowlMaidens ?? 0),
-      runs: String(miniscore.bowlerStriker.bowlRuns ?? 0),
-      wickets: String(miniscore.bowlerStriker.bowlWkts ?? 0),
-      economy: String(miniscore.bowlerStriker.bowlEcon ?? 0),
+      name: bowlStriker.bowlName || bowlStriker.name,
+      overs: String(bowlStriker.bowlOvs ?? bowlStriker.overs ?? 0),
+      maidens: String(bowlStriker.bowlMaidens ?? bowlStriker.maidens ?? 0),
+      runs: String(bowlStriker.bowlRuns ?? bowlStriker.runs ?? 0),
+      wickets: String(bowlStriker.bowlWkts ?? bowlStriker.wickets ?? 0),
+      economy: String(bowlStriker.bowlEcon ?? bowlStriker.economy ?? 0),
       onStrike: true,
-      profileId: miniscore.bowlerStriker.bowlId ? String(miniscore.bowlerStriker.bowlId) : undefined,
+      profileId: (bowlStriker.bowlId || bowlStriker.id) ? String(bowlStriker.bowlId || bowlStriker.id) : undefined,
+      highlightsUrl: bowlStriker.playerMatchHighlightsUrl || undefined,
     });
   }
-  if (miniscore?.bowlerNonStriker?.bowlName) {
+  if (bowlNonStriker && (bowlNonStriker.bowlName || bowlNonStriker.name)) {
     bowlers.push({
-      name: miniscore.bowlerNonStriker.bowlName,
-      overs: String(miniscore.bowlerNonStriker.bowlOvs ?? 0),
-      maidens: String(miniscore.bowlerNonStriker.bowlMaidens ?? 0),
-      runs: String(miniscore.bowlerNonStriker.bowlRuns ?? 0),
-      wickets: String(miniscore.bowlerNonStriker.bowlWkts ?? 0),
-      economy: String(miniscore.bowlerNonStriker.bowlEcon ?? 0),
+      name: bowlNonStriker.bowlName || bowlNonStriker.name,
+      overs: String(bowlNonStriker.bowlOvs ?? bowlNonStriker.overs ?? 0),
+      maidens: String(bowlNonStriker.bowlMaidens ?? bowlNonStriker.maidens ?? 0),
+      runs: String(bowlNonStriker.bowlRuns ?? bowlNonStriker.runs ?? 0),
+      wickets: String(bowlNonStriker.bowlWkts ?? bowlNonStriker.wickets ?? 0),
+      economy: String(bowlNonStriker.bowlEcon ?? bowlNonStriker.economy ?? 0),
       onStrike: false,
-      profileId: miniscore.bowlerNonStriker.bowlId ? String(miniscore.bowlerNonStriker.bowlId) : undefined,
+      profileId: (bowlNonStriker.bowlId || bowlNonStriker.id) ? String(bowlNonStriker.bowlId || bowlNonStriker.id) : undefined,
+      highlightsUrl: bowlNonStriker.playerMatchHighlightsUrl || undefined,
     });
   }
 
@@ -2017,7 +2039,7 @@ export async function getScoreForMatchId(
         teamName: inn.batTeamName,
         teamShortName: team?.shortName,
         teamFlagUrl,
-        score: `${inn.score}/${inn.wickets}`,
+        score: `${inn.score}/${inn.wickets} (${inn.overs || 0} ov)`,
       };
     }) ?? [];
 
@@ -2736,4 +2758,55 @@ export async function getMatchSquads(matchId: string): Promise<MatchSquads> {
     team1: teams[0],
     team2: teams[1],
   });
+}
+
+export async function scrapePlayerHighlights(highlightsUrl: string): Promise<PlayerHighlights> {
+  const fullUrl = `https://www.cricbuzz.com${highlightsUrl}`;
+  const response = await fetch(fullUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch highlights: ${response.statusText}`);
+  }
+  const html = await response.text();
+  const $ = cheerio.load(html);
+
+  // Extract player name and score from the header
+  // Format: "Abhigyan Kundu 8(11)"
+  const headerText = $('div.w-full > div.mx-4.mt-2').first().text().trim()
+    || $('div.font-bold.text-base').first().text().trim();
+
+  let playerName = '';
+  let playerScore = '';
+  if (headerText) {
+    // Match pattern like "Player Name 8(11)" or "Player Name 123(95)"
+    const scoreMatch = headerText.match(/^(.+?)\s+(\d+\(\d+\))$/);
+    if (scoreMatch) {
+      playerName = scoreMatch[1].trim();
+      playerScore = scoreMatch[2];
+    } else {
+      playerName = headerText;
+    }
+  }
+
+  // Extract ball-by-ball highlights
+  const highlights: { over: string; text: string }[] = [];
+  $('div.flex.gap-4, div.flex.wb\\:gap-6').each((_, el) => {
+    const overEl = $(el).find('div.font-bold.text-center');
+    const over = overEl.text().trim();
+    // The commentary text is in the second child div (sibling of the over container)
+    const textEl = $(el).children('div').last();
+    const text = textEl.text().trim();
+    if (over && text && over !== text) {
+      highlights.push({ over, text });
+    }
+  });
+
+  if (!playerName && highlights.length === 0) {
+    throw new Error('Could not parse highlights from the page.');
+  }
+
+  return { playerName, playerScore, highlights };
 }

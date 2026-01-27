@@ -11,6 +11,7 @@ import {
     scrapeMatchStats as scrapeMatchStatsFlow,
     scrapeSeriesMatches as scrapeSeriesMatchesFlow,
     getMatchSquads as getMatchSquadsFlow,
+    scrapePlayerHighlights as scrapePlayerHighlightsFlow,
     type ScrapeCricbuzzUrlOutput as ScrapeFlowOutput,
     type Commentary as CommentaryType,
     type LiveMatch as LiveMatchType,
@@ -19,6 +20,7 @@ import {
     type MatchStats,
     type MatchSquads as MatchSquadsType,
     type SquadPlayer as SquadPlayerType,
+    type PlayerHighlights as PlayerHighlightsType,
 } from '@/ai/flows/scraper-flow';
 
 export type ScrapeCricbuzzUrlOutput = ScrapeFlowOutput;
@@ -28,6 +30,7 @@ export type FullScorecard = FullScorecardType;
 export type PlayerProfile = PlayerProfileType;
 export type MatchSquads = MatchSquadsType;
 export type SquadPlayer = SquadPlayerType;
+export type PlayerHighlights = PlayerHighlightsType;
 export type { MatchStats };
 
 interface ScrapeState {
@@ -296,6 +299,19 @@ export async function getMatchSquads(matchId: string): Promise<{ success: boolea
     try {
         const squads = await getMatchSquadsFlow(matchId);
         return { success: true, squads };
+    } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : 'An unexpected error occurred.';
+        return { success: false, error: errorMessage };
+    }
+}
+
+export async function getPlayerHighlights(highlightsUrl: string): Promise<{ success: boolean; data?: PlayerHighlightsType; error?: string }> {
+    if (!highlightsUrl) {
+        return { success: false, error: 'Invalid highlights URL' };
+    }
+    try {
+        const data = await scrapePlayerHighlightsFlow(highlightsUrl);
+        return { success: true, data };
     } catch (e) {
         const errorMessage = e instanceof Error ? e.message : 'An unexpected error occurred.';
         return { success: false, error: errorMessage };
