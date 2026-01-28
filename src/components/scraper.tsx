@@ -819,35 +819,60 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                         </div>
                     )}
                     {highlightsData && (
-                        <div className="px-4 pb-4 space-y-0.5">
-                            {highlightsData.highlights.map((item, index) => {
-                                const text = item.text;
-                                // Detect events via bold-wrapped keywords from Cricbuzz HTML or standalone uppercase words
-                                const hasBold = (kw: string) => text.includes(`<b>${kw}</b>`) || text.includes(`<b>${kw.toUpperCase()}</b>`) || text.includes(`<b>${kw.charAt(0).toUpperCase() + kw.slice(1)}</b>`);
-                                const event = hasBold('four') || /\bFOUR\b/.test(text) ? 'FOUR'
-                                    : hasBold('six') || /\bSIX\b/.test(text) ? 'SIX'
-                                    : hasBold('out') || /\bOUT\b/.test(text) || /\bout!\b/i.test(text) ? 'WICKET'
-                                    : hasBold('wide') || /\bWIDE\b/.test(text) ? 'WIDE'
-                                    : /\bno run\b/i.test(text) ? 'DOT'
-                                    : null;
-                                return (
-                                    <div key={index} className="flex gap-3 py-2.5 border-b border-dotted border-zinc-200/50 dark:border-zinc-800/30 last:border-0">
-                                        <div className="flex flex-col items-center shrink-0 w-10 gap-1">
-                                            <span className="font-mono font-bold text-[11px] text-muted-foreground">
-                                                {item.over}
-                                            </span>
-                                            {event === 'FOUR' && <span className="w-6 h-6 rounded-full bg-blue-500 text-white font-bold text-xs flex items-center justify-center">4</span>}
-                                            {event === 'SIX' && <span className="w-6 h-6 rounded-full bg-purple-600 text-white font-bold text-xs flex items-center justify-center">6</span>}
-                                            {event === 'WICKET' && <span className="w-6 h-6 rounded-full bg-red-600 text-white font-bold text-xs flex items-center justify-center">W</span>}
-                                            {event === 'WIDE' && <span className="w-6 h-6 rounded-full bg-orange-500 text-white font-bold text-[10px] flex items-center justify-center">Wd</span>}
+                        <div className="p-3 md:p-4">
+                            <div className="space-y-0.5">
+                                {highlightsData.highlights.map((item, index) => {
+                                    const text = item.text;
+                                    const textLower = text.toLowerCase();
+                                    // Detect events from bold tags and keywords
+                                    const hasBold = (kw: string) => text.includes(`<b>${kw}</b>`) || text.includes(`<b>${kw.toUpperCase()}</b>`) || text.includes(`<b>${kw.charAt(0).toUpperCase() + kw.slice(1)}</b>`);
+                                    const isFour = hasBold('four') || /\bFOUR\b/.test(text);
+                                    const isSix = hasBold('six') || /\bSIX\b/.test(text);
+                                    const isWicket = hasBold('out') || /\bOUT\b/.test(text);
+                                    const isWide = textLower.includes('wide');
+                                    const isNoBall = textLower.includes('no ball') || textLower.includes('no-ball');
+                                    const isDot = textLower.includes('no run');
+
+                                    // Get run value from text if possible
+                                    let runDisplay = '•';
+                                    if (isFour) runDisplay = '4';
+                                    else if (isSix) runDisplay = '6';
+                                    else if (isWicket) runDisplay = 'W';
+                                    else if (isWide) runDisplay = 'Wd';
+                                    else if (isNoBall) runDisplay = 'Nb';
+                                    else if (isDot) runDisplay = '•';
+                                    else {
+                                        // Try to extract runs from patterns like "1 run" or "2 runs"
+                                        const runMatch = text.match(/\b(\d)\s*runs?\b/i);
+                                        if (runMatch) runDisplay = runMatch[1];
+                                    }
+
+                                    // Ball indicator class matching commentary style
+                                    let ballClass = "w-7 h-7 md:w-8 md:h-8 rounded-lg font-bold text-xs flex items-center justify-center shrink-0";
+                                    if (isSix) ballClass += " bg-purple-600 text-white";
+                                    else if (isFour) ballClass += " bg-blue-600 text-white";
+                                    else if (isWicket) ballClass += " bg-red-600 text-white";
+                                    else if (isWide || isNoBall) ballClass += " bg-orange-500 text-white text-[10px]";
+                                    else if (isDot) ballClass += " bg-zinc-200 dark:bg-zinc-800 text-zinc-500";
+                                    else if (/^\d$/.test(runDisplay)) ballClass += " bg-green-600 text-white";
+                                    else ballClass += " bg-zinc-200 dark:bg-zinc-800 text-zinc-500";
+
+                                    return (
+                                        <div key={index} className="slide-in-left flex items-start gap-3 py-2.5 px-2 rounded-xl hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 transition-colors">
+                                            <div className="flex items-center gap-2 shrink-0">
+                                                <span className="font-mono font-bold text-xs text-muted-foreground w-8 text-right">
+                                                    {item.over}
+                                                </span>
+                                                <span className={ballClass}>{runDisplay}</span>
+                                            </div>
+                                            <p className="text-sm text-foreground/90 flex-1 leading-relaxed" dangerouslySetInnerHTML={{ __html: text }} />
                                         </div>
-                                        <p className="text-sm text-foreground/80 flex-1 leading-relaxed" dangerouslySetInnerHTML={{ __html: item.text }} />
-                                    </div>
-                                );
-                            })}
-                            {highlightsData.highlights.length === 0 && (
-                                <p className="text-center text-muted-foreground py-8">No highlights available.</p>
-                            )}
+                                    );
+                                })}
+                                {highlightsData.highlights.length === 0 && (
+                                    <p className="text-center text-muted-foreground py-8">No highlights available.</p>
+                                )}
+                            </div>
                         </div>
                     )}
                     {!highlightsLoading && !highlightsData && highlightsUrl && (

@@ -2792,17 +2792,84 @@ export async function scrapePlayerHighlights(highlightsUrl: string): Promise<Pla
   }
 
   // Extract ball-by-ball highlights
+  // Cricbuzz HTML structure:
+  // <div class="flex gap-4 ...">
+  //   <div class="flex flex-col ...">           <- first child (contains over + badge)
+  //     <div class="font-bold ...">2.3</div>    <- over number
+  //     <div class="bg-cbFour ...">4</div>      <- event badge (optional)
+  //   </div>
+  //   <div>Matt Henry to Samson, FOUR, ...</div> <- commentary (second child)
+  // </div>
   const highlights: { over: string; text: string }[] = [];
-  $('div.flex.gap-4, div.flex.wb\\:gap-6').each((_, el) => {
-    const overEl = $(el).find('div.font-bold.text-center');
-    const over = overEl.text().trim();
-    // The commentary text is in the second child div (sibling of the over container)
-    const textEl = $(el).children('div').last();
-    const text = textEl.text().trim();
-    if (over && text && over !== text) {
-      highlights.push({ over, text });
-    }
+  const processed = new Set<string>();
+
+  // Find all flex containers with gap-4 or gap-6 that have mx-4 (these are highlight rows)
+  $('div.flex').each((_, el) => {
+    const $el = $(el);
+    const className = $el.attr('class') || '';
+
+    // Skip if it's not a highlight row (should have gap and mx)
+    if (!className.includes('gap-4') && !className.includes('gap-6')) return;
+    if (!className.includes('mx-4') && !className.includes('mx-2')) return;
+
+    const children = $el.children();
+    if (children.length < 2) return;
+
+    const firstChild = $(children[0]);
+    const secondChild = $(children[1]);
+
+    // The over number is in the FIRST font-bold div inside the first child
+    const overDiv = firstChild.find('div.font-bold').first();
+    const overText = overDiv.text().trim();
+
+    // Match over number pattern: X.Y (like 2.3) OR just X (like 1, 2, 3 for complete overs)
+    if (!/^\d{1,2}(\.\d)?$/.test(overText)) return;
+
+    // Get the HTML of the second child to preserve bold tags for event detection
+    const commentaryHtml = secondChild.html() || '';
+    const commentaryText = secondChild.text().trim();
+
+    if (!commentaryText) return;
+
+    // Create unique key to avoid duplicates
+    const key = `${overText}:${commentaryText.substring(0, 50)}`;
+    if (processed.has(key)) return;
+    processed.add(key);
+
+    // Store HTML so the frontend can detect events from bold tags
+    highlights.push({ over: overText, text: commentaryHtml });
   });
+
+  // Fallback: if above didn't work, try finding by font-bold pattern directly
+  if (highlights.length === 0) {
+    $('div.font-bold').each((_, el) => {
+      const $el = $(el);
+      const overText = $el.text().trim();
+
+      // Match over number pattern
+      if (!/^\d{1,2}(\.\d)?$/.test(overText)) return;
+
+      // Navigate up to find the parent row container
+      const parentRow = $el.closest('div.flex');
+      if (!parentRow.length) return;
+
+      // Find the commentary sibling
+      const children = parentRow.children();
+      if (children.length < 2) return;
+
+      const commentaryDiv = $(children[1]);
+      const commentaryHtml = commentaryDiv.html() || '';
+      const commentaryText = commentaryDiv.text().trim();
+
+      if (!commentaryText) return;
+
+      const key = `${overText}:${commentaryText.substring(0, 50)}`;
+      if (processed.has(key)) return;
+      processed.add(key);
+
+      highlights.push({ over: overText, text: commentaryHtml });
+    });
+  }
 
   if (!playerName && highlights.length === 0) {
     throw new Error('Could not parse highlights from the page.');
