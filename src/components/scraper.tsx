@@ -829,9 +829,10 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                     const isFour = hasBold('four') || /\bFOUR\b/.test(text);
                                     const isSix = hasBold('six') || /\bSIX\b/.test(text);
                                     const isWicket = hasBold('out') || /\bOUT\b/.test(text);
-                                    const isWide = textLower.includes('wide');
-                                    const isNoBall = textLower.includes('no ball') || textLower.includes('no-ball');
                                     const isDot = textLower.includes('no run');
+                                    // Wide detection: look for "wide" as an extra, not "wide of" (ball line description)
+                                    const isWide = !isDot && (hasBold('wide') || /\bwide\b/i.test(text.replace(/wide of/gi, '')));
+                                    const isNoBall = textLower.includes('no ball') || textLower.includes('no-ball');
 
                                     // Get run value from text if possible
                                     let runDisplay = '•';
