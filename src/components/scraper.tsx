@@ -572,11 +572,11 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                             </div>
                         )}
 
-                        {/* Scorecard + Commentary Layout */}
-                        <div className={`grid grid-cols-1 gap-6 ${data && data.batsmen.length === 0 && data.bowlers.length === 0 ? '' : 'lg:grid-cols-[1fr_440px]'}`}>
-                            {/* Left Column: Scorecard */}
-                            <div className="min-w-0">
-                                {/* Scorecard - Cricbuzz style */}
+                        {/* Main Layout: Scorecard Left + Commentary Right */}
+                        <div className={`grid grid-cols-1 gap-4 lg:gap-6 ${data && data.batsmen.length === 0 && data.bowlers.length === 0 ? '' : 'xl:grid-cols-[420px_1fr]'}`}>
+                            {/* Left Column: Scorecard + Key Stats */}
+                            <div className="min-w-0 space-y-4">
+                                {/* Scorecard Tables */}
                                 {data && (data.batsmen.length !== 0 || data.bowlers.length !== 0) && (
                                     <div className="glass-card overflow-hidden">
                                         {/* Batting */}
@@ -704,76 +704,122 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                     </div>
                                 )}
 
+                                {/* Key Stats - Vertical layout for full visibility */}
+                                {data && (data.batsmen.length !== 0 || data.bowlers.length !== 0) && (
+                                    <div className="glass-card overflow-hidden divide-y divide-zinc-200/50 dark:divide-zinc-800/50">
+                                        {data?.partnership && data.partnership !== '-' && (
+                                            <div className="p-3 flex items-start gap-3">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0"></div>
+                                                <div className="min-w-0">
+                                                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Partnership</span>
+                                                    <p className="text-sm font-semibold text-foreground mt-0.5">{data.partnership}</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {data?.lastWicket && data.lastWicket !== '-' && (
+                                            <div className="p-3 flex items-start gap-3">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 shrink-0"></div>
+                                                <div className="min-w-0">
+                                                    <span className="text-[10px] font-bold uppercase tracking-wider text-red-600 dark:text-red-400">Last Wicket</span>
+                                                    <p className="text-sm font-semibold text-foreground mt-0.5">{data.lastWicket}</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {data?.recentOvers && data.recentOvers !== '-' && (
+                                            <div className="p-3 flex items-start gap-3">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0"></div>
+                                                <div className="min-w-0">
+                                                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Recent Overs</span>
+                                                    <p className="text-sm font-mono font-semibold text-foreground mt-0.5">{data.recentOvers}</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Mobile Commentary - Only visible on smaller screens */}
+                                <div className="xl:hidden glass-card overflow-hidden">
+                                    <div className="px-4 py-3 border-b border-zinc-200/50 dark:border-zinc-800/50 bg-gradient-to-r from-zinc-50 to-transparent dark:from-zinc-900/50">
+                                        <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Commentary</h3>
+                                    </div>
+                                    <div className="p-3">
+                                        <div className="space-y-0.5 max-h-[32rem] overflow-y-auto hide-scrollbar">
+                                            {data?.commentary.map((comment, index) => (
+                                                <div key={index}>
+                                                    {index === newCommentaryStartIndex && <div ref={newCommentaryStartRef} />}
+                                                    {renderCommentaryItem(comment, index)}
+                                                </div>
+                                            ))}
+                                            <div ref={commentaryEndRef} />
+                                        </div>
+                                        {lastTimestamp !== null && lastTimestamp !== 0 && (
+                                            <div className="pt-3 mt-3 border-t border-zinc-200/50 dark:border-zinc-800/50">
+                                                <Button
+                                                    onClick={loadMoreCommentary}
+                                                    disabled={loadingMore}
+                                                    variant="outline"
+                                                    className="w-full rounded-xl text-sm"
+                                                >
+                                                    {loadingMore ? (
+                                                        <><LoaderCircle className="w-4 h-4 animate-spin mr-2" />Loading...</>
+                                                    ) : (
+                                                        'Load More'
+                                                    )}
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
 
-                            {/* Right Column: Key Stats (desktop only) */}
+                            {/* Right Column: Commentary - Desktop only, sticky */}
                             {data && (data.batsmen.length !== 0 || data.bowlers.length !== 0) && (
-                                <div className="hidden lg:block self-start">
-                                    <div className="glass-card overflow-hidden">
-                                        <div className="px-4 py-2.5 bg-gradient-to-r from-primary/10 to-emerald-500/10 dark:from-primary/20 dark:to-emerald-500/20 border-b border-primary/20 dark:border-primary/30">
-                                            <span className="text-xs font-bold text-primary uppercase tracking-wide">Key Stats</span>
-                                        </div>
-                                        <div className="divide-y divide-zinc-100 dark:divide-zinc-800/40">
-                                            <div className="px-4 py-3 flex items-start gap-3">
-                                                <div className="w-0.5 self-stretch rounded-full bg-blue-500 shrink-0"></div>
-                                                <span className="text-[11px] font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400 shrink-0 mt-0.5">Partnership</span>
-                                                <p className="text-sm font-semibold text-foreground ml-auto text-right">{data?.partnership}</p>
-                                            </div>
-                                            <div className="px-4 py-3 flex items-start gap-3">
-                                                <div className="w-0.5 self-stretch rounded-full bg-red-500 shrink-0"></div>
-                                                <span className="text-[11px] font-bold uppercase tracking-wide text-red-600 dark:text-red-400 shrink-0 mt-0.5">Last Wkt</span>
-                                                <p className="text-sm font-semibold text-foreground ml-auto text-right">{data?.lastWicket}</p>
-                                            </div>
-                                            <div className="px-4 py-3 flex items-start gap-3">
-                                                <div className="w-0.5 self-stretch rounded-full bg-amber-500 shrink-0"></div>
-                                                <span className="text-[11px] font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400 shrink-0 mt-0.5">Recent</span>
-                                                <p className="text-sm font-mono font-semibold text-foreground ml-auto text-right">{data?.recentOvers}</p>
-                                            </div>
-                                            {data?.toss && data.toss !== 'N/A' && (
-                                                <div className="px-4 py-3 flex items-start gap-3">
-                                                    <div className="w-0.5 self-stretch rounded-full bg-purple-500 shrink-0"></div>
-                                                    <span className="text-[11px] font-bold uppercase tracking-wide text-purple-600 dark:text-purple-400 shrink-0 mt-0.5">Toss</span>
-                                                    <p className="text-sm font-semibold text-foreground ml-auto text-right">{data.toss}</p>
+                                <div className="hidden xl:block">
+                                    <div className="sticky top-4">
+                                        <div className="glass-card overflow-hidden">
+                                            {/* Commentary Header with gradient accent */}
+                                            <div className="relative px-4 py-3 border-b border-zinc-200/50 dark:border-zinc-800/50">
+                                                <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-emerald-500/5 to-transparent dark:from-primary/10 dark:via-emerald-500/10"></div>
+                                                <div className="relative flex items-center justify-between">
+                                                    <h3 className="text-xs font-bold uppercase tracking-widest text-primary">Live Commentary</h3>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-red-500 live-pulse"></div>
+                                                        <span className="text-[10px] font-medium text-muted-foreground">LIVE</span>
+                                                    </div>
                                                 </div>
-                                            )}
+                                            </div>
+                                            {/* Commentary Feed */}
+                                            <div className="p-3">
+                                                <div className="space-y-0.5 max-h-[calc(100vh-280px)] overflow-y-auto hide-scrollbar">
+                                                    {data?.commentary.map((comment, index) => (
+                                                        <div key={index}>
+                                                            {renderCommentaryItem(comment, index)}
+                                                        </div>
+                                                    ))}
+                                                    <div ref={commentaryEndRef} />
+                                                </div>
+                                                {lastTimestamp !== null && lastTimestamp !== 0 && (
+                                                    <div className="pt-3 mt-3 border-t border-zinc-200/50 dark:border-zinc-800/50">
+                                                        <Button
+                                                            onClick={loadMoreCommentary}
+                                                            disabled={loadingMore}
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="w-full rounded-xl text-xs"
+                                                        >
+                                                            {loadingMore ? (
+                                                                <><LoaderCircle className="w-3 h-3 animate-spin mr-2" />Loading...</>
+                                                            ) : (
+                                                                'Load More Commentary'
+                                                            )}
+                                                        </Button>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             )}
-                        </div>
-
-                        {/* Commentary - Full Width below Scorecard + Key Stats */}
-                        <div className="glass-card overflow-hidden mt-6">
-                            <div className="px-5 py-4 border-b border-zinc-200/50 dark:border-zinc-800/50">
-                                <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Commentary</h3>
-                            </div>
-                            <div className="p-3 md:p-4">
-                                <div className="space-y-0.5 max-h-[80rem] overflow-y-auto hide-scrollbar">
-                                    {data?.commentary.map((comment, index) => (
-                                        <div key={index}>
-                                            {index === newCommentaryStartIndex && <div ref={newCommentaryStartRef} />}
-                                            {renderCommentaryItem(comment, index)}
-                                        </div>
-                                    ))}
-                                    <div ref={commentaryEndRef} />
-                                </div>
-                                {lastTimestamp !== null && lastTimestamp !== 0 && (
-                                    <div className="pt-4 mt-4 border-t border-zinc-200/50 dark:border-zinc-800/50">
-                                        <Button
-                                            onClick={loadMoreCommentary}
-                                            disabled={loadingMore}
-                                            variant="outline"
-                                            className="w-full rounded-xl text-sm"
-                                        >
-                                            {loadingMore ? (
-                                                <><LoaderCircle className="w-4 h-4 animate-spin mr-2" />Loading...</>
-                                            ) : (
-                                                'Load More Commentary'
-                                            )}
-                                        </Button>
-                                    </div>
-                                )}
-                            </div>
                         </div>
                     </div>
                 )}
