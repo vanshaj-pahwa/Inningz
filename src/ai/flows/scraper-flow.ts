@@ -369,6 +369,16 @@ export type SeriesStatsType = {
   formats: { matchTypeId: string; matchTypeDesc: string }[];
 };
 
+export type PointsTableMatch = {
+  matchId: number;
+  matchName: string;
+  opponent: string;
+  opponentShortName: string;
+  result: string;
+  date: string;
+  won: boolean;
+};
+
 export type PointsTableTeam = {
   teamFullName: string;
   teamName: string;
@@ -383,6 +393,7 @@ export type PointsTableTeam = {
   points: number;
   form: string[];
   teamQualifyStatus: string;
+  matches: PointsTableMatch[];
 };
 
 export type PointsTableGroup = {
@@ -3348,6 +3359,23 @@ export async function scrapeSeriesPointsTable(seriesId: string): Promise<PointsT
               points: t.points || 0,
               form: Array.isArray(t.form) ? t.form : [],
               teamQualifyStatus: t.teamQualifyStatus || '',
+              matches: Array.isArray(t.teamMatches) ? t.teamMatches.map((m: any) => {
+                // Format date from epoch timestamp
+                let dateStr = '';
+                if (m.startdt) {
+                  const d = new Date(m.startdt);
+                  dateStr = d.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+                }
+                return {
+                  matchId: m.matchId || 0,
+                  matchName: m.matchName || '',
+                  opponent: m.opponent || '',
+                  opponentShortName: m.opponentSName || '',
+                  result: m.result || '',
+                  date: dateStr,
+                  won: m.winner === t.teamId,
+                };
+              }) : [],
             });
           }
         }

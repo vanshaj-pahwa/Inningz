@@ -34,6 +34,7 @@ import {
     type PointsTableData as PointsTableDataType,
     type PointsTableGroup as PointsTableGroupType,
     type PointsTableTeam as PointsTableTeamType,
+    type PointsTableMatch as PointsTableMatchType,
 } from '@/ai/flows/scraper-flow';
 
 export type ScrapeCricbuzzUrlOutput = ScrapeFlowOutput;
@@ -53,6 +54,7 @@ export type SeriesStatsType = SeriesStatsTypeType;
 export type PointsTableData = PointsTableDataType;
 export type PointsTableGroup = PointsTableGroupType;
 export type PointsTableTeam = PointsTableTeamType;
+export type PointsTableMatch = PointsTableMatchType;
 export type { MatchStats };
 
 interface ScrapeState {
