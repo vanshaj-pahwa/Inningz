@@ -6,7 +6,9 @@ import Link from 'next/link';
 import { getRecentMatches } from '@/app/actions';
 import type { LiveMatch } from '@/app/actions';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { History } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { History, Filter } from "lucide-react";
 
 interface GroupedMatches {
   [seriesName: string]: LiveMatch[];
@@ -221,23 +223,47 @@ export default function RecentMatches() {
 }
 
 function FilterBar({ activeFilter, setActiveFilter }: { activeFilter: MatchFilter; setActiveFilter: (f: MatchFilter) => void }) {
+  const activeLabel = filters.find(f => f.value === activeFilter)?.label ?? 'All';
   return (
-    <div className="flex flex-wrap gap-2">
-      {filters.map((filter) => (
-        <button
-          key={filter.value}
-          onClick={() => setActiveFilter(filter.value)}
-          className={`
-            px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200
-            ${activeFilter === filter.value
-              ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25'
-              : 'bg-zinc-100 dark:bg-zinc-900 text-muted-foreground hover:text-foreground hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-transparent'
-            }
-          `}
-        >
-          {filter.label}
-        </button>
-      ))}
+    <div className="flex items-center">
+      {/* Desktop: inline pills */}
+      <div className="hidden md:flex gap-2">
+        {filters.map((filter) => (
+          <button
+            key={filter.value}
+            onClick={() => setActiveFilter(filter.value)}
+            className={`
+              shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200
+              ${activeFilter === filter.value
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25'
+                : 'bg-zinc-100 dark:bg-zinc-900 text-muted-foreground hover:text-foreground hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-transparent'
+              }
+            `}
+          >
+            {filter.label}
+          </button>
+        ))}
+      </div>
+      {/* Mobile: dropdown on the right */}
+      <div className="md:hidden ml-auto">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="rounded-xl gap-2">
+              <Filter className="h-3.5 w-3.5" />
+              {activeLabel}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="rounded-xl">
+            <DropdownMenuRadioGroup value={activeFilter} onValueChange={(v) => setActiveFilter(v as MatchFilter)}>
+              {filters.map((filter) => (
+                <DropdownMenuRadioItem key={filter.value} value={filter.value} className="rounded-lg">
+                  {filter.label}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
   );
 }

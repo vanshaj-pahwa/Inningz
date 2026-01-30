@@ -5,7 +5,9 @@ import Link from 'next/link';
 import { getSeriesSchedule } from '@/app/actions';
 import type { SeriesSchedule, CricketSeries } from '@/app/actions';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Trophy, Calendar, ChevronDown } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { Trophy, Calendar, ChevronDown, Filter } from "lucide-react";
 
 type SeriesFilter = 'all' | 'international' | 'league' | 'domestic' | 'women';
 
@@ -217,15 +219,19 @@ function FilterBar({
   setSelectedYear: (y: string) => void;
   availableYears: string[];
 }) {
+  const activeLabel = filters.find(f => f.value === activeFilter)?.label ?? 'All';
+  const yearLabel = selectedYear === 'all' ? 'All Years' : selectedYear;
+
   return (
     <div className="flex items-center justify-between gap-4">
-      <div className="flex flex-wrap gap-2">
+      {/* Desktop: inline pills */}
+      <div className="hidden md:flex gap-2">
         {filters.map((filter) => (
           <button
             key={filter.value}
             onClick={() => setActiveFilter(filter.value)}
             className={`
-              px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200
+              shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200
               ${activeFilter === filter.value
                 ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25'
                 : 'bg-zinc-100 dark:bg-zinc-900 text-muted-foreground hover:text-foreground hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-transparent'
@@ -237,21 +243,51 @@ function FilterBar({
         ))}
       </div>
 
-      {availableYears.length > 0 && (
-        <div className="relative shrink-0">
-          <select
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(e.target.value)}
-            className="appearance-none pl-3 pr-8 py-2 rounded-xl text-sm font-medium bg-zinc-100 dark:bg-zinc-900 text-foreground border border-transparent hover:bg-zinc-200 dark:hover:bg-zinc-800 cursor-pointer transition-all duration-200 outline-none"
-          >
-            <option value="all">All Years</option>
-            {availableYears.map((year) => (
-              <option key={year} value={year}>{year}</option>
-            ))}
-          </select>
-          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+      <div className="flex items-center gap-2 md:gap-4 ml-auto">
+        {/* Year dropdown */}
+        {availableYears.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="rounded-xl gap-2">
+                <Calendar className="h-3.5 w-3.5" />
+                {yearLabel}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="rounded-xl">
+              <DropdownMenuRadioGroup value={selectedYear} onValueChange={setSelectedYear}>
+                <DropdownMenuRadioItem value="all" className="rounded-lg">
+                  All Years
+                </DropdownMenuRadioItem>
+                {availableYears.map((year) => (
+                  <DropdownMenuRadioItem key={year} value={year} className="rounded-lg">
+                    {year}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+        {/* Category filter dropdown (mobile) */}
+        <div className="md:hidden">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="rounded-xl gap-2">
+                <Filter className="h-3.5 w-3.5" />
+                {activeLabel}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="rounded-xl">
+              <DropdownMenuRadioGroup value={activeFilter} onValueChange={(v) => setActiveFilter(v as SeriesFilter)}>
+                {filters.map((filter) => (
+                  <DropdownMenuRadioItem key={filter.value} value={filter.value} className="rounded-lg">
+                    {filter.label}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-      )}
+      </div>
     </div>
   );
 }

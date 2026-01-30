@@ -59,6 +59,15 @@
 }
 
 @layer utilities {
+  /* Hide scrollbar but keep scroll functionality */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
   /* Glass card effect */
   .glass-card {
     @apply bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm;
