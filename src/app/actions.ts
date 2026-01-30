@@ -16,6 +16,7 @@ import {
     scrapeSeriesStatsTypes as scrapeSeriesStatsTypesFlow,
     scrapeSeriesStats as scrapeSeriesStatsFlow,
     scrapeSeriesPointsTable as scrapeSeriesPointsTableFlow,
+    getOverByOverData as getOverByOverDataFlow,
     type ScrapeCricbuzzUrlOutput as ScrapeFlowOutput,
     type Commentary as CommentaryType,
     type LiveMatch as LiveMatchType,
@@ -35,6 +36,8 @@ import {
     type PointsTableGroup as PointsTableGroupType,
     type PointsTableTeam as PointsTableTeamType,
     type PointsTableMatch as PointsTableMatchType,
+    type OverData as OverDataType,
+    type InningsOverData as InningsOverDataType,
 } from '@/ai/flows/scraper-flow';
 
 export type ScrapeCricbuzzUrlOutput = ScrapeFlowOutput;
@@ -55,6 +58,8 @@ export type PointsTableData = PointsTableDataType;
 export type PointsTableGroup = PointsTableGroupType;
 export type PointsTableTeam = PointsTableTeamType;
 export type PointsTableMatch = PointsTableMatchType;
+export type OverData = OverDataType;
+export type InningsOverData = InningsOverDataType;
 export type { MatchStats };
 
 interface ScrapeState {
@@ -384,6 +389,19 @@ export async function getSeriesPointsTable(seriesId: string): Promise<{ success:
     }
     try {
         const data = await scrapeSeriesPointsTableFlow(seriesId);
+        return { success: true, data };
+    } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : 'An unexpected error occurred.';
+        return { success: false, error: errorMessage };
+    }
+}
+
+export async function getInningsOverData(matchId: string, inningsId: number): Promise<{ success: boolean; data?: InningsOverDataType; error?: string }> {
+    if (!matchId) {
+        return { success: false, error: 'Invalid Match ID' };
+    }
+    try {
+        const data = await getOverByOverDataFlow(matchId, inningsId);
         return { success: true, data };
     } catch (e) {
         const errorMessage = e instanceof Error ? e.message : 'An unexpected error occurred.';

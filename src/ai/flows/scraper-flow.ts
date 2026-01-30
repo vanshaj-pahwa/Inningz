@@ -407,6 +407,21 @@ export type PointsTableData = {
   groups: PointsTableGroup[];
 } | null;
 
+export type OverData = {
+  overNumber: number;
+  runs: number;
+  wickets: number;
+  cumulativeScore: number;
+  cumulativeWickets: number;
+  overSummary: string;
+};
+
+export type InningsOverData = {
+  inningsId: number;
+  teamName: string;
+  overs: OverData[];
+};
+
 function extractMatchId(url: string): string | null {
   if (!url) return null;
   const match = url.match(/\/live-cricket-scores\/(\d+)/);
@@ -3394,4 +3409,104 @@ export async function scrapeSeriesPointsTable(seriesId: string): Promise<PointsT
   } catch {
     return null;
   }
+}
+
+export async function getOverByOverData(matchId: string, inningsId: number): Promise<InningsOverData> {
+  const overMap = new Map<number, { runs: number; score: number; wickets: number; summary: string }>();
+  let timestamp = 9999999999999;
+  let teamName = '';
+  const MAX_PAGES = 20;
+
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const url = `https://www.cricbuzz.com/api/mcenter/commentary-pagination/${matchId}/${inningsId}/${timestamp}`;
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        },
+      });
+    } catch {
+      break;
+    }
+    if (!response.ok) break;
+
+    let data: any[];
+    try {
+      data = await response.json();
+    } catch {
+      break;
+    }
+    if (!Array.isArray(data) || data.length === 0) break;
+
+    let foundNew = false;
+    for (const item of data) {
+      if (item.overSeparator) {
+        const sep = item.overSeparator;
+        const overNum = sep.overNum || sep.overNumber;
+        const sepTeam = sep.batTeamName || sep.batTeamObj?.teamName || '';
+        // Set team name from first separator we encounter
+        if (!teamName && sepTeam) teamName = sepTeam;
+        // Skip separators from a different team (previous innings leaking in)
+        if (teamName && sepTeam && sepTeam !== teamName) continue;
+        if (overNum != null && !overMap.has(overNum)) {
+          foundNew = true;
+          let score = sep.score || 0;
+          let wkts = sep.wickets || 0;
+          if (sep.batTeamObj?.teamScore) {
+            const scoreMatch = sep.batTeamObj.teamScore.match(/(\d+)-(\d+)/);
+            if (scoreMatch) {
+              score = parseInt(scoreMatch[1], 10);
+              wkts = parseInt(scoreMatch[2], 10);
+            }
+          }
+          overMap.set(overNum, {
+            runs: sep.runs || 0,
+            score,
+            wickets: wkts,
+            summary: sep.o_summary || sep.overSummary || '',
+          });
+        }
+      }
+    }
+
+    const timestamps = data
+      .filter((d: any) => d.timestamp && d.timestamp < timestamp)
+      .map((d: any) => d.timestamp);
+    if (timestamps.length === 0 || !foundNew) break;
+    timestamp = Math.min(...timestamps);
+  }
+
+  const sortedOvers = Array.from(overMap.entries())
+    .sort(([a], [b]) => a - b)
+    .map(([overNumber, d]) => ({ overNumber, ...d }));
+
+  // Parse per-over runs from summary string "(X runs)" since API score field is unreliable
+  const overs: OverData[] = [];
+  let cumScore = 0;
+  let cumWickets = 0;
+  for (let i = 0; i < sortedOvers.length; i++) {
+    const o = sortedOvers[i];
+    // Extract runs from summary like "4 2 6 2 1 4 (19 runs)"
+    let runs = 0;
+    const runsMatch = o.summary.match(/\((\d+)\s*runs?\)/i);
+    if (runsMatch) {
+      runs = parseInt(runsMatch[1], 10);
+    } else if (o.runs > 0) {
+      runs = o.runs;
+    }
+    cumScore += runs;
+    const overWickets = i === 0 ? o.wickets : Math.max(0, o.wickets - sortedOvers[i - 1].wickets);
+    cumWickets += overWickets;
+    overs.push({
+      overNumber: o.overNumber,
+      runs,
+      wickets: overWickets,
+      cumulativeScore: cumScore,
+      cumulativeWickets: cumWickets,
+      overSummary: o.summary,
+    });
+  }
+
+  return { inningsId, teamName, overs };
 }

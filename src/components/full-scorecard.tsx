@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getScorecardData, getPlayerProfile } from '@/app/actions';
-import type { FullScorecard, PlayerProfile } from '@/app/actions';
+import { getScorecardData, getPlayerProfile, getInningsOverData } from '@/app/actions';
+import type { FullScorecard, PlayerProfile, InningsOverData } from '@/app/actions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { LoaderCircle } from 'lucide-react';
@@ -11,6 +11,7 @@ import PlayerProfileDisplay from './player-profile';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Separator } from './ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
+import OverByOverChart from './over-by-over-chart';
 
 export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
     const [scorecard, setScorecard] = useState<FullScorecard | null>(null);
@@ -21,6 +22,7 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
     const [selectedProfile, setSelectedProfile] = useState<PlayerProfile | null>(null);
     const [profileLoading, setProfileLoading] = useState(false);
     const [openAccordion, setOpenAccordion] = useState<string | undefined>(undefined);
+    const [overData, setOverData] = useState<Map<number, InningsOverData>>(new Map());
 
     useEffect(() => {
         const fetchScorecard = async () => {
@@ -45,6 +47,66 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
             setOpenAccordion(scorecard.innings[scorecard.innings.length - 1].name);
         }
     }, [scorecard]);
+
+    useEffect(() => {
+        // Fetch over data for up to 4 innings in parallel with scorecard (not dependent on it)
+        const fetchOverData = async () => {
+                const inningsIds = [1, 2, 3, 4];
+                const results = await Promise.allSettled(
+                    inningsIds.map(id => getInningsOverData(matchId, id))
+                );
+                const newMap = new Map<number, InningsOverData>();
+                results.forEach((res, i) => {
+                    if (res.status === 'fulfilled' && res.value.success && res.value.data && res.value.data.overs && res.value.data.overs.length > 0) {
+                        newMap.set(inningsIds[i], res.value.data);
+                    }
+                });
+                if (newMap.size > 0) setOverData(newMap);
+        };
+        fetchOverData();
+    }, [matchId]);
+
+    // Augment over data with partial over computed from scorecard total
+    const getAugmentedOverData = (inningsIndex: number): InningsOverData | undefined => {
+        const data = overData.get(inningsIndex);
+        if (!data || !scorecard) return data;
+        const inning = scorecard.innings[inningsIndex - 1];
+        if (!inning) return data;
+        // Parse total runs and overs from score like "165-10 (18.4 Ov)" or "201-4 (20 Ov)"
+        const scoreMatch = inning.score.match(/(\d+)/);
+        const oversMatch = inning.score.match(/\((\d+)\.(\d+)\s*[Oo]v/);
+        if (!scoreMatch) return data;
+        const totalRuns = parseInt(scoreMatch[1], 10);
+        const lastOver = data.overs[data.overs.length - 1];
+        if (!lastOver) return data;
+        // Check if there's a partial over (e.g., 18.4 means the 19th over was partial)
+        if (oversMatch) {
+            const completedOvers = parseInt(oversMatch[1], 10);
+            const partialBalls = parseInt(oversMatch[2], 10);
+            const partialOverNum = completedOvers + 1;
+            // Only add if we don't already have this over and there are partial balls
+            if (partialBalls > 0 && !data.overs.some(o => o.overNumber === partialOverNum)) {
+                const partialRuns = totalRuns - lastOver.cumulativeScore;
+                if (partialRuns >= 0) {
+                    return {
+                        ...data,
+                        overs: [
+                            ...data.overs,
+                            {
+                                overNumber: partialOverNum,
+                                runs: partialRuns,
+                                wickets: 0,
+                                cumulativeScore: totalRuns,
+                                cumulativeWickets: lastOver.cumulativeWickets,
+                                overSummary: `(${partialRuns} runs, ${partialBalls} balls)`,
+                            },
+                        ],
+                    };
+                }
+            }
+        }
+        return data;
+    };
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -136,6 +198,13 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                             <div className="px-0 md:px-6 pb-3 md:pb-6">
                                 <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 md:gap-8">
                                     <div className="lg:col-span-3 space-y-3 md:space-y-8">
+                                        {getAugmentedOverData(index + 1) && (
+                                            <Card className="glass-card">
+                                                <CardContent className="p-2 md:p-4">
+                                                    <OverByOverChart data={getAugmentedOverData(index + 1)!} />
+                                                </CardContent>
+                                            </Card>
+                                        )}
                                         <Card className="glass-card">
                                             <CardHeader className="border-b dark:border-zinc-800/50 p-2 md:p-6">
                                                 <CardTitle className="flex items-center gap-2 text-xs md:text-base">
