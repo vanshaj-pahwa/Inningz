@@ -7,7 +7,8 @@ import { getSeriesMatches } from '@/app/actions';
 import type { LiveMatch } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ArrowLeft, Calendar, BarChart3, TableProperties } from 'lucide-react';
+import { ArrowLeft, Calendar, BarChart3, TableProperties, Filter, ChevronDown } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import SeriesStatsDisplay from '@/components/series-stats';
 import PointsTableDisplay from '@/components/points-table';
 
@@ -24,6 +25,7 @@ export default function SeriesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasPointsTable, setHasPointsTable] = useState<boolean | null>(null);
+  const [teamFilter, setTeamFilter] = useState<string>('all');
 
   useEffect(() => {
     if (!seriesId) return;
@@ -70,6 +72,15 @@ export default function SeriesPage() {
   const isComplete = (status: string) => status.toLowerCase().includes('won');
 
   const seriesName = matches.length > 0 ? (matches[0].seriesName || 'Series Matches') : 'Series Matches';
+
+  // Extract unique team names for filter
+  const teamNames = Array.from(
+    new Set(matches.flatMap(m => m.teams.map(t => t.name)).filter(Boolean))
+  ).sort();
+
+  const filteredMatches = teamFilter === 'all'
+    ? matches
+    : matches.filter(m => m.teams.some(t => t.name === teamFilter));
 
   const tabs: { value: SeriesView; label: string; icon: typeof Calendar; hidden?: boolean }[] = [
     { value: 'matches', label: 'Matches', icon: Calendar },
@@ -140,6 +151,32 @@ export default function SeriesPage() {
               </div>
             )}
 
+            {!loading && !error && matches.length > 0 && teamNames.length > 2 && (
+              <div className="flex justify-end mb-4">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="rounded-xl gap-2">
+                      <Filter className="h-3.5 w-3.5" />
+                      {teamFilter === 'all' ? 'All Teams' : teamFilter}
+                      <ChevronDown className="h-3.5 w-3.5 opacity-50" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="rounded-xl max-h-72 overflow-y-auto">
+                    <DropdownMenuRadioGroup value={teamFilter} onValueChange={setTeamFilter}>
+                      <DropdownMenuRadioItem value="all" className="rounded-lg">
+                        All Teams
+                      </DropdownMenuRadioItem>
+                      {teamNames.map((name) => (
+                        <DropdownMenuRadioItem key={name} value={name} className="rounded-lg">
+                          {name}
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            )}
+
             {!loading && !error && matches.length === 0 && (
               <div className="w-full flex flex-col items-center justify-center min-h-[60vh] p-8">
                 <div className="p-5 rounded-full bg-primary/10 mb-5">
@@ -154,7 +191,7 @@ export default function SeriesPage() {
 
             {!loading && !error && matches.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {matches.map((match, index) => {
+                {filteredMatches.map((match, index) => {
                   const matchIsLive = isLive(match.status);
                   const matchIsComplete = isComplete(match.status);
 
