@@ -350,6 +350,25 @@ export type SeriesSchedule = {
   }[];
 };
 
+export type SeriesStatEntry = {
+  playerId: string;
+  playerName: string;
+  values: Record<string, string>;
+};
+
+export type SeriesStatCategory = {
+  key: string;
+  name: string;
+  category: 'Batting' | 'Bowling';
+  headers: string[];
+  entries: SeriesStatEntry[];
+};
+
+export type SeriesStatsType = {
+  statsTypes: { value?: string; header: string; category?: string }[];
+  formats: { matchTypeId: string; matchTypeDesc: string }[];
+};
+
 function extractMatchId(url: string): string | null {
   if (!url) return null;
   const match = url.match(/\/live-cricket-scores\/(\d+)/);
@@ -3084,4 +3103,140 @@ export async function scrapeSeriesSchedule(): Promise<SeriesSchedule> {
   });
 
   return { months };
+}
+
+export async function scrapeSeriesStatsTypes(seriesId: string): Promise<SeriesStatsType> {
+  // Extract numeric ID from path like "10102/new-zealand-tour-of-india-2026"
+  const numericId = seriesId.split('/')[0];
+  const slug = seriesId.split('/').slice(1).join('/') || 'series';
+
+  const url = `https://www.cricbuzz.com/cricket-series/${numericId}/${slug}/stats`;
+  const response = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch series stats page: ${response.statusText}`);
+  }
+
+  const html = await response.text();
+  const $ = cheerio.load(html);
+
+  // Extract RSC payload
+  let rscPayload = '';
+  $('script').each((_, el) => {
+    const text = $(el).html() || '';
+    if (text.includes('self.__next_f.push')) {
+      rscPayload += text;
+    }
+  });
+
+  // Extract statsTypes
+  const statsTypes: { value?: string; header: string; category?: string }[] = [];
+  const statsTypesMatch = rscPayload.match(/"statsTypes"\s*:\s*(\{[\s\S]*?"types"\s*:\s*\[[\s\S]*?\]\s*\})/);
+  if (statsTypesMatch) {
+    try {
+      const cleaned = statsTypesMatch[1].replace(/\\"/g, '"');
+      const parsed = JSON.parse(cleaned);
+      if (parsed.types) {
+        for (const t of parsed.types) {
+          statsTypes.push({ value: t.value, header: t.header, category: t.category });
+        }
+      }
+    } catch {
+      // fallback defaults
+    }
+  }
+
+  if (statsTypes.length === 0) {
+    // Default stat types
+    statsTypes.push(
+      { header: 'Batting' },
+      { value: 'mostRuns', header: 'Most Runs', category: 'Batting' },
+      { value: 'highestScore', header: 'Highest Scores', category: 'Batting' },
+      { value: 'highestAvg', header: 'Best Batting Average', category: 'Batting' },
+      { value: 'highestSr', header: 'Best Batting Strike Rate', category: 'Batting' },
+      { value: 'mostHundreds', header: 'Most Hundreds', category: 'Batting' },
+      { value: 'mostFifties', header: 'Most Fifties', category: 'Batting' },
+      { value: 'mostFours', header: 'Most Fours', category: 'Batting' },
+      { value: 'mostSixes', header: 'Most Sixes', category: 'Batting' },
+      { header: 'Bowling' },
+      { value: 'mostWickets', header: 'Most Wickets', category: 'Bowling' },
+      { value: 'lowestAvg', header: 'Best Bowling Average', category: 'Bowling' },
+      { value: 'bestBowlingInnings', header: 'Best Bowling', category: 'Bowling' },
+      { value: 'mostFiveWickets', header: 'Most 5 Wickets Haul', category: 'Bowling' },
+      { value: 'lowestEcon', header: 'Best Economy', category: 'Bowling' },
+      { value: 'lowestSr', header: 'Best Bowling Strike Rate', category: 'Bowling' },
+    );
+  }
+
+  // Extract match formats from filter
+  const formats: { matchTypeId: string; matchTypeDesc: string }[] = [];
+  const filterMatch = rscPayload.match(/"filter"\s*:\s*\{[\s\S]*?"matchtype"\s*:\s*(\[[\s\S]*?\])/);
+  if (filterMatch) {
+    try {
+      const cleaned = filterMatch[1].replace(/\\"/g, '"');
+      const parsed = JSON.parse(cleaned);
+      for (const f of parsed) {
+        formats.push({ matchTypeId: f.matchTypeId, matchTypeDesc: f.matchTypeDesc });
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return { statsTypes, formats };
+}
+
+export async function scrapeSeriesStats(seriesId: string, statsType: string): Promise<SeriesStatCategory> {
+  const numericId = seriesId.split('/')[0];
+
+  const url = `https://www.cricbuzz.com/api/cricket-series/series-stats/${numericId}/${statsType}`;
+  const response = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch series stats: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+
+  // Find the first stats list (e.g., t20StatsList, odiStatsList, testStatsList)
+  const statsListKey = Object.keys(data).find(k => k.endsWith('StatsList'));
+  if (!statsListKey) {
+    return { key: statsType, name: statsType, category: 'Batting', headers: [], entries: [] };
+  }
+
+  const statsList = data[statsListKey];
+  const headers: string[] = statsList.headers || [];
+  const entries: SeriesStatEntry[] = [];
+
+  if (statsList.values && Array.isArray(statsList.values)) {
+    for (const row of statsList.values) {
+      const vals = row.values || [];
+      if (vals.length < 2) continue;
+
+      const playerId = vals[0];
+      const playerName = vals[1];
+      const valueMap: Record<string, string> = {};
+      for (let i = 0; i < headers.length; i++) {
+        valueMap[headers[i]] = vals[i + 2] || '';
+      }
+
+      entries.push({ playerId, playerName, values: valueMap });
+    }
+  }
+
+  return {
+    key: statsType,
+    name: statsType,
+    category: 'Batting',
+    headers,
+    entries,
+  };
 }

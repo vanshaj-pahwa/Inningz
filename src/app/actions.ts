@@ -13,6 +13,8 @@ import {
     getMatchSquads as getMatchSquadsFlow,
     scrapePlayerHighlights as scrapePlayerHighlightsFlow,
     scrapeSeriesSchedule as scrapeSeriesScheduleFlow,
+    scrapeSeriesStatsTypes as scrapeSeriesStatsTypesFlow,
+    scrapeSeriesStats as scrapeSeriesStatsFlow,
     type ScrapeCricbuzzUrlOutput as ScrapeFlowOutput,
     type Commentary as CommentaryType,
     type LiveMatch as LiveMatchType,
@@ -25,6 +27,9 @@ import {
     type CricketSeries as CricketSeriesType,
     type SeriesMatch as SeriesMatchType,
     type SeriesSchedule as SeriesScheduleType,
+    type SeriesStatEntry as SeriesStatEntryType,
+    type SeriesStatCategory as SeriesStatCategoryType,
+    type SeriesStatsType as SeriesStatsTypeType,
 } from '@/ai/flows/scraper-flow';
 
 export type ScrapeCricbuzzUrlOutput = ScrapeFlowOutput;
@@ -38,6 +43,9 @@ export type PlayerHighlights = PlayerHighlightsType;
 export type CricketSeries = CricketSeriesType;
 export type SeriesMatch = SeriesMatchType;
 export type SeriesSchedule = SeriesScheduleType;
+export type SeriesStatEntry = SeriesStatEntryType;
+export type SeriesStatCategory = SeriesStatCategoryType;
+export type SeriesStatsType = SeriesStatsTypeType;
 export type { MatchStats };
 
 interface ScrapeState {
@@ -328,6 +336,32 @@ export async function getPlayerHighlights(highlightsUrl: string): Promise<{ succ
 export async function getSeriesSchedule(): Promise<{ success: boolean; data?: SeriesScheduleType; error?: string }> {
     try {
         const data = await scrapeSeriesScheduleFlow();
+        return { success: true, data };
+    } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : 'An unexpected error occurred.';
+        return { success: false, error: errorMessage };
+    }
+}
+
+export async function getSeriesStatsTypes(seriesId: string): Promise<{ success: boolean; data?: SeriesStatsTypeType; error?: string }> {
+    if (!seriesId) {
+        return { success: false, error: 'Invalid Series ID' };
+    }
+    try {
+        const data = await scrapeSeriesStatsTypesFlow(seriesId);
+        return { success: true, data };
+    } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : 'An unexpected error occurred.';
+        return { success: false, error: errorMessage };
+    }
+}
+
+export async function getSeriesStats(seriesId: string, statsType: string): Promise<{ success: boolean; data?: SeriesStatCategoryType; error?: string }> {
+    if (!seriesId || !statsType) {
+        return { success: false, error: 'Invalid parameters' };
+    }
+    try {
+        const data = await scrapeSeriesStatsFlow(seriesId, statsType);
         return { success: true, data };
     } catch (e) {
         const errorMessage = e instanceof Error ? e.message : 'An unexpected error occurred.';
