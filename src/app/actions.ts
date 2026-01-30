@@ -15,6 +15,7 @@ import {
     scrapeSeriesSchedule as scrapeSeriesScheduleFlow,
     scrapeSeriesStatsTypes as scrapeSeriesStatsTypesFlow,
     scrapeSeriesStats as scrapeSeriesStatsFlow,
+    scrapeSeriesPointsTable as scrapeSeriesPointsTableFlow,
     type ScrapeCricbuzzUrlOutput as ScrapeFlowOutput,
     type Commentary as CommentaryType,
     type LiveMatch as LiveMatchType,
@@ -30,6 +31,9 @@ import {
     type SeriesStatEntry as SeriesStatEntryType,
     type SeriesStatCategory as SeriesStatCategoryType,
     type SeriesStatsType as SeriesStatsTypeType,
+    type PointsTableData as PointsTableDataType,
+    type PointsTableGroup as PointsTableGroupType,
+    type PointsTableTeam as PointsTableTeamType,
 } from '@/ai/flows/scraper-flow';
 
 export type ScrapeCricbuzzUrlOutput = ScrapeFlowOutput;
@@ -46,6 +50,9 @@ export type SeriesSchedule = SeriesScheduleType;
 export type SeriesStatEntry = SeriesStatEntryType;
 export type SeriesStatCategory = SeriesStatCategoryType;
 export type SeriesStatsType = SeriesStatsTypeType;
+export type PointsTableData = PointsTableDataType;
+export type PointsTableGroup = PointsTableGroupType;
+export type PointsTableTeam = PointsTableTeamType;
 export type { MatchStats };
 
 interface ScrapeState {
@@ -362,6 +369,19 @@ export async function getSeriesStats(seriesId: string, statsType: string): Promi
     }
     try {
         const data = await scrapeSeriesStatsFlow(seriesId, statsType);
+        return { success: true, data };
+    } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : 'An unexpected error occurred.';
+        return { success: false, error: errorMessage };
+    }
+}
+
+export async function getSeriesPointsTable(seriesId: string): Promise<{ success: boolean; data?: PointsTableDataType; error?: string }> {
+    if (!seriesId) {
+        return { success: false, error: 'Invalid Series ID' };
+    }
+    try {
+        const data = await scrapeSeriesPointsTableFlow(seriesId);
         return { success: true, data };
     } catch (e) {
         const errorMessage = e instanceof Error ? e.message : 'An unexpected error occurred.';

@@ -369,6 +369,33 @@ export type SeriesStatsType = {
   formats: { matchTypeId: string; matchTypeDesc: string }[];
 };
 
+export type PointsTableTeam = {
+  teamFullName: string;
+  teamName: string;
+  teamId: number;
+  matchesPlayed: number;
+  matchesWon: number;
+  matchesLost: number;
+  matchesTied: number;
+  noRes: number;
+  matchesDrawn: number;
+  nrr: string;
+  points: number;
+  form: string[];
+  teamQualifyStatus: string;
+};
+
+export type PointsTableGroup = {
+  groupName: string;
+  teams: PointsTableTeam[];
+};
+
+export type PointsTableData = {
+  seriesName: string;
+  matchType: string;
+  groups: PointsTableGroup[];
+} | null;
+
 function extractMatchId(url: string): string | null {
   if (!url) return null;
   const match = url.match(/\/live-cricket-scores\/(\d+)/);
@@ -3239,4 +3266,104 @@ export async function scrapeSeriesStats(seriesId: string, statsType: string): Pr
     headers,
     entries,
   };
+}
+
+export async function scrapeSeriesPointsTable(seriesId: string): Promise<PointsTableData> {
+  const numericId = seriesId.split('/')[0];
+  const slug = seriesId.split('/').slice(1).join('/') || 'series';
+
+  const url = `https://www.cricbuzz.com/cricket-series/${numericId}/${slug}/points-table`;
+  const response = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    },
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const html = await response.text();
+
+  // Check if points table data exists
+  if (!html.includes('pointsTableData')) {
+    return null;
+  }
+
+  // Collect RSC payload
+  const $ = cheerio.load(html);
+  let rscPayload = '';
+  $('script').each((_, el) => {
+    const text = $(el).html() || '';
+    if (text.includes('self.__next_f.push')) {
+      rscPayload += text;
+    }
+  });
+
+  // Unescape RSC encoding
+  const unescaped = rscPayload.replace(/\\"/g, '"');
+
+  // Find pointsTableData JSON
+  const marker = '"pointsTableData":';
+  const markerIdx = unescaped.indexOf(marker);
+  if (markerIdx === -1) {
+    return null;
+  }
+
+  // Brace-match to extract the JSON object
+  const startIdx = markerIdx + marker.length;
+  let depth = 0;
+  let endIdx = startIdx;
+  for (let i = startIdx; i < unescaped.length; i++) {
+    if (unescaped[i] === '{') depth++;
+    else if (unescaped[i] === '}') depth--;
+    if (depth === 0) {
+      endIdx = i + 1;
+      break;
+    }
+  }
+
+  const jsonStr = unescaped.slice(startIdx, endIdx);
+
+  try {
+    const raw = JSON.parse(jsonStr);
+
+    const groups: PointsTableGroup[] = [];
+    if (raw.pointsTable && Array.isArray(raw.pointsTable)) {
+      for (const group of raw.pointsTable) {
+        const teams: PointsTableTeam[] = [];
+        if (group.pointsTableInfo && Array.isArray(group.pointsTableInfo)) {
+          for (const t of group.pointsTableInfo) {
+            teams.push({
+              teamFullName: t.teamFullName || '',
+              teamName: t.teamName || '',
+              teamId: t.teamId || 0,
+              matchesPlayed: t.matchesPlayed || 0,
+              matchesWon: t.matchesWon || 0,
+              matchesLost: t.matchesLost || 0,
+              matchesTied: t.matchesTied || 0,
+              noRes: t.noRes || 0,
+              matchesDrawn: t.matchesDrawn || 0,
+              nrr: t.nrr || '0.000',
+              points: t.points || 0,
+              form: Array.isArray(t.form) ? t.form : [],
+              teamQualifyStatus: t.teamQualifyStatus || '',
+            });
+          }
+        }
+        groups.push({
+          groupName: group.groupName || '',
+          teams,
+        });
+      }
+    }
+
+    return {
+      seriesName: raw.seriesName || '',
+      matchType: raw.match_type || '',
+      groups,
+    };
+  } catch {
+    return null;
+  }
 }

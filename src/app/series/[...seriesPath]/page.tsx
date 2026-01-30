@@ -1,16 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { getSeriesMatches } from '@/app/actions';
 import type { LiveMatch } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ArrowLeft, Calendar, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Calendar, BarChart3, TableProperties } from 'lucide-react';
 import SeriesStatsDisplay from '@/components/series-stats';
+import PointsTableDisplay from '@/components/points-table';
 
-type SeriesView = 'matches' | 'stats';
+type SeriesView = 'matches' | 'stats' | 'points';
 
 export default function SeriesPage() {
   const router = useRouter();
@@ -22,6 +23,7 @@ export default function SeriesPage() {
   const [matches, setMatches] = useState<LiveMatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hasPointsTable, setHasPointsTable] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (!seriesId) return;
@@ -38,6 +40,10 @@ export default function SeriesPage() {
     };
     fetchMatches();
   }, [seriesId]);
+
+  const handlePointsAvailability = useCallback((available: boolean) => {
+    setHasPointsTable(available);
+  }, []);
 
   if (!seriesId) {
     return (
@@ -65,10 +71,13 @@ export default function SeriesPage() {
 
   const seriesName = matches.length > 0 ? (matches[0].seriesName || 'Series Matches') : 'Series Matches';
 
-  const tabs: { value: SeriesView; label: string; icon: typeof Calendar }[] = [
+  const tabs: { value: SeriesView; label: string; icon: typeof Calendar; hidden?: boolean }[] = [
     { value: 'matches', label: 'Matches', icon: Calendar },
+    { value: 'points', label: 'Points Table', icon: TableProperties, hidden: hasPointsTable === false },
     { value: 'stats', label: 'Stats', icon: BarChart3 },
   ];
+
+  const visibleTabs = tabs.filter(t => !t.hidden);
 
   return (
     <div className="min-h-screen">
@@ -86,7 +95,7 @@ export default function SeriesPage() {
             </div>
             {/* Tabs */}
             <div className="flex gap-1 -mb-px">
-              {tabs.map(tab => {
+              {visibleTabs.map(tab => {
                 const Icon = tab.icon;
                 const isActive = view === tab.value;
                 return (
@@ -223,7 +232,18 @@ export default function SeriesPage() {
         {view === 'stats' && (
           <SeriesStatsDisplay seriesId={seriesId} />
         )}
+
+        {view === 'points' && (
+          <PointsTableDisplay seriesId={seriesId} onAvailabilityChange={handlePointsAvailability} />
+        )}
       </main>
+
+      {/* Hidden prefetch for points table availability check */}
+      {hasPointsTable === null && (
+        <div className="hidden">
+          <PointsTableDisplay seriesId={seriesId} onAvailabilityChange={handlePointsAvailability} />
+        </div>
+      )}
     </div>
   );
 }
