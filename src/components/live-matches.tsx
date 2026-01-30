@@ -175,7 +175,7 @@ export default function LiveMatches() {
                 >
                   <div className={`
                     glass-card card-hover p-5 h-full
-                    ${matchIsLive ? 'ring-1 ring-red-500/30 live-pulse' : ''}
+                    ${matchIsLive ? 'ring-1 ring-red-500/20' : ''}
                   `}>
                     {/* Top row: Category + Live badge */}
                     <div className="flex items-center justify-between mb-4">

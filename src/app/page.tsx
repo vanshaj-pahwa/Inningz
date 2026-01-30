@@ -5,15 +5,17 @@ import { useState } from "react";
 import LiveMatches from "@/components/live-matches";
 import RecentMatches from "@/components/recent-matches";
 import UpcomingMatches from "@/components/upcoming-matches";
+import SeriesSchedule from "@/components/series-schedule";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Flame, History, Calendar } from "lucide-react";
+import { Flame, History, Calendar, Trophy } from "lucide-react";
 
-type View = 'live' | 'recent' | 'upcoming';
+type View = 'live' | 'recent' | 'upcoming' | 'series';
 
 const tabs: { value: View; label: string; icon: typeof Flame }[] = [
     { value: 'live', label: 'Live', icon: Flame },
     { value: 'recent', label: 'Recent', icon: History },
     { value: 'upcoming', label: 'Upcoming', icon: Calendar },
+    { value: 'series', label: 'Series', icon: Trophy },
 ];
 
 export default function Home() {
@@ -68,12 +70,14 @@ export default function Home() {
                 <h2 className="text-3xl md:text-4xl font-display tracking-tight">
                     {view === 'live' ? 'Live Matches' :
                         view === 'recent' ? 'Recent Matches' :
-                            'Upcoming Matches'}
+                            view === 'upcoming' ? 'Upcoming Matches' :
+                                'Series Schedule'}
                 </h2>
                 <p className="text-sm text-muted-foreground mt-1">
                     {view === 'live' ? 'Currently playing matches' :
                         view === 'recent' ? 'Recently completed matches' :
-                            'Upcoming fixtures'}
+                            view === 'upcoming' ? 'Upcoming fixtures' :
+                                'All cricket series'}
                 </p>
             </div>
 
@@ -83,6 +87,7 @@ export default function Home() {
                     {view === 'live' && <LiveMatches />}
                     {view === 'recent' && <RecentMatches />}
                     {view === 'upcoming' && <UpcomingMatches />}
+                    {view === 'series' && <SeriesSchedule />}
                 </div>
             </main>
         </div>

@@ -64,6 +64,8 @@ const ScrapeCricbuzzUrlOutputSchema = z.object({
   oldestCommentaryTimestamp: z.number().optional(),
   matchStartTimestamp: z.number().optional(),
   currentInningsId: z.number().optional(),
+  seriesName: z.string().optional(),
+  seriesId: z.string().optional(),
 });
 
 const LiveMatchSchema = z.object({
@@ -323,6 +325,29 @@ export type PlayerHighlights = {
   playerName: string;
   playerScore: string;
   highlights: { over: string; text: string }[];
+};
+
+export type SeriesMatch = {
+  title: string;
+  matchUrl: string;
+  matchId: string;
+  status: string;
+  isLive: boolean;
+};
+
+export type CricketSeries = {
+  name: string;
+  dateRange: string;
+  seriesUrl: string;
+  seriesId: string;
+  category: 'international' | 'league' | 'domestic' | 'women';
+};
+
+export type SeriesSchedule = {
+  months: {
+    name: string;
+    series: CricketSeries[];
+  }[];
 };
 
 function extractMatchId(url: string): string | null {
@@ -2095,6 +2120,8 @@ export async function getScoreForMatchId(
     oldestCommentaryTimestamp: oldestTimestamp,
     matchStartTimestamp: matchHeader?.matchStartTimestamp,
     currentInningsId: miniscore?.inningsId,
+    seriesName: matchHeader?.seriesName || undefined,
+    seriesId: matchHeader?.seriesId ? String(matchHeader.seriesId) : undefined,
   };
 
   const validation = ScrapeCricbuzzUrlOutputSchema.safeParse(result);
@@ -2197,8 +2224,10 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
   } catch (apiError) {
   }
 
-  // Fallback to HTML scraping
-  const url = `https://www.cricbuzz.com/cricket-series/${cleanSeriesId}`;
+  // Fallback to HTML scraping - try /matches page first, then base series URL
+  const matchesUrl = `https://www.cricbuzz.com/cricket-series/${cleanSeriesId}/matches`;
+  const baseUrl = `https://www.cricbuzz.com/cricket-series/${cleanSeriesId}`;
+  const url = cleanSeriesId.includes('/') ? matchesUrl : baseUrl;
 
   const response = await fetch(url, {
     headers: {
@@ -2281,6 +2310,78 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
       }
     } catch (e) {
       console.error('[scrapeSeriesMatches] Failed to parse __NEXT_DATA__:', e);
+    }
+  }
+
+  // Try to extract match data from React Server Components (RSC) payload
+  // RSC data is in self.__next_f.push([1,"..."]) calls with escaped JSON
+  const rscPushRegex = /self\.__next_f\.push\(\[1,"((?:[^"\\]|\\.)*)"\]\)/g;
+  let rscContent = '';
+  let rscMatch;
+  while ((rscMatch = rscPushRegex.exec(html)) !== null) {
+    rscContent += rscMatch[1].replace(/\\"/g, '"').replace(/\\n/g, '\n').replace(/\\\\/g, '\\');
+  }
+  if (rscContent) {
+    const mdIdx = rscContent.indexOf('"matchDetails"');
+    if (mdIdx > -1) {
+      // Find the JSON array after "matchDetails":
+      const arrStart = rscContent.indexOf('[', mdIdx);
+      if (arrStart > -1) {
+        let depth = 0;
+        let end = -1;
+        for (let i = arrStart; i < rscContent.length && i < arrStart + 50000; i++) {
+          if (rscContent[i] === '[') depth++;
+          if (rscContent[i] === ']') depth--;
+          if (depth === 0) { end = i + 1; break; }
+        }
+        if (end > -1) {
+          try {
+            const matchDetails = JSON.parse(rscContent.substring(arrStart, end));
+            const matches: LiveMatch[] = [];
+            for (const dateGroup of matchDetails) {
+              if (dateGroup.matchDetailsMap?.match) {
+                for (const match of dateGroup.matchDetailsMap.match) {
+                  const matchInfo = match.matchInfo;
+                  if (!matchInfo) continue;
+                  const teams: { name: string; score?: string }[] = [];
+                  if (matchInfo.team1) {
+                    let score1 = '';
+                    if (match.matchScore?.team1Score?.inngs1) {
+                      const inngs = match.matchScore.team1Score.inngs1;
+                      score1 = `${inngs.runs}${inngs.wickets !== undefined ? `/${inngs.wickets}` : ''} (${inngs.overs})`;
+                    }
+                    teams.push({ name: matchInfo.team1.teamName, score: score1 || undefined });
+                  }
+                  if (matchInfo.team2) {
+                    let score2 = '';
+                    if (match.matchScore?.team2Score?.inngs1) {
+                      const inngs = match.matchScore.team2Score.inngs1;
+                      score2 = `${inngs.runs}${inngs.wickets !== undefined ? `/${inngs.wickets}` : ''} (${inngs.overs})`;
+                    }
+                    teams.push({ name: matchInfo.team2.teamName, score: score2 || undefined });
+                  }
+                  const venue = matchInfo.venueInfo
+                    ? `${matchInfo.venueInfo.ground}, ${matchInfo.venueInfo.city}`
+                    : undefined;
+                  matches.push({
+                    title: `${matchInfo.team1?.teamName || ''} vs ${matchInfo.team2?.teamName || ''}, ${matchInfo.matchDesc}`,
+                    url: `/live-cricket-scores/${matchInfo.matchId}`,
+                    matchId: matchInfo.matchId.toString(),
+                    teams,
+                    status: matchInfo.status || 'Status not available',
+                    venue,
+                  });
+                }
+              }
+            }
+            if (matches.length > 0) {
+              return matches;
+            }
+          } catch (e) {
+            console.error('[scrapeSeriesMatches] Failed to parse RSC matchDetails:', e);
+          }
+        }
+      }
     }
   }
 
@@ -2876,4 +2977,111 @@ export async function scrapePlayerHighlights(highlightsUrl: string): Promise<Pla
   }
 
   return { playerName, playerScore, highlights };
+}
+
+function inferCategory(name: string): CricketSeries['category'] {
+  const lower = name.toLowerCase();
+  // Women detection
+  if (/women|wpl|wbbl|wt20/i.test(lower)) return 'women';
+  // League detection
+  if (/\bipl\b|premier league|big bash|bbl|psl|cpl|sa20|bpl|hundred|mpl|ilt20|lpl|super smash|major league/i.test(lower)) return 'league';
+  // International detection
+  if (/\btour\b|test |odi |t20i|\bworldcup\b|\bworld cup\b|\bicc\b|trophy|championship|tri.?series|bilateral/i.test(lower)) return 'international';
+  // Domestic fallback
+  return 'domestic';
+}
+
+export async function scrapeSeriesSchedule(): Promise<SeriesSchedule> {
+  const response = await fetch('https://www.cricbuzz.com/cricket-schedule/series/all', {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch series schedule: ${response.statusText}`);
+  }
+  const html = await response.text();
+  const $ = cheerio.load(html);
+
+  const months: SeriesSchedule['months'] = [];
+
+  // Desktop schedule inside <main>:
+  // Container: div.wb\:flex.hidden.px-5.bg-cbWhite.flex-col
+  //   Child 0: header row (Month | Series Name)
+  //   Child 1: div.w-full.flex.flex-col containing month rows
+  //     Each month row: div.w-full.flex
+  //       Left:  div.w-4/12 with month name (e.g. "february 2024")
+  //       Right: div.w-full with series blocks containing <a href="/cricket-series/...">
+
+  // Find all actual month rows (those with a w-4/12 month column)
+  $('main div.w-full.flex').each((_, row) => {
+    const $row = $(row);
+
+    // Only match rows that have the month column (w-4/12)
+    const $monthCol = $row.children('div').filter((_, el) => {
+      const cls = $(el).attr('class') || '';
+      return cls.includes('w-4/12');
+    }).first();
+    if (!$monthCol.length) return;
+
+    const monthText = $monthCol.text().trim();
+    if (!monthText || !/^(january|february|march|april|may|june|july|august|september|october|november|december)/i.test(monthText)) return;
+
+    const monthName = monthText.toUpperCase();
+
+    // Find or create month entry
+    let monthEntry = months.find(m => m.name === monthName);
+    if (!monthEntry) {
+      monthEntry = { name: monthName, series: [] };
+      months.push(monthEntry);
+    }
+
+    // Series links are in the right column
+    $row.find('a[href*="/cricket-series/"]').each((_, el) => {
+      const $link = $(el);
+      const href = $link.attr('href') || '';
+      const idMatch = href.match(/\/cricket-series\/(\d+)/);
+      if (!idMatch) return;
+
+      const seriesId = idMatch[1];
+      // Skip if already added (dedup)
+      if (monthEntry!.series.some(s => s.seriesId === seriesId)) return;
+
+      // The link contains nested divs: first = series name, second = date range
+      const $innerDivs = $link.find('div > div');
+      let name = '';
+      let dateRange = '';
+      if ($innerDivs.length >= 2) {
+        name = $innerDivs.eq(0).text().trim();
+        dateRange = $innerDivs.eq(1).text().trim();
+      } else {
+        // Fallback: use direct div children
+        const $divs = $link.find('div');
+        name = $divs.first().text().trim();
+        dateRange = $divs.length > 1 ? $divs.eq(1).text().trim() : '';
+      }
+
+      if (!name || !seriesId) return;
+
+      monthEntry!.series.push({
+        name,
+        dateRange,
+        seriesUrl: href,
+        seriesId,
+        category: inferCategory(name),
+      });
+    });
+  });
+
+  // Sort months in ascending order (oldest first)
+  const monthOrder = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+  months.sort((a, b) => {
+    const [aMonth, aYear] = a.name.toLowerCase().split(' ');
+    const [bMonth, bYear] = b.name.toLowerCase().split(' ');
+    const yearDiff = parseInt(aYear) - parseInt(bYear);
+    if (yearDiff !== 0) return yearDiff;
+    return monthOrder.indexOf(aMonth) - monthOrder.indexOf(bMonth);
+  });
+
+  return { months };
 }

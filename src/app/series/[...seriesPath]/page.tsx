@@ -1,0 +1,196 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useParams, useRouter } from 'next/navigation';
+import { getSeriesMatches } from '@/app/actions';
+import type { LiveMatch } from '@/app/actions';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ArrowLeft, Calendar } from 'lucide-react';
+
+export default function SeriesPage() {
+  const router = useRouter();
+  const params = useParams();
+  // Catch-all route: seriesPath is an array like ["11429", "pakistan-v-australia-2026"]
+  const seriesPath = params.seriesPath as string[] | undefined;
+  // Join segments to form the full path for scrapeSeriesMatches (e.g. "11429/pakistan-v-australia-2026")
+  const seriesId = seriesPath ? seriesPath.join('/') : undefined;
+
+  const [matches, setMatches] = useState<LiveMatch[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!seriesId) return;
+    const fetchMatches = async () => {
+      setLoading(true);
+      setError(null);
+      const result = await getSeriesMatches(seriesId);
+      if (result.success && result.matches) {
+        setMatches(result.matches);
+      } else {
+        setError(result.error ?? 'Failed to fetch series matches.');
+      }
+      setLoading(false);
+    };
+    fetchMatches();
+  }, [seriesId]);
+
+  if (!seriesId) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center p-4">
+        <div className="text-center">
+          <p className="text-lg font-display">Series not found.</p>
+          <p className="text-muted-foreground text-sm mt-1">Could not load series details.</p>
+          <Button variant="outline" className="mt-6 rounded-xl" onClick={() => router.back()}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Go Back
+          </Button>
+        </div>
+      </main>
+    );
+  }
+
+  const isLive = (status: string) => {
+    const s = status.toLowerCase();
+    return s.includes('live') || s.includes('need') || s.includes('session') ||
+      s.includes('innings') || s.includes('lead') || s.includes('rain') ||
+      s.includes('weather') || s.includes('delay') || s.includes('stops play');
+  };
+
+  const isComplete = (status: string) => status.toLowerCase().includes('won');
+
+  // Extract series name from first match
+  const seriesName = matches.length > 0 ? (matches[0].seriesName || 'Series Matches') : 'Series Matches';
+
+  return (
+    <div className="min-h-screen">
+      {/* Header */}
+      <header className="sticky top-0 z-50 w-full gradient-border">
+        <div className="bg-background/90 backdrop-blur-xl">
+          <div className="max-w-7xl mx-auto px-4 md:px-6">
+            <div className="flex items-center gap-4 h-16">
+              <Button variant="ghost" size="icon" className="rounded-xl shrink-0" onClick={() => router.back()}>
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <h1 className="text-lg md:text-xl font-display tracking-tight truncate">
+                {loading ? 'Loading...' : seriesName}
+              </h1>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 md:px-6 py-8">
+        {loading && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="skeleton h-40 rounded-2xl" />
+            ))}
+          </div>
+        )}
+
+        {error && (
+          <div className="w-full flex items-center justify-center min-h-[60vh]">
+            <Alert variant="destructive" className="max-w-xl rounded-2xl">
+              <AlertTitle className="text-lg">Unable to fetch matches</AlertTitle>
+              <AlertDescription className="mt-2">{error}</AlertDescription>
+            </Alert>
+          </div>
+        )}
+
+        {!loading && !error && matches.length === 0 && (
+          <div className="w-full flex flex-col items-center justify-center min-h-[60vh] p-8">
+            <div className="p-5 rounded-full bg-primary/10 mb-5">
+              <Calendar className="w-8 h-8 text-primary" />
+            </div>
+            <h3 className="text-xl font-display mb-2">No matches found</h3>
+            <p className="text-muted-foreground text-center max-w-sm text-sm">
+              No matches available for this series yet
+            </p>
+          </div>
+        )}
+
+        {!loading && !error && matches.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {matches.map((match, index) => {
+              const matchIsLive = isLive(match.status);
+              const matchIsComplete = isComplete(match.status);
+
+              return (
+                <Link
+                  key={match.matchId}
+                  href={`/match/${match.matchId}`}
+                  className="stagger-in"
+                  style={{ '--stagger-index': index } as React.CSSProperties}
+                >
+                  <div className={`
+                    glass-card card-hover p-5 h-full
+                    ${matchIsLive ? 'ring-1 ring-red-500/20' : ''}
+                  `}>
+                    {/* Top row: Match title + Live badge */}
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-xs font-medium text-muted-foreground truncate">
+                        {match.title}
+                      </span>
+                      {matchIsLive && (
+                        <span className="flex items-center gap-1.5 text-xs font-bold text-red-500 shrink-0">
+                          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                          LIVE
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Teams and Scores */}
+                    <div className="space-y-3">
+                      {match.teams.map((team, idx) => {
+                        const isBatting = idx === 0 && matchIsLive;
+                        return (
+                          <div key={idx} className="flex items-center justify-between gap-3">
+                            <span className={`text-sm font-semibold truncate ${isBatting ? 'text-foreground' : 'text-muted-foreground'}`}>
+                              {team.name}
+                            </span>
+                            {team.score && (
+                              <span className={`
+                                font-display text-lg tabular-nums flex-shrink-0
+                                ${isBatting ? 'text-amber-400 score-glow' : 'text-muted-foreground'}
+                              `}>
+                                {team.score}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Status */}
+                    {match.status && match.status.toLowerCase() !== 'status not available' && (
+                      <div className="mt-4 pt-3 border-t border-border/50">
+                        <p className={`text-xs font-medium leading-relaxed ${matchIsLive
+                          ? 'text-red-400'
+                          : matchIsComplete
+                            ? 'text-amber-400'
+                            : 'text-muted-foreground'
+                          }`}>
+                          {match.status}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Venue */}
+                    {match.venue && (
+                      <p className="text-xs text-muted-foreground mt-2 truncate">
+                        {match.venue}
+                      </p>
+                    )}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
