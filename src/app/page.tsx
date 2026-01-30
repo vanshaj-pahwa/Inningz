@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useCallback, useState } from "react";
+import { Suspense, useCallback, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import LiveMatches from "@/components/live-matches";
 import RecentMatches from "@/components/recent-matches";
@@ -22,6 +22,14 @@ const tabs: { value: View; label: string; icon: typeof Flame }[] = [
 ];
 
 export default function Home() {
+    return (
+        <Suspense>
+            <HomeContent />
+        </Suspense>
+    );
+}
+
+function HomeContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const tabParam = searchParams.get('tab') as View | null;
