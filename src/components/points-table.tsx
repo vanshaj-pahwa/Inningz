@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { getSeriesPointsTable } from '@/app/actions';
 import type { PointsTableData, PointsTableGroup, PointsTableTeam } from '@/app/actions';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -145,6 +146,7 @@ function TeamRow({
   onToggle: () => void;
   totalCols: number;
 }) {
+  const router = useRouter();
   const isQualified = team.teamQualifyStatus === 'Q';
   const hasMatches = team.matches.length > 0;
 
@@ -234,7 +236,7 @@ function TeamRow({
                         className={`border-b border-border/10 last:border-0 transition-colors ${match.matchId ? 'cursor-pointer hover:bg-primary/10' : ''}`}
                         onClick={match.matchId ? (e) => {
                           e.stopPropagation();
-                          window.location.href = `/match/${match.matchId}`;
+                          router.push(`/match/${match.matchId}`);
                         } : undefined}
                       >
                         <td className="py-2.5 px-4 text-sm text-foreground">

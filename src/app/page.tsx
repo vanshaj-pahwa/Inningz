@@ -1,7 +1,8 @@
 
 'use client';
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import LiveMatches from "@/components/live-matches";
 import RecentMatches from "@/components/recent-matches";
 import UpcomingMatches from "@/components/upcoming-matches";
@@ -11,6 +12,8 @@ import { Flame, History, Calendar, Trophy } from "lucide-react";
 
 type View = 'live' | 'recent' | 'upcoming' | 'series';
 
+const validViews: View[] = ['live', 'recent', 'upcoming', 'series'];
+
 const tabs: { value: View; label: string; icon: typeof Flame }[] = [
     { value: 'live', label: 'Live', icon: Flame },
     { value: 'recent', label: 'Recent', icon: History },
@@ -19,7 +22,23 @@ const tabs: { value: View; label: string; icon: typeof Flame }[] = [
 ];
 
 export default function Home() {
-    const [view, setView] = useState<View>('live');
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const tabParam = searchParams.get('tab') as View | null;
+    const initialView: View = tabParam && validViews.includes(tabParam) ? tabParam : 'live';
+    const [view, setView] = useState<View>(initialView);
+
+    const switchView = useCallback((newView: View) => {
+        setView(newView);
+        const params = new URLSearchParams(searchParams.toString());
+        if (newView === 'live') {
+            params.delete('tab');
+        } else {
+            params.set('tab', newView);
+        }
+        const query = params.toString();
+        router.replace(query ? `/?${query}` : '/', { scroll: false });
+    }, [router, searchParams]);
 
     return (
         <div className="min-h-screen">
@@ -41,7 +60,7 @@ export default function Home() {
                                     return (
                                         <button
                                             key={tab.value}
-                                            onClick={() => setView(tab.value)}
+                                            onClick={() => switchView(tab.value)}
                                             className={`
                                                 flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-lg text-sm font-medium
                                                 transition-all duration-200 ease-out
