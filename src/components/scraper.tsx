@@ -604,16 +604,16 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                     <div className="glass-card overflow-hidden">
                                         {/* Batting */}
                                         <div className="overflow-x-auto">
-                                            <table className="w-full text-sm">
+                                            <table className="w-full text-xs md:text-sm">
                                                 <thead>
                                                     <tr className="bg-green-50/80 dark:bg-green-950/30 border-b border-green-200/50 dark:border-green-900/30">
-                                                        <th className="text-left text-xs font-bold text-green-800 dark:text-green-400 px-4 py-3">Batter</th>
-                                                        <th className="text-center text-xs font-bold text-green-800 dark:text-green-400 px-3 py-3 w-12">R</th>
-                                                        <th className="text-center text-xs font-bold text-green-800 dark:text-green-400 px-3 py-3 w-12">B</th>
-                                                        <th className="text-center text-xs font-bold text-green-800 dark:text-green-400 px-3 py-3 w-12">4s</th>
-                                                        <th className="text-center text-xs font-bold text-green-800 dark:text-green-400 px-3 py-3 w-12">6s</th>
-                                                        <th className="text-center text-xs font-bold text-green-800 dark:text-green-400 px-3 py-3 w-16">SR</th>
-                                                        <th className="w-8"></th>
+                                                        <th className="text-left text-xs font-bold text-green-800 dark:text-green-400 px-2 md:px-4 py-2 md:py-3">Batter</th>
+                                                        <th className="text-center text-xs font-bold text-green-800 dark:text-green-400 px-1 md:px-3 py-2 md:py-3 w-8 md:w-12">R</th>
+                                                        <th className="text-center text-xs font-bold text-green-800 dark:text-green-400 px-1 md:px-3 py-2 md:py-3 w-8 md:w-12">B</th>
+                                                        <th className="text-center text-xs font-bold text-green-800 dark:text-green-400 px-1 md:px-3 py-2 md:py-3 w-8 md:w-12">4s</th>
+                                                        <th className="text-center text-xs font-bold text-green-800 dark:text-green-400 px-1 md:px-3 py-2 md:py-3 w-8 md:w-12">6s</th>
+                                                        <th className="text-center text-xs font-bold text-green-800 dark:text-green-400 px-1 md:px-3 py-2 md:py-3 w-12 md:w-16">SR</th>
+                                                        <th className="w-6 md:w-8"></th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -625,9 +625,9 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                             runs >= 50 ? 'bg-green-50/50 dark:bg-green-950/20' :
                                                             runs >= 30 ? 'bg-emerald-50/30 dark:bg-emerald-950/10' : ''
                                                         }`}>
-                                                            <td className="px-4 py-3">
+                                                            <td className="px-2 md:px-4 py-2 md:py-3">
                                                                 <span
-                                                                    className={`font-medium cursor-pointer hover:text-primary transition-colors ${
+                                                                    className={`text-xs md:text-sm font-medium cursor-pointer hover:text-primary transition-colors ${
                                                                         runs >= 50 ? 'text-green-600 dark:text-green-400' : ''
                                                                     }`}
                                                                     onClick={() => handleProfileClick(batsman.profileId, batsman.name)}
@@ -635,16 +635,16 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                                     {batsman.name}{batsman.onStrike ? ' *' : ''}
                                                                 </span>
                                                             </td>
-                                                            <td className={`text-center font-bold px-3 py-3 ${runs >= 50 ? 'text-green-600 dark:text-green-400' : ''}`}>{batsman.runs}</td>
-                                                            <td className="text-center text-muted-foreground px-3 py-3">{batsman.balls}</td>
-                                                            <td className={`text-center px-3 py-3 ${Number(batsman.fours) > 0 ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-muted-foreground'}`}>{batsman.fours}</td>
-                                                            <td className={`text-center px-3 py-3 ${Number(batsman.sixes) > 0 ? 'text-purple-600 dark:text-purple-400 font-medium' : 'text-muted-foreground'}`}>{batsman.sixes}</td>
-                                                            <td className={`text-center font-mono px-3 py-3 ${
+                                                            <td className={`text-center text-xs md:text-sm font-bold px-1 md:px-3 py-2 md:py-3 ${runs >= 50 ? 'text-green-600 dark:text-green-400' : ''}`}>{batsman.runs}</td>
+                                                            <td className="text-center text-xs md:text-sm text-muted-foreground px-1 md:px-3 py-2 md:py-3">{batsman.balls}</td>
+                                                            <td className={`text-center text-xs md:text-sm px-1 md:px-3 py-2 md:py-3 ${Number(batsman.fours) > 0 ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-muted-foreground'}`}>{batsman.fours}</td>
+                                                            <td className={`text-center text-xs md:text-sm px-1 md:px-3 py-2 md:py-3 ${Number(batsman.sixes) > 0 ? 'text-purple-600 dark:text-purple-400 font-medium' : 'text-muted-foreground'}`}>{batsman.sixes}</td>
+                                                            <td className={`text-center text-xs md:text-sm font-mono px-1 md:px-3 py-2 md:py-3 ${
                                                                 sr >= 150 ? 'text-green-600 dark:text-green-400 font-bold' :
                                                                 sr >= 100 ? 'text-emerald-600 dark:text-emerald-400' :
                                                                 'text-muted-foreground'
                                                             }`}>{sr.toFixed(2)}</td>
-                                                            <td className="text-center px-2 py-3">
+                                                            <td className="text-center px-1 md:px-2 py-2 md:py-3">
                                                                 {batsman.highlightsUrl ? (
                                                                     <span
                                                                         className="text-primary hover:text-primary/80 transition-colors text-xs cursor-pointer"
@@ -664,16 +664,16 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
 
                                         {/* Bowling */}
                                         <div className="overflow-x-auto">
-                                            <table className="w-full text-sm">
+                                            <table className="w-full text-xs md:text-sm">
                                                 <thead>
                                                     <tr className="bg-orange-50/80 dark:bg-orange-950/30 border-b border-orange-200/50 dark:border-orange-900/30">
-                                                        <th className="text-left text-xs font-bold text-orange-800 dark:text-orange-400 px-4 py-3">Bowler</th>
-                                                        <th className="text-center text-xs font-bold text-orange-800 dark:text-orange-400 px-3 py-3 w-12">O</th>
-                                                        <th className="text-center text-xs font-bold text-orange-800 dark:text-orange-400 px-3 py-3 w-12">M</th>
-                                                        <th className="text-center text-xs font-bold text-orange-800 dark:text-orange-400 px-3 py-3 w-12">R</th>
-                                                        <th className="text-center text-xs font-bold text-orange-800 dark:text-orange-400 px-3 py-3 w-12">W</th>
-                                                        <th className="text-center text-xs font-bold text-orange-800 dark:text-orange-400 px-3 py-3 w-16">ECO</th>
-                                                        <th className="w-8"></th>
+                                                        <th className="text-left text-xs font-bold text-orange-800 dark:text-orange-400 px-2 md:px-4 py-2 md:py-3">Bowler</th>
+                                                        <th className="text-center text-xs font-bold text-orange-800 dark:text-orange-400 px-1 md:px-3 py-2 md:py-3 w-8 md:w-12">O</th>
+                                                        <th className="text-center text-xs font-bold text-orange-800 dark:text-orange-400 px-1 md:px-3 py-2 md:py-3 w-8 md:w-12">M</th>
+                                                        <th className="text-center text-xs font-bold text-orange-800 dark:text-orange-400 px-1 md:px-3 py-2 md:py-3 w-8 md:w-12">R</th>
+                                                        <th className="text-center text-xs font-bold text-orange-800 dark:text-orange-400 px-1 md:px-3 py-2 md:py-3 w-8 md:w-12">W</th>
+                                                        <th className="text-center text-xs font-bold text-orange-800 dark:text-orange-400 px-1 md:px-3 py-2 md:py-3 w-12 md:w-16">ECO</th>
+                                                        <th className="w-6 md:w-8"></th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -685,9 +685,9 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                             wkts >= 3 ? 'bg-orange-50/50 dark:bg-orange-950/20' :
                                                             wkts >= 2 ? 'bg-amber-50/30 dark:bg-amber-950/10' : ''
                                                         }`}>
-                                                            <td className="px-4 py-3">
+                                                            <td className="px-2 md:px-4 py-2 md:py-3">
                                                                 <span
-                                                                    className={`font-medium cursor-pointer hover:text-primary transition-colors ${
+                                                                    className={`text-xs md:text-sm font-medium cursor-pointer hover:text-primary transition-colors ${
                                                                         wkts >= 3 ? 'text-orange-600 dark:text-orange-400' : ''
                                                                     }`}
                                                                     onClick={() => handleProfileClick(bowler.profileId, bowler.name)}
@@ -695,19 +695,19 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                                     {bowler.name}{bowler.onStrike ? ' *' : ''}
                                                                 </span>
                                                             </td>
-                                                            <td className="text-center text-muted-foreground px-3 py-3">{bowler.overs}</td>
-                                                            <td className={`text-center px-3 py-3 ${Number(bowler.maidens) > 0 ? 'text-green-600 dark:text-green-400 font-medium' : 'text-muted-foreground'}`}>{bowler.maidens}</td>
-                                                            <td className="text-center text-muted-foreground px-3 py-3">{bowler.runs}</td>
-                                                            <td className={`text-center font-bold px-3 py-3 ${
+                                                            <td className="text-center text-xs md:text-sm text-muted-foreground px-1 md:px-3 py-2 md:py-3">{bowler.overs}</td>
+                                                            <td className={`text-center text-xs md:text-sm px-1 md:px-3 py-2 md:py-3 ${Number(bowler.maidens) > 0 ? 'text-green-600 dark:text-green-400 font-medium' : 'text-muted-foreground'}`}>{bowler.maidens}</td>
+                                                            <td className="text-center text-xs md:text-sm text-muted-foreground px-1 md:px-3 py-2 md:py-3">{bowler.runs}</td>
+                                                            <td className={`text-center text-xs md:text-sm font-bold px-1 md:px-3 py-2 md:py-3 ${
                                                                 wkts >= 3 ? 'text-orange-600 dark:text-orange-400' :
                                                                 wkts >= 1 ? 'text-amber-600 dark:text-amber-400' : ''
                                                             }`}>{bowler.wickets}</td>
-                                                            <td className={`text-center font-mono px-3 py-3 ${
+                                                            <td className={`text-center text-xs md:text-sm font-mono px-1 md:px-3 py-2 md:py-3 ${
                                                                 eco <= 4 ? 'text-green-600 dark:text-green-400' :
                                                                 eco >= 10 ? 'text-red-500 dark:text-red-400' :
                                                                 'text-muted-foreground'
                                                             }`}>{bowler.economy}</td>
-                                                            <td className="text-center px-2 py-3">
+                                                            <td className="text-center px-1 md:px-2 py-2 md:py-3">
                                                                 {bowler.highlightsUrl ? (
                                                                     <span
                                                                         className="text-primary hover:text-primary/80 transition-colors text-xs cursor-pointer"
