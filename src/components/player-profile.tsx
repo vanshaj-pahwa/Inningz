@@ -124,17 +124,17 @@ export default function PlayerProfileDisplay({ profile }: { profile: PlayerProfi
                                                 <div>
                                                     <h4 className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 mb-3">Batting Form</h4>
                                                     <div className="border border-zinc-200/50 dark:border-zinc-800/50 rounded-lg overflow-hidden">
-                                                        <div className="bg-zinc-50 dark:bg-zinc-900/50 px-3 py-2 grid grid-cols-[0.8fr_1.2fr_0.8fr_1fr] gap-2 text-xs font-semibold uppercase text-muted-foreground">
-                                                            <div>Oppn.</div>
-                                                            <div className="text-right">Score</div>
+                                                        <div className="bg-zinc-50 dark:bg-zinc-900/50 px-3 py-2 grid grid-cols-[1.2fr_0.8fr_0.8fr_1fr] gap-2 text-xs font-semibold uppercase text-muted-foreground">
+                                                            <div>Score</div>
+                                                            <div className="text-right">OPPN.</div>
                                                             <div className="text-right">Format</div>
                                                             <div className="text-right">Date</div>
                                                         </div>
                                                         <div className="divide-y divide-zinc-200/30 dark:divide-zinc-800/30">
                                                             {profile.recentForm.batting.slice(0, 5).map((match, idx) => (
-                                                                <div key={idx} className="px-3 py-2.5 grid grid-cols-[0.8fr_1.2fr_0.8fr_1fr] gap-2 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
-                                                                    <div className="font-medium text-foreground">{match.opponent}</div>
-                                                                    <div className="text-right font-bold text-foreground">{match.score}</div>
+                                                                <div key={idx} className="px-3 py-2.5 grid grid-cols-[1.2fr_0.8fr_0.8fr_1fr] gap-2 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
+                                                                    <div className="font-bold text-foreground">{match.score}</div>
+                                                                    <div className="text-right font-medium text-foreground">{match.opponent}</div>
                                                                     <div className="text-right text-muted-foreground">{match.format}</div>
                                                                     <div className="text-right text-muted-foreground">{match.date}</div>
                                                                 </div>
@@ -149,17 +149,17 @@ export default function PlayerProfileDisplay({ profile }: { profile: PlayerProfi
                                                 <div>
                                                     <h4 className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 mb-3">Bowling Form</h4>
                                                     <div className="border border-zinc-200/50 dark:border-zinc-800/50 rounded-lg overflow-hidden">
-                                                        <div className="bg-zinc-50 dark:bg-zinc-900/50 px-3 py-2 grid grid-cols-[0.8fr_1.2fr_0.8fr_1fr] gap-2 text-xs font-semibold uppercase text-muted-foreground">
-                                                            <div>Oppn.</div>
-                                                            <div className="text-right">Wickets</div>
+                                                        <div className="bg-zinc-50 dark:bg-zinc-900/50 px-3 py-2 grid grid-cols-[1.2fr_0.8fr_0.8fr_1fr] gap-2 text-xs font-semibold uppercase text-muted-foreground">
+                                                            <div>Wickets</div>
+                                                            <div className="text-right">OPPN.</div>
                                                             <div className="text-right">Format</div>
                                                             <div className="text-right">Date</div>
                                                         </div>
                                                         <div className="divide-y divide-zinc-200/30 dark:divide-zinc-800/30">
                                                             {profile.recentForm.bowling.slice(0, 5).map((match, idx) => (
-                                                                <div key={idx} className="px-3 py-2.5 grid grid-cols-[0.8fr_1.2fr_0.8fr_1fr] gap-2 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
-                                                                    <div className="font-medium text-foreground">{match.opponent}</div>
-                                                                    <div className="text-right font-bold text-foreground">{match.wickets}</div>
+                                                                <div key={idx} className="px-3 py-2.5 grid grid-cols-[1.2fr_0.8fr_0.8fr_1fr] gap-2 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
+                                                                    <div className="font-bold text-foreground">{match.wickets}</div>
+                                                                    <div className="text-right font-medium text-foreground">{match.opponent}</div>
                                                                     <div className="text-right text-muted-foreground">{match.format}</div>
                                                                     <div className="text-right text-muted-foreground">{match.date}</div>
                                                                 </div>

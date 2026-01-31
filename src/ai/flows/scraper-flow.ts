@@ -883,17 +883,21 @@ export async function getPlayerProfile(profileId: string, playerName?: string): 
 
   const battingStats: z.infer<typeof PlayerStatsSchema>[] = [];
   const battingCareerSummary: z.infer<typeof BattingStatsRowSchema>[] = [];
-  
-  // Try to extract new format (Cricbuzz style: stats as rows, formats as columns)
-  $('h3:contains("Batting Career Summary")').next().find('table').each((_, table) => {
-    const $table = $(table);
+
+  // Extract career summary — Cricbuzz uses a div (not h3) with text "Batting Career Summary"
+  // followed by a table with grid-cols-6 layout: [stat(col-span-2), Test, ODI, T20, IPL]
+  $('div').filter((_, el) => {
+    const text = $(el).text().trim();
+    return text === 'Batting Career Summary' && $(el).children().length === 0;
+  }).each((_, el) => {
+    // Find the closest parent that contains a table
+    const $table = $(el).closest('div.wb\\:border, div.flex-col').find('table').first();
+    if ($table.length === 0) return;
+
     const headers = $table.find('thead th').map((_, th) => $(th).text().trim()).get();
-    
-    // Check if this is the new format (Test, ODI, T20, IPL as columns)
     if (headers.includes('Test') && headers.includes('ODI')) {
       $table.find('tbody tr').each((_, row) => {
-        const $row = $(row);
-        const cells = $row.find('td');
+        const cells = $(row).find('td');
         if (cells.length >= 5) {
           const statName = cells.eq(0).text().trim();
           if (statName && statName !== '') {
@@ -909,9 +913,41 @@ export async function getPlayerProfile(profileId: string, playerName?: string): 
           }
         }
       });
-      return false; // break after finding the table
+      return false;
     }
   });
+
+  // Fallback: find any table preceded by text containing "Batting Career Summary"
+  if (battingCareerSummary.length === 0) {
+    $('table').each((_, table) => {
+      const $table = $(table);
+      const headers = $table.find('thead th').map((_, th) => $(th).text().trim()).get();
+      if (!headers.includes('Test') || !headers.includes('ODI')) return;
+
+      // Check if a parent/sibling contains "Batting Career Summary"
+      const parentText = $table.parent().text().substring(0, 100);
+      if (!parentText.includes('Batting Career Summary') && !parentText.includes('Batting')) return;
+
+      $table.find('tbody tr').each((_, row) => {
+        const cells = $(row).find('td');
+        if (cells.length >= 5) {
+          const statName = cells.eq(0).text().trim();
+          if (statName && statName !== '') {
+            battingCareerSummary.push({
+              stat: statName,
+              values: {
+                test: cells.eq(1).text().trim() || '0',
+                odi: cells.eq(2).text().trim() || '0',
+                t20: cells.eq(3).text().trim() || '0',
+                ipl: cells.eq(4).text().trim() || '0',
+              },
+            });
+          }
+        }
+      });
+      if (battingCareerSummary.length > 0) return false;
+    });
+  }
   
   // Try to find batting stats table by looking for specific text (old format)
   let battingTable = $('h3:contains("Batting Career Summary"), h3:contains("BATTING CAREER SUMMARY")').next('table');
@@ -987,17 +1023,19 @@ export async function getPlayerProfile(profileId: string, playerName?: string): 
 
   const bowlingStats: z.infer<typeof PlayerBowlingStatsSchema>[] = [];
   const bowlingCareerSummary: z.infer<typeof BowlingStatsRowSchema>[] = [];
-  
-  // Try to extract new format (Cricbuzz style: stats as rows, formats as columns)
-  $('h3:contains("Bowling Career Summary")').next().find('table').each((_, table) => {
-    const $table = $(table);
+
+  // Extract bowling career summary — same structure as batting
+  $('div').filter((_, el) => {
+    const text = $(el).text().trim();
+    return text === 'Bowling Career Summary' && $(el).children().length === 0;
+  }).each((_, el) => {
+    const $table = $(el).closest('div.wb\\:border, div.flex-col').find('table').first();
+    if ($table.length === 0) return;
+
     const headers = $table.find('thead th').map((_, th) => $(th).text().trim()).get();
-    
-    // Check if this is the new format (Test, ODI, T20, IPL as columns)
     if (headers.includes('Test') && headers.includes('ODI')) {
       $table.find('tbody tr').each((_, row) => {
-        const $row = $(row);
-        const cells = $row.find('td');
+        const cells = $(row).find('td');
         if (cells.length >= 5) {
           const statName = cells.eq(0).text().trim();
           if (statName && statName !== '') {
@@ -1013,9 +1051,40 @@ export async function getPlayerProfile(profileId: string, playerName?: string): 
           }
         }
       });
-      return false; // break after finding the table
+      return false;
     }
   });
+
+  // Fallback: find table near "Bowling Career Summary" text
+  if (bowlingCareerSummary.length === 0) {
+    $('table').each((_, table) => {
+      const $table = $(table);
+      const headers = $table.find('thead th').map((_, th) => $(th).text().trim()).get();
+      if (!headers.includes('Test') || !headers.includes('ODI')) return;
+
+      const parentText = $table.parent().text().substring(0, 100);
+      if (!parentText.includes('Bowling Career Summary') && !parentText.includes('Bowling')) return;
+
+      $table.find('tbody tr').each((_, row) => {
+        const cells = $(row).find('td');
+        if (cells.length >= 5) {
+          const statName = cells.eq(0).text().trim();
+          if (statName && statName !== '') {
+            bowlingCareerSummary.push({
+              stat: statName,
+              values: {
+                test: cells.eq(1).text().trim() || '0',
+                odi: cells.eq(2).text().trim() || '0',
+                t20: cells.eq(3).text().trim() || '0',
+                ipl: cells.eq(4).text().trim() || '0',
+              },
+            });
+          }
+        }
+      });
+      if (bowlingCareerSummary.length > 0) return false;
+    });
+  }
   
   // Try to find bowling stats table by looking for specific text (old format)
   let bowlingTable = $('h3:contains("Bowling Career Summary"), h3:contains("BOWLING CAREER SUMMARY")').next('table');
@@ -1091,53 +1160,52 @@ export async function getPlayerProfile(profileId: string, playerName?: string): 
   const recentBattingForm: z.infer<typeof RecentBattingFormSchema>[] = [];
   const recentBowlingForm: z.infer<typeof RecentBowlingFormSchema>[] = [];
 
-  // Find the Recent Form section
-  $('h3:contains("RECENT FORM")').parent().each((_, section) => {
-    const $section = $(section);
-    
-    // Find the container with both batting and bowling sections
-    const $formsContainer = $section.find('.flex.w-full.gap-4');
-    
-    if ($formsContainer.length > 0) {
-      // Get the two columns (batting and bowling)
-      const columns = $formsContainer.find('> div');
-      
-      // First column should be batting
-      const $battingColumn = columns.eq(0);
-      if ($battingColumn.find('div:contains("Batting Form")').length > 0) {
-        $battingColumn.find('a[href*="/live-cricket-scores/"]').each((_, row) => {
-          const $row = $(row);
-          const gridCells = $row.find('> div, > span');
-          if (gridCells.length >= 4) {
-            recentBattingForm.push({
-              opponent: gridCells.eq(0).find('span').text().trim() || gridCells.eq(0).text().trim(),
-              score: gridCells.eq(1).find('span').text().trim() || gridCells.eq(1).text().trim(),
-              format: gridCells.eq(2).find('span').text().trim() || gridCells.eq(2).text().trim(),
-              date: gridCells.eq(3).find('span').text().trim() || gridCells.eq(3).text().trim(),
-              matchUrl: $row.attr('href') || undefined,
-            });
-          }
-        });
-      }
+  // Find Recent Form — Cricbuzz uses div containers with "Batting Form" / "Bowling Form" headers
+  // Each match row is an <a> with flex children in order: Score, OPPN, Format, Date
+  $('div').filter((_, el) => {
+    const text = $(el).text().trim();
+    return text === 'Batting Form' && $(el).children().length === 0;
+  }).each((_, el) => {
+    const $container = $(el).closest('div.flex-col, div.w-1\\/2');
+    if ($container.length === 0) return;
 
-      // Second column should be bowling
-      const $bowlingColumn = columns.eq(1);
-      if ($bowlingColumn.find('div:contains("Bowling Form")').length > 0) {
-        $bowlingColumn.find('a[href*="/live-cricket-scores/"]').each((_, row) => {
-          const $row = $(row);
-          const gridCells = $row.find('> div, > span');
-          if (gridCells.length >= 4) {
-            recentBowlingForm.push({
-              opponent: gridCells.eq(0).find('span').text().trim() || gridCells.eq(0).text().trim(),
-              wickets: gridCells.eq(1).find('span').text().trim() || gridCells.eq(1).text().trim(),
-              format: gridCells.eq(2).find('span').text().trim() || gridCells.eq(2).text().trim(),
-              date: gridCells.eq(3).find('span').text().trim() || gridCells.eq(3).text().trim(),
-              matchUrl: $row.attr('href') || undefined,
-            });
-          }
+    $container.find('a[href*="/live-cricket-scores/"], a[href*="/cricket-scores/"]').each((_, row) => {
+      const $row = $(row);
+      const cells = $row.find('> div');
+      if (cells.length >= 4) {
+        recentBattingForm.push({
+          score: cells.eq(0).find('span').text().trim() || cells.eq(0).text().trim(),
+          opponent: cells.eq(1).find('span').text().trim() || cells.eq(1).text().trim(),
+          format: cells.eq(2).find('span').text().trim() || cells.eq(2).text().trim(),
+          date: cells.eq(3).find('span').text().trim() || cells.eq(3).text().trim(),
+          matchUrl: $row.attr('href') || undefined,
         });
       }
-    }
+    });
+    return false;
+  });
+
+  $('div').filter((_, el) => {
+    const text = $(el).text().trim();
+    return text === 'Bowling Form' && $(el).children().length === 0;
+  }).each((_, el) => {
+    const $container = $(el).closest('div.flex-col, div.w-1\\/2');
+    if ($container.length === 0) return;
+
+    $container.find('a[href*="/live-cricket-scores/"], a[href*="/cricket-scores/"]').each((_, row) => {
+      const $row = $(row);
+      const cells = $row.find('> div');
+      if (cells.length >= 4) {
+        recentBowlingForm.push({
+          wickets: cells.eq(0).find('span').text().trim() || cells.eq(0).text().trim(),
+          opponent: cells.eq(1).find('span').text().trim() || cells.eq(1).text().trim(),
+          format: cells.eq(2).find('span').text().trim() || cells.eq(2).text().trim(),
+          date: cells.eq(3).find('span').text().trim() || cells.eq(3).text().trim(),
+          matchUrl: $row.attr('href') || undefined,
+        });
+      }
+    });
+    return false;
   });
 
   console.log('[Player Profile] Extracted from HTML:', {
