@@ -41,6 +41,7 @@ import {
     scrapeICCRankings as scrapeICCRankingsFlow,
     type RankingsData as RankingsDataType,
     type RankingEntry as RankingEntryType,
+    type AwardPlayer as AwardPlayerType,
 } from '@/ai/flows/scraper-flow';
 
 export type ScrapeCricbuzzUrlOutput = ScrapeFlowOutput;
@@ -65,6 +66,7 @@ export type OverData = OverDataType;
 export type InningsOverData = InningsOverDataType;
 export type RankingsData = RankingsDataType;
 export type RankingEntry = RankingEntryType;
+export type AwardPlayer = AwardPlayerType;
 export type { MatchStats };
 
 interface ScrapeState {

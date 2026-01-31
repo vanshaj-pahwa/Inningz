@@ -20,6 +20,12 @@ const CommentarySchema = z.object({
   teamWickets: z.number().optional(),
 });
 
+const AwardPlayerSchema = z.object({
+  name: z.string(),
+  profileId: z.string().optional(),
+  imageUrl: z.string().optional(),
+});
+
 const ScrapeCricbuzzUrlOutputSchema = z.object({
   title: z.string().describe('The title of the match.'),
   status: z.string().describe('The current status of the match.'),
@@ -66,6 +72,8 @@ const ScrapeCricbuzzUrlOutputSchema = z.object({
   currentInningsId: z.number().optional(),
   seriesName: z.string().optional(),
   seriesId: z.string().optional(),
+  playerOfTheMatch: AwardPlayerSchema.optional(),
+  playerOfTheSeries: AwardPlayerSchema.optional(),
 });
 
 const LiveMatchSchema = z.object({
@@ -131,6 +139,8 @@ const MatchInfoSchema = z.object({
   thirdUmpire: z.string().optional(),
   referee: z.string().optional(),
   seriesName: z.string().optional(),
+  playerOfTheMatch: AwardPlayerSchema.optional(),
+  playerOfTheSeries: AwardPlayerSchema.optional(),
 });
 
 const FullScorecardInningsSchema = z.object({
@@ -315,6 +325,7 @@ export type LiveMatch = z.infer<typeof LiveMatchSchema>;
 export type MatchStats = z.infer<typeof MatchStatsSchema>;
 export type MatchSquads = z.infer<typeof MatchSquadsSchema>;
 export type SquadPlayer = z.infer<typeof SquadPlayerSchema>;
+export type AwardPlayer = z.infer<typeof AwardPlayerSchema>;
 
 export type ScrapeCricbuzzUrlOutput = z.infer<
   typeof ScrapeCricbuzzUrlOutputSchema
@@ -1269,6 +1280,8 @@ export async function getFullScorecard(matchId: string): Promise<FullScorecard> 
       const decision = matchHeader.tossResults.decision;
       matchInfo.tossResults = `${tossWinner} won the toss and chose to ${decision.toLowerCase()}`;
     }
+    matchInfo.playerOfTheMatch = extractAwardPlayer(matchHeader.playersOfTheMatch);
+    matchInfo.playerOfTheSeries = extractAwardPlayer(matchHeader.playersOfTheSeries);
   }
 
   // Try to get venue info from a separate API call
@@ -1936,6 +1949,17 @@ async function getScoreFromHtml(matchId: string): Promise<ScrapeCricbuzzUrlOutpu
   };
 }
 
+function extractAwardPlayer(players: any): z.infer<typeof AwardPlayerSchema> | undefined {
+  if (!Array.isArray(players) || players.length === 0) return undefined;
+  const p = players[0];
+  if (!p || !p.name) return undefined;
+  return {
+    name: p.fullName || p.name,
+    profileId: p.id ? String(p.id) : undefined,
+    imageUrl: p.faceImageId ? `https://static.cricbuzz.com/a/img/v1/152x152/i1/c${p.faceImageId}/player.jpg` : undefined,
+  };
+}
+
 export async function getScoreForMatchId(
   matchId: string
 ): Promise<ScrapeCricbuzzUrlOutput> {
@@ -2262,6 +2286,8 @@ export async function getScoreForMatchId(
     currentInningsId: miniscore?.inningsId,
     seriesName: matchHeader?.seriesName || undefined,
     seriesId: matchHeader?.seriesId ? String(matchHeader.seriesId) : undefined,
+    playerOfTheMatch: extractAwardPlayer(matchHeader?.playersOfTheMatch),
+    playerOfTheSeries: extractAwardPlayer(matchHeader?.playersOfTheSeries),
   };
 
   const validation = ScrapeCricbuzzUrlOutputSchema.safeParse(result);

@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Separator } from './ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import OverByOverChart from './over-by-over-chart';
+import Image from 'next/image';
 
 export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
     const [scorecard, setScorecard] = useState<FullScorecard | null>(null);
@@ -493,6 +494,48 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                                         <div className="p-2 md:p-3 rounded-lg bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/30">
                                             <span className="font-medium text-xs md:text-sm">{scorecard.matchInfo.tossResults}</span>
                                         </div>
+                                    </div>
+                                )}
+                                {(scorecard.matchInfo.playerOfTheMatch || scorecard.matchInfo.playerOfTheSeries) && (
+                                    <div className="flex flex-wrap gap-3 pt-3 md:pt-4 border-t dark:border-zinc-800/50">
+                                        {scorecard.matchInfo.playerOfTheMatch && (
+                                            <button
+                                                onClick={() => {
+                                                    if (scorecard.matchInfo?.playerOfTheMatch?.profileId) {
+                                                        setSelectedProfileId(scorecard.matchInfo.playerOfTheMatch.profileId);
+                                                        setSelectedPlayerName(scorecard.matchInfo.playerOfTheMatch.name);
+                                                    }
+                                                }}
+                                                className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 transition-colors flex-1 min-w-[200px]"
+                                            >
+                                                {scorecard.matchInfo.playerOfTheMatch.imageUrl && (
+                                                    <Image src={scorecard.matchInfo.playerOfTheMatch.imageUrl} alt={scorecard.matchInfo.playerOfTheMatch.name} width={40} height={40} className="w-10 h-10 rounded-full object-cover" />
+                                                )}
+                                                <div className="text-left">
+                                                    <p className="text-[10px] uppercase tracking-wider text-amber-600 dark:text-amber-400 font-semibold">Player of the Match</p>
+                                                    <p className="text-sm font-medium">{scorecard.matchInfo.playerOfTheMatch.name}</p>
+                                                </div>
+                                            </button>
+                                        )}
+                                        {scorecard.matchInfo.playerOfTheSeries && (
+                                            <button
+                                                onClick={() => {
+                                                    if (scorecard.matchInfo?.playerOfTheSeries?.profileId) {
+                                                        setSelectedProfileId(scorecard.matchInfo.playerOfTheSeries.profileId);
+                                                        setSelectedPlayerName(scorecard.matchInfo.playerOfTheSeries.name);
+                                                    }
+                                                }}
+                                                className="flex items-center gap-3 px-4 py-3 rounded-xl bg-purple-500/10 border border-purple-500/20 hover:bg-purple-500/20 transition-colors flex-1 min-w-[200px]"
+                                            >
+                                                {scorecard.matchInfo.playerOfTheSeries.imageUrl && (
+                                                    <Image src={scorecard.matchInfo.playerOfTheSeries.imageUrl} alt={scorecard.matchInfo.playerOfTheSeries.name} width={40} height={40} className="w-10 h-10 rounded-full object-cover" />
+                                                )}
+                                                <div className="text-left">
+                                                    <p className="text-[10px] uppercase tracking-wider text-purple-600 dark:text-purple-400 font-semibold">Player of the Series</p>
+                                                    <p className="text-sm font-medium">{scorecard.matchInfo.playerOfTheSeries.name}</p>
+                                                </div>
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                             </div>

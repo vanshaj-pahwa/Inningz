@@ -649,6 +649,50 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                             </div>
                         )}
 
+                        {/* Player of the Match / Series */}
+                        {(data?.playerOfTheMatch || data?.playerOfTheSeries) && (
+                            <div className="flex flex-wrap gap-3">
+                                {data.playerOfTheMatch && (
+                                    <button
+                                        onClick={() => {
+                                            if (data.playerOfTheMatch?.profileId) {
+                                                setSelectedProfileId(data.playerOfTheMatch.profileId);
+                                                setSelectedPlayerName(data.playerOfTheMatch.name);
+                                            }
+                                        }}
+                                        className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 transition-colors flex-1 min-w-[200px]"
+                                    >
+                                        {data.playerOfTheMatch.imageUrl && (
+                                            <Image src={data.playerOfTheMatch.imageUrl} alt={data.playerOfTheMatch.name} width={40} height={40} className="w-10 h-10 rounded-full object-cover" />
+                                        )}
+                                        <div className="text-left">
+                                            <p className="text-[10px] uppercase tracking-wider text-amber-600 dark:text-amber-400 font-semibold">Player of the Match</p>
+                                            <p className="text-sm font-medium">{data.playerOfTheMatch.name}</p>
+                                        </div>
+                                    </button>
+                                )}
+                                {data.playerOfTheSeries && (
+                                    <button
+                                        onClick={() => {
+                                            if (data.playerOfTheSeries?.profileId) {
+                                                setSelectedProfileId(data.playerOfTheSeries.profileId);
+                                                setSelectedPlayerName(data.playerOfTheSeries.name);
+                                            }
+                                        }}
+                                        className="flex items-center gap-3 px-4 py-3 rounded-xl bg-purple-500/10 border border-purple-500/20 hover:bg-purple-500/20 transition-colors flex-1 min-w-[200px]"
+                                    >
+                                        {data.playerOfTheSeries.imageUrl && (
+                                            <Image src={data.playerOfTheSeries.imageUrl} alt={data.playerOfTheSeries.name} width={40} height={40} className="w-10 h-10 rounded-full object-cover" />
+                                        )}
+                                        <div className="text-left">
+                                            <p className="text-[10px] uppercase tracking-wider text-purple-600 dark:text-purple-400 font-semibold">Player of the Series</p>
+                                            <p className="text-sm font-medium">{data.playerOfTheSeries.name}</p>
+                                        </div>
+                                    </button>
+                                )}
+                            </div>
+                        )}
+
                         {/* Win Probability */}
                         {data?.requiredRunRate && data?.previousInnings?.length > 0 && (
                             <WinProbability
