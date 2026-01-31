@@ -271,12 +271,11 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                 case 'FOUR': return { text: '4', className: 'bg-blue-500 text-white' };
                 case 'SIX': return { text: '6', className: 'bg-purple-600 text-white' };
                 case 'WICKET': return { text: 'W', className: 'bg-red-600 text-white' };
+                case 'FIFTY': return { text: '50', className: 'bg-green-500 text-white text-[10px] px-1' };
+                case 'HUNDRED': return { text: '100', className: 'bg-amber-500 text-white text-[10px] px-1' };
                 default: return null;
             }
         }
-
-        // Milestone events shown as inline tags next to the text
-        const milestoneEvents = events.filter(e => e === 'FIFTY' || e === 'HUNDRED');
 
         return (
             <div key={index} className="slide-in-left">
@@ -357,19 +356,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                             );
                         })}
                     </div>
-                    <div className="flex-1">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                            {milestoneEvents.map((event, i) => (
-                                <span key={i} className={cn(
-                                    "inline-flex items-center justify-center font-bold text-[10px] rounded px-1.5 py-0.5",
-                                    event === 'FIFTY' ? 'bg-green-500 text-white' : 'bg-amber-500 text-white'
-                                )}>
-                                    {event === 'FIFTY' ? '50' : '100'}
-                                </span>
-                            ))}
-                            <p className="text-sm text-foreground/80 flex-1 leading-relaxed inline" dangerouslySetInnerHTML={{ __html: text }} />
-                        </div>
-                    </div>
+                    <p className="text-sm text-foreground/80 flex-1 leading-relaxed" dangerouslySetInnerHTML={{ __html: text }} />
                 </div>
             </div>
         );
