@@ -420,19 +420,19 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
     return (
         <div className="w-full mx-auto px-2 md:px-6 lg:px-8">
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4 mb-6 py-4 gradient-border">
-                <div className="flex items-center gap-3 md:gap-4">
-                    <Button variant="ghost" size="icon" className="shrink-0 h-9 w-9 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => router.back()}>
+            <div className="flex flex-col gap-2 md:gap-4 mb-4 md:mb-6 py-3 md:py-4 gradient-border">
+                {/* Top row: back button + title + theme toggle */}
+                <div className="flex items-start gap-2 md:gap-4">
+                    <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8 md:h-9 md:w-9 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900 mt-0.5" onClick={() => router.back()}>
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
                     <div className="flex-1 min-w-0">
-                        <h1 className="text-lg md:text-2xl font-display tracking-tight text-foreground truncate">
+                        <h1 className="text-base md:text-2xl font-display tracking-tight text-foreground leading-tight line-clamp-2 md:truncate">
                             {data?.title}
                         </h1>
-                        <div className="text-xs text-muted-foreground mt-0.5 space-y-0.5">
+                        <div className="text-[10px] md:text-xs text-muted-foreground mt-1 space-y-0.5">
                             {data?.seriesName && data?.seriesId && (
                                 <p className="truncate">
-                                    <span className="font-semibold">Series:&nbsp;</span>
                                     <Link
                                         href={`/series/${data.seriesId}/${data.seriesName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`}
                                         className="text-primary hover:underline"
@@ -441,8 +441,8 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                     </Link>
                                 </p>
                             )}
-                            {data?.toss && data.toss !== 'N/A' && data.toss.trim() !== '' && <p className="truncate">{data.toss}</p>}
                             {data?.venue && data.venue !== 'N/A' && data.venue.trim() !== '' && <p className="truncate">{data.venue}</p>}
+                            {data?.toss && data.toss !== 'N/A' && data.toss.trim() !== '' && <p className="truncate">{data.toss}</p>}
                             {data?.matchStartTimestamp && (
                                 <p className="truncate">
                                     {new Date(data.matchStartTimestamp).toLocaleDateString('en-US', {
@@ -453,17 +453,20 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                             )}
                         </div>
                     </div>
+                    <div className="shrink-0 md:hidden">
+                        <ThemeToggle />
+                    </div>
                 </div>
-                <div className="flex items-center gap-3 self-start md:self-auto">
-                    {/* View Tabs */}
-                    <div className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-900 p-1 rounded-xl">
+                {/* Tabs row */}
+                <div className="flex items-center justify-between md:justify-end gap-3">
+                    <div className="flex items-center gap-0.5 md:gap-1 bg-zinc-100 dark:bg-zinc-900 p-0.5 md:p-1 rounded-xl flex-1 md:flex-none">
                         {(['live', 'scorecard', 'squads'] as View[]).map((v) => (
                             <button
                                 key={v}
                                 onClick={() => setView(v)}
                                 className={`
-                                    px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium
-                                    transition-all duration-200
+                                    flex-1 md:flex-none px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium
+                                    transition-all duration-200 text-center
                                     ${view === v
                                         ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25'
                                         : 'text-muted-foreground hover:text-foreground'
@@ -474,7 +477,9 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                             </button>
                         ))}
                     </div>
-                    <ThemeToggle />
+                    <div className="hidden md:block">
+                        <ThemeToggle />
+                    </div>
                 </div>
             </div>
 
