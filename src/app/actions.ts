@@ -38,6 +38,9 @@ import {
     type PointsTableMatch as PointsTableMatchType,
     type OverData as OverDataType,
     type InningsOverData as InningsOverDataType,
+    scrapeICCRankings as scrapeICCRankingsFlow,
+    type RankingsData as RankingsDataType,
+    type RankingEntry as RankingEntryType,
 } from '@/ai/flows/scraper-flow';
 
 export type ScrapeCricbuzzUrlOutput = ScrapeFlowOutput;
@@ -60,6 +63,8 @@ export type PointsTableTeam = PointsTableTeamType;
 export type PointsTableMatch = PointsTableMatchType;
 export type OverData = OverDataType;
 export type InningsOverData = InningsOverDataType;
+export type RankingsData = RankingsDataType;
+export type RankingEntry = RankingEntryType;
 export type { MatchStats };
 
 interface ScrapeState {
@@ -402,6 +407,19 @@ export async function getInningsOverData(matchId: string, inningsId: number): Pr
     }
     try {
         const data = await getOverByOverDataFlow(matchId, inningsId);
+        return { success: true, data };
+    } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : 'An unexpected error occurred.';
+        return { success: false, error: errorMessage };
+    }
+}
+
+export async function getICCRankings(
+    format: 'test' | 'odi' | 't20',
+    category: 'batting' | 'bowling' | 'all-rounder'
+): Promise<{ success: boolean; data?: RankingsDataType; error?: string }> {
+    try {
+        const data = await scrapeICCRankingsFlow(format, category);
         return { success: true, data };
     } catch (e) {
         const errorMessage = e instanceof Error ? e.message : 'An unexpected error occurred.';

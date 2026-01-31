@@ -3510,3 +3510,139 @@ export async function getOverByOverData(matchId: string, inningsId: number): Pro
 
   return { inningsId, teamName, overs };
 }
+
+
+// ============================================
+// ICC Rankings
+// ============================================
+
+const RankingEntrySchema = z.object({
+  rank: z.string(),
+  playerName: z.string(),
+  country: z.string(),
+  rating: z.string(),
+  profileId: z.string().optional(),
+  imageUrl: z.string().optional(),
+});
+
+const RankingsDataSchema = z.object({
+  format: z.string(),
+  category: z.string(),
+  lastUpdated: z.string().optional(),
+  entries: z.array(RankingEntrySchema),
+});
+
+export type RankingEntry = z.infer<typeof RankingEntrySchema>;
+export type RankingsData = z.infer<typeof RankingsDataSchema>;
+
+export async function scrapeICCRankings(
+  format: 'test' | 'odi' | 't20',
+  category: 'batting' | 'bowling' | 'all-rounder'
+): Promise<RankingsData> {
+  // Always fetch the base category page — it contains all format data in RSC payload
+  const categorySlug = category === 'all-rounder' ? 'all-rounder' : category;
+  const url = `https://www.cricbuzz.com/cricket-stats/icc-rankings/men/${categorySlug}`;
+
+  const response = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch ICC rankings: ${response.statusText}`);
+  }
+
+  const html = await response.text();
+  const entries: RankingEntry[] = [];
+
+  // Strategy 1: Extract from Next.js RSC data (self.__next_f.push)
+  // The page embeds formatTypesData with all formats (odi, test, t20)
+  const rscChunkRe = /self\.__next_f\.push\(\[1,"([\s\S]*?)"\]\)/g;
+  let rscMatch;
+  while ((rscMatch = rscChunkRe.exec(html)) !== null) {
+    const chunk = rscMatch[1];
+    if (!chunk.includes('formatTypesData')) continue;
+
+    const ftdIdx = chunk.indexOf('formatTypesData');
+    // Extract the section from formatTypesData onwards
+    const section = chunk.substring(ftdIdx);
+
+    // Find the rank array for the requested format
+    const formatKey = format; // 'test', 'odi', or 't20'
+    const formatIdx = section.indexOf(`\\"${formatKey}\\":{\\"`);
+    if (formatIdx === -1) continue;
+
+    const rankStart = section.indexOf('\\\"rank\\\":[', formatIdx);
+    if (rankStart === -1) continue;
+
+    // Find the matching closing bracket for the rank array
+    const arrayStart = rankStart + '\\\"rank\\\":['.length;
+    let depth = 1;
+    let pos = arrayStart;
+    while (pos < section.length && depth > 0) {
+      if (section[pos] === '[') depth++;
+      else if (section[pos] === ']') depth--;
+      pos++;
+    }
+
+    const rankArrayStr = section.substring(arrayStart, pos - 1);
+
+    // Parse individual entries from the escaped JSON
+    const entryRe = /\{\\?"id\\?":\\?"(\d+)\\?".*?\\?"rank\\?":\\?"(\d+)\\?".*?\\?"name\\?":\\?"([^\\]+)\\?".*?\\?"rating\\?":\\?"(\d+)\\?".*?\\?"country\\?":\\?"([^\\]+)\\?".*?\\?"faceImageId\\?":\\?"(\d+)\\?"/g;
+    let entryMatch;
+    while ((entryMatch = entryRe.exec(rankArrayStr)) !== null) {
+      const [, profileId, rank, name, rating, country, faceImageId] = entryMatch;
+      const slug = name.toLowerCase().replace(/\s+/g, '-');
+      entries.push({
+        rank,
+        playerName: name,
+        country,
+        rating,
+        profileId,
+        imageUrl: `https://static.cricbuzz.com/a/img/v1/i1/c${faceImageId}/${slug}.jpg`,
+      });
+    }
+
+    if (entries.length > 0) break;
+  }
+
+  // Strategy 2: Fall back to HTML grid parsing (works for test format server-rendered content)
+  if (entries.length === 0) {
+    const $ = cheerio.load(html);
+    $('div.grid.grid-cols-4.items-center.border-b').each((_, row) => {
+      const $row = $(row);
+      const rankText = $row.find('div.text-base').first().text().trim();
+      if (!rankText || isNaN(parseInt(rankText))) return;
+
+      const playerLink = $row.find('a[href*="/profiles/"]');
+      if (playerLink.length === 0) return;
+
+      const href = playerLink.attr('href') || '';
+      const profileMatch = href.match(/\/profiles\/(\d+)\//);
+      const profileId = profileMatch ? profileMatch[1] : undefined;
+      const playerName = playerLink.attr('title') || playerLink.find('div.text-base.font-medium').text().trim();
+      const country = playerLink.find('div.text-cbTxtGray').text().trim();
+      const rating = $row.find('div.col-span-1.text-base.text-right').text().trim();
+      const imgEl = playerLink.find('img');
+      const imageUrl = imgEl.attr('src') || undefined;
+
+      if (playerName && rating) {
+        entries.push({
+          rank: rankText,
+          playerName,
+          country,
+          rating,
+          profileId,
+          imageUrl: imageUrl?.replace('&amp;', '&'),
+        });
+      }
+    });
+  }
+
+  return RankingsDataSchema.parse({
+    format,
+    category,
+    entries,
+  });
+}

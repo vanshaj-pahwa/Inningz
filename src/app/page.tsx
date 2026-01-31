@@ -3,12 +3,13 @@
 
 import { Suspense, useCallback, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import LiveMatches from "@/components/live-matches";
 import RecentMatches from "@/components/recent-matches";
 import UpcomingMatches from "@/components/upcoming-matches";
 import SeriesSchedule from "@/components/series-schedule";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Flame, History, Calendar, Trophy } from "lucide-react";
+import { Flame, History, Calendar, Trophy, Medal } from "lucide-react";
 
 type View = 'live' | 'recent' | 'upcoming' | 'series';
 
@@ -85,8 +86,17 @@ function HomeContent() {
                                 })}
                             </nav>
 
-                            {/* Theme Toggle */}
-                            <ThemeToggle />
+                            {/* Actions */}
+                            <div className="flex items-center gap-1.5">
+                                <Link
+                                    href="/rankings"
+                                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
+                                >
+                                    <Medal className="w-4 h-4" />
+                                    <span className="hidden sm:inline">Rankings</span>
+                                </Link>
+                                <ThemeToggle />
+                            </div>
                         </div>
                     </div>
                 </div>
