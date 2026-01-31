@@ -302,6 +302,8 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                 {ballsStr.split(/\s+/).map((ball, idx) => {
                                                     const ballStr = ball.trim();
                                                     if (!ballStr || ballStr.includes('(') || ballStr.includes(')') || ballStr.toLowerCase() === 'runs' || ballStr.toLowerCase() === 'run') return null;
+                                                    // Skip wides - not a legal delivery
+                                                    if (ballStr.toLowerCase().includes('wd') || ballStr.toLowerCase().includes('wide')) return null;
 
                                                     let ballClass = "w-7 h-7 md:w-8 md:h-8 rounded-lg font-bold text-xs flex items-center justify-center";
                                                     let ballContent = ballStr;
@@ -309,7 +311,6 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                     if (ballStr === '6') ballClass += " bg-purple-600 text-white";
                                                     else if (ballStr === '4') ballClass += " bg-blue-600 text-white";
                                                     else if (ballStr === 'W' || ballStr.includes('W')) ballClass += " bg-red-600 text-white";
-                                                    else if (ballStr.toLowerCase().includes('wd') || ballStr.toLowerCase().includes('wide')) { ballClass += " bg-orange-500 text-white text-[10px]"; ballContent = 'Wd'; }
                                                     else if (ballStr.toLowerCase().startsWith('n') && ballStr.length <= 3) ballClass += " bg-orange-500 text-white text-[10px]";
                                                     else if (ballStr.toLowerCase().includes('nb') || ballStr.toLowerCase().includes('noball')) { ballClass += " bg-orange-500 text-white text-[10px]"; ballContent = 'Nb'; }
                                                     else if (ballStr.toLowerCase().includes('lb') || ballStr.toLowerCase().includes('legbye')) { ballClass += " bg-zinc-500 text-white text-[10px]"; ballContent = 'Lb'; }
