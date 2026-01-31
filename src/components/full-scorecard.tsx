@@ -177,10 +177,10 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                 collapsible
                 value={openAccordion}
                 onValueChange={setOpenAccordion}
-                className="w-full px-2 md:px-4"
+                className="w-full px-0 md:px-4"
             >
                 {scorecard.innings.map((inning, index) => (
-                    <AccordionItem value={inning.name} key={index} className="border border-zinc-200/50 dark:border-zinc-800/50 rounded-2xl mb-2 md:mb-4 shadow-sm hover:shadow-md transition-shadow">
+                    <AccordionItem value={inning.name} key={index} className="border border-zinc-200/50 dark:border-zinc-800/50 rounded-none md:rounded-2xl mb-2 md:mb-4 shadow-sm hover:shadow-md transition-shadow">
                         <AccordionTrigger className="px-2 md:px-6 py-2.5 md:py-4 hover:no-underline">
                             <div className="flex items-center justify-between w-full gap-2 md:gap-4">
                                 <div className="flex-1 text-left">
@@ -199,13 +199,13 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                                 <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 md:gap-8">
                                     <div className="lg:col-span-3 space-y-3 md:space-y-8">
                                         {getAugmentedOverData(index + 1) && (
-                                            <Card className="glass-card">
+                                            <Card className="glass-card rounded-none md:rounded-lg">
                                                 <CardContent className="p-2 md:p-4">
                                                     <OverByOverChart data={getAugmentedOverData(index + 1)!} />
                                                 </CardContent>
                                             </Card>
                                         )}
-                                        <Card className="glass-card">
+                                        <Card className="glass-card rounded-none md:rounded-lg">
                                             <CardHeader className="border-b dark:border-zinc-800/50 p-2 md:p-6">
                                                 <CardTitle className="flex items-center gap-2 text-xs md:text-base">
                                                     {inning.battingTeamName} Batting
@@ -280,7 +280,7 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                                             </CardContent>
                                         </Card>
 
-                                        <Card className="glass-card">
+                                        <Card className="glass-card rounded-none md:rounded-lg">
                                             <CardHeader className="border-b dark:border-zinc-800/50 p-2 md:p-6">
                                                 <CardTitle className="flex items-center gap-2 text-xs md:text-base">
                                                     {inning.bowlingTeamName} Bowling
@@ -356,7 +356,7 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                                     </div>
                                     <div className="lg:col-span-2 space-y-3 md:space-y-6">
                                         {inning.partnerships && inning.partnerships.length > 0 && (
-                                            <Card className="glass-card">
+                                            <Card className="glass-card rounded-none md:rounded-lg">
                                                 <CardHeader className="border-b dark:border-zinc-800/50 p-2 md:p-6">
                                                     <CardTitle className="flex items-center gap-2 text-xs md:text-base">
                                                         Partnerships
@@ -428,7 +428,7 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                                             </Card>
                                         )}
                                         {inning.yetToBat.length > 0 && (
-                                            <Card className="glass-card">
+                                            <Card className="glass-card rounded-none md:rounded-lg">
                                                 <CardHeader className="border-b dark:border-zinc-800/50 p-2 md:p-6">
                                                     <CardTitle className="flex items-center gap-2 text-xs md:text-base">
                                                         Yet to Bat
@@ -454,9 +454,9 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
             </Accordion>
 
             {/* Match Information - Detailed */}
-            <div className="px-2 md:px-4">
+            <div className="px-0 md:px-4">
                 {scorecard.matchInfo && (
-                    <Card className="glass-card">
+                    <Card className="glass-card rounded-none md:rounded-lg">
                         <CardHeader className="border-b dark:border-zinc-800/50 p-2 md:p-6">
                             <CardTitle className="text-sm md:text-2xl">Match Information</CardTitle>
                         </CardHeader>
