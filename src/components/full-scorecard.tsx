@@ -213,16 +213,16 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                                             </CardHeader>
                                             <CardContent className="p-0">
                                                 <div className="overflow-x-auto">
-                                                    <Table>
+                                                    <Table className="text-xs md:text-sm">
                                                         <TableHeader>
                                                             <TableRow className="hover:bg-transparent">
-                                                                <TableHead className="min-w-[120px] md:w-[200px] font-bold text-xs md:text-sm">Batter</TableHead>
-                                                                <TableHead className="font-bold text-xs md:text-sm min-w-[100px]">Dismissal</TableHead>
-                                                                <TableHead className="text-right font-bold text-xs md:text-sm">R</TableHead>
-                                                                <TableHead className="text-right font-bold text-xs md:text-sm">B</TableHead>
-                                                                <TableHead className="text-right font-bold text-xs md:text-sm">4s</TableHead>
-                                                                <TableHead className="text-right font-bold text-xs md:text-sm">6s</TableHead>
-                                                                <TableHead className="text-right font-bold text-xs md:text-sm">SR</TableHead>
+                                                                <TableHead className="w-[80px] md:w-[200px] font-bold px-1 md:px-3">Batter</TableHead>
+                                                                <TableHead className="font-bold px-1 md:px-3">Dismissal</TableHead>
+                                                                <TableHead className="text-right font-bold w-8 md:w-12 px-1 md:px-3">R</TableHead>
+                                                                <TableHead className="text-right font-bold w-8 md:w-12 px-1 md:px-3">B</TableHead>
+                                                                <TableHead className="text-right font-bold w-8 md:w-12 px-1 md:px-3">4s</TableHead>
+                                                                <TableHead className="text-right font-bold w-8 md:w-12 px-1 md:px-3">6s</TableHead>
+                                                                <TableHead className="text-right font-bold w-8 md:w-12 px-1 md:px-3">SR</TableHead>
                                                             </TableRow>
                                                         </TableHeader>
                                                         <TableBody>
@@ -236,7 +236,7 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                                                         hover:bg-zinc-100/50 dark:hover:bg-zinc-800/40
                                                     `}
                                                                 >
-                                                                    <TableCell className="font-medium text-xs md:text-sm py-2 md:py-3">
+                                                                    <TableCell className="font-medium py-2 md:py-3 px-1 md:px-3">
                                                                         <span
                                                                             className={`
                                                             ${batsman.profileId ?
@@ -248,12 +248,12 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                                                                             {batsman.name}
                                                                         </span>
                                                                     </TableCell>
-                                                                    <TableCell className="text-xs md:text-sm text-muted-foreground">{batsman.dismissal}</TableCell>
-                                                                    <TableCell className="text-right font-bold text-xs md:text-sm">{batsman.runs}</TableCell>
-                                                                    <TableCell className="text-right text-xs md:text-sm">{batsman.balls}</TableCell>
-                                                                    <TableCell className="text-right text-xs md:text-sm">{batsman.fours}</TableCell>
-                                                                    <TableCell className="text-right text-xs md:text-sm">{batsman.sixes}</TableCell>
-                                                                    <TableCell className="text-right text-xs md:text-sm">
+                                                                    <TableCell className="text-muted-foreground px-1 md:px-3">{batsman.dismissal}</TableCell>
+                                                                    <TableCell className="text-right font-bold px-1 md:px-3">{batsman.runs}</TableCell>
+                                                                    <TableCell className="text-right px-1 md:px-3">{batsman.balls}</TableCell>
+                                                                    <TableCell className="text-right px-1 md:px-3">{batsman.fours}</TableCell>
+                                                                    <TableCell className="text-right px-1 md:px-3">{batsman.sixes}</TableCell>
+                                                                    <TableCell className="text-right px-1 md:px-3">
                                                                         <span className={`${parseFloat(batsman.strikeRate) >= 150 ? 'text-green-600 dark:text-green-400' :
                                                                             parseFloat(batsman.strikeRate) >= 100 ? 'text-emerald-600 dark:text-emerald-400' :
                                                                                 ''
@@ -288,17 +288,17 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                                             </CardHeader>
                                             <CardContent className="p-0">
                                                 <div className="overflow-x-auto">
-                                                    <Table>
+                                                    <Table className="text-xs md:text-sm">
                                                         <TableHeader>
                                                             <TableRow className="hover:bg-transparent">
-                                                                <TableHead className="min-w-[120px] md:w-[200px] font-bold text-xs md:text-sm">Bowler</TableHead>
-                                                                <TableHead className="text-right font-bold text-xs md:text-sm">O</TableHead>
-                                                                <TableHead className="text-right font-bold text-xs md:text-sm">M</TableHead>
-                                                                <TableHead className="text-right font-bold text-xs md:text-sm">R</TableHead>
-                                                                <TableHead className="text-right font-bold text-xs md:text-sm">W</TableHead>
-                                                                <TableHead className="text-right font-bold text-xs md:text-sm">NB</TableHead>
-                                                                <TableHead className="text-right font-bold text-xs md:text-sm">WD</TableHead>
-                                                                <TableHead className="text-right font-bold text-xs md:text-sm">ECO</TableHead>
+                                                                <TableHead className="w-[80px] md:w-[200px] font-bold px-1 md:px-3">Bowler</TableHead>
+                                                                <TableHead className="text-right font-bold w-7 md:w-12 px-1 md:px-3">O</TableHead>
+                                                                <TableHead className="text-right font-bold w-7 md:w-12 px-1 md:px-3">M</TableHead>
+                                                                <TableHead className="text-right font-bold w-7 md:w-12 px-1 md:px-3">R</TableHead>
+                                                                <TableHead className="text-right font-bold w-7 md:w-12 px-1 md:px-3">W</TableHead>
+                                                                <TableHead className="text-right font-bold w-7 md:w-12 px-1 md:px-3">NB</TableHead>
+                                                                <TableHead className="text-right font-bold w-7 md:w-12 px-1 md:px-3">WD</TableHead>
+                                                                <TableHead className="text-right font-bold w-8 md:w-12 px-1 md:px-3">ECO</TableHead>
                                                             </TableRow>
                                                         </TableHeader>
                                                         <TableBody>
@@ -312,7 +312,7 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                                                         hover:bg-zinc-100/50 dark:hover:bg-zinc-800/40
                                                     `}
                                                                 >
-                                                                    <TableCell className="font-medium text-xs md:text-sm py-2 md:py-3">
+                                                                    <TableCell className="font-medium py-2 md:py-3 px-1 md:px-3">
                                                                         <span
                                                                             className={`
                                                             ${bowler.profileId ?
@@ -324,10 +324,10 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                                                                             {bowler.name}
                                                                         </span>
                                                                     </TableCell>
-                                                                    <TableCell className="text-right text-xs md:text-sm">{bowler.overs}</TableCell>
-                                                                    <TableCell className="text-right text-xs md:text-sm">{bowler.maidens}</TableCell>
-                                                                    <TableCell className="text-right text-xs md:text-sm">{bowler.runs}</TableCell>
-                                                                    <TableCell className="text-right text-xs md:text-sm">
+                                                                    <TableCell className="text-right px-1 md:px-3">{bowler.overs}</TableCell>
+                                                                    <TableCell className="text-right px-1 md:px-3">{bowler.maidens}</TableCell>
+                                                                    <TableCell className="text-right px-1 md:px-3">{bowler.runs}</TableCell>
+                                                                    <TableCell className="text-right px-1 md:px-3">
                                                                         <span className={`font-bold ${Number(bowler.wickets) >= 5 ? 'text-orange-600 dark:text-orange-400' :
                                                                             Number(bowler.wickets) >= 3 ? 'text-amber-600 dark:text-amber-400' :
                                                                                 ''
@@ -335,9 +335,9 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                                                                             {bowler.wickets}
                                                                         </span>
                                                                     </TableCell>
-                                                                    <TableCell className="text-right text-xs md:text-sm">{bowler.noBalls}</TableCell>
-                                                                    <TableCell className="text-right text-xs md:text-sm">{bowler.wides}</TableCell>
-                                                                    <TableCell className="text-right text-xs md:text-sm">
+                                                                    <TableCell className="text-right px-1 md:px-3">{bowler.noBalls}</TableCell>
+                                                                    <TableCell className="text-right px-1 md:px-3">{bowler.wides}</TableCell>
+                                                                    <TableCell className="text-right px-1 md:px-3">
                                                                         <span className={`${parseFloat(bowler.economy) <= 4 ? 'text-green-600 dark:text-green-400' :
                                                                             parseFloat(bowler.economy) <= 6 ? 'text-emerald-600 dark:text-emerald-400' :
                                                                                 parseFloat(bowler.economy) >= 10 ? 'text-red-600 dark:text-red-400' :
