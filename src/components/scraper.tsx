@@ -280,32 +280,71 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
         return (
             <div key={index} className="slide-in-left">
                 {comment.overSummary && (
-                    <div className="my-3 p-4 rounded-2xl bg-gradient-to-r from-primary/8 via-primary/4 to-primary/8 dark:from-primary/10 dark:via-primary/5 dark:to-primary/10 border border-primary/15">
-                        <div className="flex items-center gap-3 md:gap-4">
-                            {/* Over Number */}
-                            <div className="flex-shrink-0 flex flex-col items-center bg-primary/15 dark:bg-primary/20 rounded-xl px-3 py-2 min-w-[48px]">
-                                <span className="text-[10px] text-muted-foreground font-medium">Over</span>
-                                <span className="text-xl font-display text-primary">{Math.floor(comment.overNumber || 0)}</span>
-                            </div>
+                    <div className="my-3 p-2.5 md:p-4 rounded-2xl bg-gradient-to-r from-primary/8 via-primary/4 to-primary/8 dark:from-primary/10 dark:via-primary/5 dark:to-primary/10 border border-primary/15">
+                        {(() => {
+                            const summaryStr = comment.overSummary || '';
+                            const runsMatch = summaryStr.match(/\((\d+)\s*runs?\)/i);
+                            const overRuns = runsMatch ? parseInt(runsMatch[1], 10) : comment.overRuns;
+                            const ballsStr = summaryStr.replace(/\(\d+\s*runs?\)/i, '').trim();
 
-                            {/* Balls */}
-                            <div className="flex-1 flex items-center justify-between gap-3 flex-wrap">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                    {(() => {
-                                        const summaryStr = comment.overSummary || '';
-                                        const runsMatch = summaryStr.match(/\((\d+)\s*runs?\)/i);
-                                        const overRuns = runsMatch ? parseInt(runsMatch[1], 10) : comment.overRuns;
-                                        const ballsStr = summaryStr.replace(/\(\d+\s*runs?\)/i, '').trim();
-
-                                        return (
-                                            <>
+                            return (
+                                <>
+                                    {/* Mobile layout */}
+                                    <div className="flex md:hidden items-start gap-2.5 py-1">
+                                        <div className="flex-shrink-0 flex flex-col items-center bg-primary/15 dark:bg-primary/20 rounded-xl px-2.5 py-2 min-w-[44px]">
+                                            <span className="text-[9px] text-muted-foreground font-medium">Over</span>
+                                            <span className="text-xl font-display text-primary">{Math.floor(comment.overNumber || 0)}</span>
+                                        </div>
+                                        <div className="flex-1 min-w-0 flex flex-col gap-2">
+                                            <div className="flex items-center gap-1 flex-wrap">
                                                 {ballsStr.split(/\s+/).map((ball, idx) => {
                                                     const ballStr = ball.trim();
                                                     if (!ballStr || ballStr.includes('(') || ballStr.includes(')') || ballStr.toLowerCase() === 'runs' || ballStr.toLowerCase() === 'run') return null;
-                                                    // Skip wides - not a legal delivery
                                                     if (ballStr.toLowerCase().includes('wd') || ballStr.toLowerCase().includes('wide')) return null;
 
-                                                    let ballClass = "w-7 h-7 md:w-8 md:h-8 rounded-lg font-bold text-xs flex items-center justify-center";
+                                                    let ballClass = "w-6 h-6 rounded-full font-bold text-[10px] flex items-center justify-center";
+                                                    let ballContent = ballStr;
+
+                                                    if (ballStr === '6') ballClass += " bg-purple-600 text-white";
+                                                    else if (ballStr === '4') ballClass += " bg-blue-600 text-white";
+                                                    else if (ballStr === 'W' || ballStr.includes('W')) ballClass += " bg-red-600 text-white";
+                                                    else if (ballStr.toLowerCase().startsWith('n') && ballStr.length <= 3) ballClass += " bg-orange-500 text-white text-[8px]";
+                                                    else if (ballStr.toLowerCase().includes('nb') || ballStr.toLowerCase().includes('noball')) { ballClass += " bg-orange-500 text-white text-[8px]"; ballContent = 'Nb'; }
+                                                    else if (ballStr.toLowerCase().includes('lb') || ballStr.toLowerCase().includes('legbye')) { ballClass += " bg-zinc-500 text-white text-[8px]"; ballContent = 'Lb'; }
+                                                    else if (ballStr.toLowerCase().includes('b') && ballStr.length <= 2) { ballClass += " bg-zinc-500 text-white text-[8px]"; ballContent = 'B'; }
+                                                    else if (ballStr === '0' || ballStr === '.') { ballClass += " bg-zinc-300 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400"; ballContent = '\u2022'; }
+                                                    else if (/^\d+$/.test(ballStr)) ballClass += " bg-green-600 text-white";
+                                                    else ballClass += " bg-zinc-200 dark:bg-zinc-800 text-zinc-500 text-[8px]";
+
+                                                    return <span key={idx} className={ballClass}>{ballContent}</span>;
+                                                })}
+                                                {overRuns !== undefined && (
+                                                    <span className="ml-0.5 font-bold text-[11px] text-primary">
+                                                        ({overRuns} {overRuns === 1 ? 'run' : 'runs'})
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-1.5 self-start bg-zinc-100/80 dark:bg-zinc-900/80 px-2.5 py-1 rounded-full border border-zinc-200/50 dark:border-zinc-800/50">
+                                                <span className="font-bold text-xs text-primary">{comment.teamShortName}</span>
+                                                <span className="font-display text-sm font-bold text-foreground">{comment.teamScore}-{comment.teamWickets}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Desktop layout */}
+                                    <div className="hidden md:flex items-center gap-4">
+                                        <div className="flex-shrink-0 flex flex-col items-center bg-primary/15 dark:bg-primary/20 rounded-xl px-3 py-2 min-w-[48px]">
+                                            <span className="text-[10px] text-muted-foreground font-medium">Over</span>
+                                            <span className="text-xl font-display text-primary">{Math.floor(comment.overNumber || 0)}</span>
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                {ballsStr.split(/\s+/).map((ball, idx) => {
+                                                    const ballStr = ball.trim();
+                                                    if (!ballStr || ballStr.includes('(') || ballStr.includes(')') || ballStr.toLowerCase() === 'runs' || ballStr.toLowerCase() === 'run') return null;
+                                                    if (ballStr.toLowerCase().includes('wd') || ballStr.toLowerCase().includes('wide')) return null;
+
+                                                    let ballClass = "w-8 h-8 rounded-lg font-bold text-xs flex items-center justify-center";
                                                     let ballContent = ballStr;
 
                                                     if (ballStr === '6') ballClass += " bg-purple-600 text-white";
@@ -323,19 +362,19 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                 })}
                                                 {overRuns !== undefined && (
                                                     <span className="ml-1 font-bold text-sm text-primary">
-                                                        ({overRuns})
+                                                        ({overRuns} {overRuns === 1 ? 'run' : 'runs'})
                                                     </span>
                                                 )}
-                                            </>
-                                        );
-                                    })()}
-                                </div>
-                                <div className="flex items-center gap-2 bg-zinc-100/80 dark:bg-zinc-900/80 px-3 py-1.5 rounded-full border border-zinc-200/50 dark:border-zinc-800/50">
-                                    <span className="font-bold text-xs text-primary">{comment.teamShortName}</span>
-                                    <span className="font-display text-base text-foreground">{comment.teamScore}-{comment.teamWickets}</span>
-                                </div>
-                            </div>
-                        </div>
+                                                <div className="flex items-center gap-1.5 ml-auto bg-zinc-100/80 dark:bg-zinc-900/80 px-3 py-1.5 rounded-full border border-zinc-200/50 dark:border-zinc-800/50">
+                                                    <span className="font-bold text-xs text-primary">{comment.teamShortName}</span>
+                                                    <span className="font-display text-base text-foreground">{comment.teamScore}-{comment.teamWickets}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </>
+                            );
+                        })()}
                     </div>
                 )}
                 <div className="flex gap-3 items-start py-2.5 px-1">
