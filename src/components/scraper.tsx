@@ -434,8 +434,8 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
     return (
         <div className="w-full mx-auto px-2 md:px-6 lg:px-8">
             {/* Header */}
-            <div className="flex flex-col gap-2 md:gap-4 mb-4 md:mb-6 py-3 md:py-4 gradient-border">
-                {/* Top row: back button + title + theme toggle */}
+            <div className="flex flex-col gap-2 mb-4 md:mb-6 py-3 md:py-4 gradient-border">
+                {/* Desktop: single row | Mobile: title row */}
                 <div className="flex items-start gap-2 md:gap-4">
                     <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8 md:h-9 md:w-9 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900 mt-0.5" onClick={() => router.back()}>
                         <ArrowLeft className="h-4 w-4" />
@@ -467,19 +467,42 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                             )}
                         </div>
                     </div>
+                    {/* Desktop: tabs + theme toggle inline with title */}
+                    <div className="hidden md:flex items-center gap-3 shrink-0">
+                        <div className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-900 p-1 rounded-xl">
+                            {(['live', 'scorecard', 'squads'] as View[]).map((v) => (
+                                <button
+                                    key={v}
+                                    onClick={() => setView(v)}
+                                    className={`
+                                        px-4 py-2 rounded-lg text-sm font-medium
+                                        transition-all duration-200 text-center
+                                        ${view === v
+                                            ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25'
+                                            : 'text-muted-foreground hover:text-foreground'
+                                        }
+                                    `}
+                                >
+                                    {v.charAt(0).toUpperCase() + v.slice(1)}
+                                </button>
+                            ))}
+                        </div>
+                        <ThemeToggle />
+                    </div>
+                    {/* Mobile: theme toggle */}
                     <div className="shrink-0 md:hidden">
                         <ThemeToggle />
                     </div>
                 </div>
-                {/* Tabs row */}
-                <div className="flex items-center justify-between md:justify-end gap-3">
-                    <div className="flex items-center gap-0.5 md:gap-1 bg-zinc-100 dark:bg-zinc-900 p-0.5 md:p-1 rounded-xl flex-1 md:flex-none">
+                {/* Mobile: tabs row */}
+                <div className="flex md:hidden items-center gap-3">
+                    <div className="flex items-center gap-0.5 bg-zinc-100 dark:bg-zinc-900 p-0.5 rounded-xl flex-1">
                         {(['live', 'scorecard', 'squads'] as View[]).map((v) => (
                             <button
                                 key={v}
                                 onClick={() => setView(v)}
                                 className={`
-                                    flex-1 md:flex-none px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium
+                                    flex-1 px-3 py-1.5 rounded-lg text-xs font-medium
                                     transition-all duration-200 text-center
                                     ${view === v
                                         ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25'
@@ -490,9 +513,6 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                 {v.charAt(0).toUpperCase() + v.slice(1)}
                             </button>
                         ))}
-                    </div>
-                    <div className="hidden md:block">
-                        <ThemeToggle />
                     </div>
                 </div>
             </div>
