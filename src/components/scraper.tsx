@@ -17,6 +17,7 @@ import PlayerProfileDisplay from './player-profile';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import MatchSquadsDisplay from './match-squads';
 import { ThemeToggle } from './theme-toggle';
+import WinProbability from './win-probability';
 
 export interface ScrapeState {
     success: boolean;
@@ -581,6 +582,17 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                 {/* Bottom accent line */}
                                 <div className="h-[2px] bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent" />
                             </div>
+                        )}
+
+                        {/* Win Probability */}
+                        {data?.requiredRunRate && data?.previousInnings?.length > 0 && (
+                            <WinProbability
+                                score={data.score}
+                                currentRunRate={data.currentRunRate}
+                                requiredRunRate={data.requiredRunRate}
+                                previousInnings={data.previousInnings}
+                                status={data.status}
+                            />
                         )}
 
                         {/* Main Layout: Scorecard Left + Commentary Right */}
