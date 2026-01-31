@@ -55,14 +55,14 @@ function HomeContent() {
             <header className="sticky top-0 z-50 w-full gradient-border">
                 <div className="bg-background/90 backdrop-blur-xl">
                     <div className="max-w-7xl mx-auto px-4 md:px-6">
-                        <div className="flex items-center justify-between h-16">
-                            {/* Logo */}
+                        {/* Top row: Logo + Actions */}
+                        <div className="flex items-center justify-between h-14 md:h-16">
                             <h1 className="text-2xl md:text-3xl font-display tracking-tight">
                                 <span className="text-primary">Inningz</span>
                             </h1>
 
-                            {/* Navigation Tabs */}
-                            <nav className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-900 p-1 rounded-xl">
+                            {/* Desktop: inline nav tabs */}
+                            <nav className="hidden md:flex items-center gap-1 bg-zinc-100 dark:bg-zinc-900 p-1 rounded-xl">
                                 {tabs.map((tab) => {
                                     const Icon = tab.icon;
                                     const isActive = view === tab.value;
@@ -71,7 +71,7 @@ function HomeContent() {
                                             key={tab.value}
                                             onClick={() => switchView(tab.value)}
                                             className={`
-                                                flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-lg text-sm font-medium
+                                                flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium
                                                 transition-all duration-200 ease-out
                                                 ${isActive
                                                     ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25'
@@ -80,7 +80,7 @@ function HomeContent() {
                                             `}
                                         >
                                             <Icon className={`w-4 h-4 ${isActive && tab.value === 'live' ? 'animate-pulse' : ''}`} />
-                                            <span className="hidden sm:inline">{tab.label}</span>
+                                            <span>{tab.label}</span>
                                         </button>
                                     );
                                 })}
@@ -98,6 +98,31 @@ function HomeContent() {
                                 <ThemeToggle />
                             </div>
                         </div>
+
+                        {/* Mobile: nav tabs as full-width row below logo */}
+                        <nav className="md:hidden flex items-center gap-1 pb-2.5">
+                            {tabs.map((tab) => {
+                                const Icon = tab.icon;
+                                const isActive = view === tab.value;
+                                return (
+                                    <button
+                                        key={tab.value}
+                                        onClick={() => switchView(tab.value)}
+                                        className={`
+                                            flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium
+                                            transition-all duration-200 ease-out
+                                            ${isActive
+                                                ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25'
+                                                : 'text-muted-foreground hover:text-foreground bg-zinc-100 dark:bg-zinc-900'
+                                            }
+                                        `}
+                                    >
+                                        <Icon className={`w-3.5 h-3.5 ${isActive && tab.value === 'live' ? 'animate-pulse' : ''}`} />
+                                        <span>{tab.label}</span>
+                                    </button>
+                                );
+                            })}
+                        </nav>
                     </div>
                 </div>
             </header>

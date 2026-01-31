@@ -117,44 +117,42 @@ export default function RankingsPage() {
         <h2 className="text-2xl md:text-4xl font-display tracking-tight mb-1">ICC Rankings</h2>
         <p className="text-sm text-muted-foreground mb-5">Current ICC player rankings</p>
 
-        {/* Format Tabs */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
-          <nav className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-900 p-1 rounded-xl w-fit">
-            {formats.map((f) => (
-              <button
-                key={f.value}
-                onClick={() => setFormat(f.value)}
-                className={`
-                  px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
-                  ${format === f.value
-                    ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'
-                  }
-                `}
-              >
-                {f.label}
-              </button>
-            ))}
-          </nav>
+        {/* Format Tabs (pill style) */}
+        <nav className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-900 p-1 rounded-xl w-fit mb-4">
+          {formats.map((f) => (
+            <button
+              key={f.value}
+              onClick={() => setFormat(f.value)}
+              className={`
+                px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
+                ${format === f.value
+                  ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'
+                }
+              `}
+            >
+              {f.label}
+            </button>
+          ))}
+        </nav>
 
-          {/* Category Tabs */}
-          <nav className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-900 p-1 rounded-xl w-fit">
-            {categories.map((c) => (
-              <button
-                key={c.value}
-                onClick={() => setCategory(c.value)}
-                className={`
-                  px-3 md:px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
-                  ${category === c.value
-                    ? 'bg-zinc-800 dark:bg-zinc-200 text-zinc-100 dark:text-zinc-900 shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'
-                  }
-                `}
-              >
-                {c.label}
-              </button>
-            ))}
-          </nav>
+        {/* Category Tabs (underline style, like series page) */}
+        <div className="flex gap-1 border-b border-zinc-200 dark:border-zinc-800 -mb-px">
+          {categories.map((c) => (
+            <button
+              key={c.value}
+              onClick={() => setCategory(c.value)}
+              className={`
+                px-4 py-2.5 text-sm font-medium transition-colors border-b-2
+                ${category === c.value
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+                }
+              `}
+            >
+              {c.label}
+            </button>
+          ))}
         </div>
       </div>
 
