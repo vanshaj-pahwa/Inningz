@@ -512,8 +512,8 @@ export async function getPlayerProfile(profileId: string, playerName?: string): 
   // Try to extract JSON data from Next.js page
   try {
     // Try multiple patterns to find the player data
-    let scriptMatch = html.match(/self\.__next_f\.push\(\[1,"([^"]+)"\]\)/g);
-    
+    let scriptMatch = html.match(/self\.__next_f\.push\(\[1,"((?:[^"\\]|\\.)*)"\]\)/g);
+
     if (!scriptMatch) {
       // Try alternative pattern
       scriptMatch = html.match(/17:\["[^"]*",\s*"div"[^]+?playerBattingStats[^]+?playerBowlingStats[^]+?\]\)/);
@@ -522,7 +522,7 @@ export async function getPlayerProfile(profileId: string, playerName?: string): 
     if (scriptMatch) {
       // Combine all script matches and look for player data
       const combinedScript = Array.isArray(scriptMatch) ? scriptMatch.join('') : scriptMatch[0];
-      
+
       // Extract the JSON string from within the script
       const jsonStrMatch = combinedScript.match(/\{\\?"playerData\\?":\{[^]+?playerBowlingStats\\?":\{[^]+?\}\}/);
 
@@ -571,12 +571,12 @@ export async function getPlayerProfile(profileId: string, playerName?: string): 
             t20Best: playerData.rankings?.bowl?.t20BestRank || '--',
           },
           allRounder: {
-            test: playerData.rankings?.allRounder?.testRank || '--',
-            testBest: playerData.rankings?.allRounder?.testBestRank || '--',
-            odi: playerData.rankings?.allRounder?.odiRank || '--',
-            odiBest: playerData.rankings?.allRounder?.odiBestRank || '--',
-            t20: playerData.rankings?.allRounder?.t20Rank || '--',
-            t20Best: playerData.rankings?.allRounder?.t20BestRank || '--',
+            test: playerData.rankings?.all?.testRank || '--',
+            testBest: playerData.rankings?.all?.testBestRank || '--',
+            odi: playerData.rankings?.all?.odiRank || '--',
+            odiBest: playerData.rankings?.all?.odiBestRank || '--',
+            t20: playerData.rankings?.all?.t20Rank || '--',
+            t20Best: playerData.rankings?.all?.t20BestRank || '--',
           },
         };
 
@@ -767,89 +767,89 @@ export async function getPlayerProfile(profileId: string, playerName?: string): 
     teams = $('.w-full.tb\\:flex-col.hidden.tb\\:flex .tb\\:font-bold').text().trim() || '--';
   }
 
-  // Extract ICC Rankings from the new table structure
-  const getRankings = (type: 'Batting' | 'Bowling' | 'All-Rounder'): z.infer<typeof PlayerRankingSchema> => {
-    const rankings = { 
-      test: '--', 
-      testBest: '--',
-      odi: '--', 
-      odiBest: '--',
-      t20: '--',
-      t20Best: '--'
-    };
-    
-    // The issue is that Cricbuzz shows the same table for all tabs in static HTML
-    // The table content changes dynamically via JavaScript when tabs are clicked
-    // So we can only reliably get the batting rankings (default tab)
-    
-    // Only extract for batting, return empty for others
-    if (type !== 'Batting') {
-      return rankings;
+  // Extract ICC Rankings from embedded Next.js JSON data
+  // Rankings are in the self.__next_f.push scripts under playerData.rankings
+  const emptyRanking = (): z.infer<typeof PlayerRankingSchema> => ({
+    test: '--', testBest: '--', odi: '--', odiBest: '--', t20: '--', t20Best: '--'
+  });
+  let battingRankings = emptyRanking();
+  let bowlingRankings = emptyRanking();
+  let allRounderRankings = emptyRanking();
+
+  try {
+    // Extract inner content from self.__next_f.push calls and unescape
+    const innerParts: string[] = [];
+    for (const m of html.matchAll(/self\.__next_f\.push\(\[1,"((?:[^"\\]|\\.)*)"\]\)/g)) {
+      innerParts.push(m[1]);
     }
-    
-    // Find the rankings table
+    const unescaped = innerParts.join('')
+      .replace(/\\"/g, '"')
+      .replace(/\\\\/g, '\\');
+
+    // Find the rankings JSON object inside playerData
+    const rankingsKey = '"rankings":{"bat"';
+    const rIdx = unescaped.indexOf(rankingsKey);
+    if (rIdx >= 0) {
+      const objStart = rIdx + '"rankings":'.length;
+      // Balance braces to extract the full rankings object
+      let depth = 0, end = 0;
+      for (let i = objStart; i < unescaped.length; i++) {
+        if (unescaped[i] === '{') depth++;
+        else if (unescaped[i] === '}') depth--;
+        if (depth === 0 && i > objStart) { end = i + 1; break; }
+      }
+      const rankingsData = JSON.parse(unescaped.substring(objStart, end));
+
+      battingRankings = {
+        test: rankingsData.bat?.testRank || '--',
+        testBest: rankingsData.bat?.testBestRank || '--',
+        odi: rankingsData.bat?.odiRank || '--',
+        odiBest: rankingsData.bat?.odiBestRank || '--',
+        t20: rankingsData.bat?.t20Rank || '--',
+        t20Best: rankingsData.bat?.t20BestRank || '--',
+      };
+      bowlingRankings = {
+        test: rankingsData.bowl?.testRank || '--',
+        testBest: rankingsData.bowl?.testBestRank || '--',
+        odi: rankingsData.bowl?.odiRank || '--',
+        odiBest: rankingsData.bowl?.odiBestRank || '--',
+        t20: rankingsData.bowl?.t20Rank || '--',
+        t20Best: rankingsData.bowl?.t20BestRank || '--',
+      };
+      allRounderRankings = {
+        test: rankingsData.all?.testRank || '--',
+        testBest: rankingsData.all?.testBestRank || '--',
+        odi: rankingsData.all?.odiRank || '--',
+        odiBest: rankingsData.all?.odiBestRank || '--',
+        t20: rankingsData.all?.t20Rank || '--',
+        t20Best: rankingsData.all?.t20BestRank || '--',
+      };
+    }
+  } catch (rankErr) {
+    console.log('[Player Profile] Rankings extraction from JSON failed, trying HTML', rankErr);
+  }
+
+  // Fallback: try to get batting rankings from HTML table if JSON extraction missed them
+  if (battingRankings.test === '--' && battingRankings.odi === '--' && battingRankings.t20 === '--') {
     $('table').each((_, table) => {
       const $table = $(table);
       const headers = $table.find('thead th').map((_, th) => $(th).text().trim().toUpperCase()).get();
-      
-      // Check if this is a rankings table
       if (headers.includes('FORMAT') && headers.includes('CURRENT RANK') && headers.includes('BEST RANK')) {
         $table.find('tbody tr').each((_, row) => {
-          const $row = $(row);
-          const cells = $row.find('td');
+          const cells = $(row).find('td');
           if (cells.length >= 3) {
             const format = cells.eq(0).text().trim().toLowerCase();
             const currentRank = cells.eq(1).find('span').first().text().trim() || cells.eq(1).text().trim();
             const bestRank = cells.eq(2).text().trim();
-            
-            if (format === 'test') {
-              rankings.test = currentRank || '--';
-              rankings.testBest = bestRank || '--';
-            } else if (format === 'odi') {
-              rankings.odi = currentRank || '--';
-              rankings.odiBest = bestRank || '--';
-            } else if (format === 't20i') {
-              rankings.t20 = currentRank || '--';
-              rankings.t20Best = bestRank || '--';
-            }
+            if (format === 'test') { battingRankings.test = currentRank || '--'; battingRankings.testBest = bestRank || '--'; }
+            else if (format === 'odi') { battingRankings.odi = currentRank || '--'; battingRankings.odiBest = bestRank || '--'; }
+            else if (format === 't20i') { battingRankings.t20 = currentRank || '--'; battingRankings.t20Best = bestRank || '--'; }
           }
         });
-        return false; // break
+        return false;
       }
     });
-    
-    // Fallback: Try old structure - look for the active tab and table
-      const isActiveTab = type === 'Batting' 
-        ? $('button:contains("Batting")').hasClass('bg-white') || $('button:contains("Batting")').hasClass('m-1')
-        : $('button:contains("Bowling")').hasClass('bg-white');
-      
-      if (isActiveTab || type === 'Batting') {
-        $('table tbody tr').each((_, row) => {
-          const $row = $(row);
-          const format = $row.find('td').first().text().trim().toLowerCase();
-          const rank = $row.find('td').eq(1).find('span').first().text().trim();
-          
-          if (format === 'test') rankings.test = rank || '--';
-          else if (format === 'odi') rankings.odi = rank || '--';
-          else if (format === 't20i') rankings.t20 = rank || '--';
-        });
-      }
-
-    // Fallback to oldest structure
-    if (rankings.test === '--' && rankings.odi === '--' && rankings.t20 === '--') {
-      const rankLabelDiv = $(`div.cb-col.cb-col-25.cb-plyr-rank.text-bold:contains("${type}")`);
-      rankings.test = rankLabelDiv.next().text().trim() || '--';
-      rankings.odi = rankLabelDiv.next().next().text().trim() || '--';
-      rankings.t20 = rankLabelDiv.next().next().next().text().trim() || '--';
-    }
-    
-    return rankings;
-  };
-
-  // Extract all three ranking types from HTML
-  const battingRankings = getRankings('Batting');
-  const bowlingRankings = getRankings('Bowling');
-  const allRounderRankings = getRankings('All-Rounder');
+  }
 
   // Get bio from the Overview section - try multiple selectors
   let bio = '';
