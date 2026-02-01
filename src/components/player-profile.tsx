@@ -511,6 +511,8 @@ function HeaderRankings({ rankings }: { rankings?: PlayerProfile['rankings'] }) 
 
     if (badges.length === 0) return null;
 
+    badges.sort((a, b) => Number(a.rank) - Number(b.rank));
+
     return (
         <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
             {badges.map((b) => (
