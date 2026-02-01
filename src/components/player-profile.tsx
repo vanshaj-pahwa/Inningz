@@ -18,8 +18,8 @@ export default function PlayerProfileDisplay({ profile }: { profile: PlayerProfi
             {/* Header Section */}
             <div className="relative bg-gradient-to-r from-green-900 to-zinc-950 overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent"></div>
-                <div className="relative max-w-7xl mx-auto px-6 py-8 md:px-12">
-                    <div className="flex items-center gap-6">
+                <div className="relative max-w-7xl mx-auto px-4 py-6 md:px-12 md:py-8">
+                    <div className="flex items-center gap-4 md:gap-6">
                         {info.imageUrl && (
                             <div className="shrink-0">
                                 <Image
@@ -27,18 +27,18 @@ export default function PlayerProfileDisplay({ profile }: { profile: PlayerProfi
                                     alt={info.name}
                                     width={100}
                                     height={100}
-                                    className="rounded-full border-4 border-white shadow-lg bg-white"
+                                    className="w-[72px] h-[72px] md:w-[100px] md:h-[100px] rounded-full border-[3px] md:border-4 border-white/90 shadow-lg bg-white"
                                 />
                             </div>
                         )}
                         <div className="flex-1 min-w-0">
-                            <h1 className="text-2xl md:text-3xl font-display text-white mb-1.5 tracking-tight">{info.name}</h1>
-                            <div className="flex items-center gap-2.5 text-white/95">
-                                <span className="text-base font-medium">{info.country}</span>
+                            <h1 className="text-xl md:text-3xl font-display text-white mb-0.5 md:mb-1.5 tracking-tight truncate">{info.name}</h1>
+                            <div className="flex items-center gap-1.5 md:gap-2.5 text-white/90">
+                                <span className="text-sm md:text-base font-medium">{info.country}</span>
                                 {info.personal.role && info.personal.role !== '--' && (
                                     <>
-                                        <span className="text-white/50">•</span>
-                                        <span className="text-base">{info.personal.role}</span>
+                                        <span className="text-white/40">•</span>
+                                        <span className="text-sm md:text-base text-white/75">{info.personal.role}</span>
                                     </>
                                 )}
                             </div>
@@ -514,9 +514,9 @@ function HeaderRankings({ rankings }: { rankings?: PlayerProfile['rankings'] }) 
     badges.sort((a, b) => Number(a.rank) - Number(b.rank));
 
     return (
-        <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
+        <div className="flex flex-wrap items-center gap-1 md:gap-1.5 mt-2 md:mt-2.5">
             {badges.map((b) => (
-                <span key={b.label} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/10 text-white/90 text-xs">
+                <span key={b.label} className="inline-flex items-center gap-0.5 md:gap-1 px-1.5 md:px-2 py-0.5 rounded-full bg-white/10 text-white/90 text-[10px] md:text-xs">
                     <span className="text-white/50">{b.label}</span>
                     <span className="font-bold">{b.rank}</span>
                 </span>
