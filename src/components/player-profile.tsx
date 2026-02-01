@@ -2,6 +2,7 @@
 
 import type { PlayerProfile } from '@/app/actions';
 import Image from 'next/image';
+import { useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 
 
@@ -41,6 +42,7 @@ export default function PlayerProfileDisplay({ profile }: { profile: PlayerProfi
                                     </>
                                 )}
                             </div>
+                            <HeaderRankings rankings={profile.rankings} />
                         </div>
                     </div>
                 </div>
@@ -91,6 +93,11 @@ export default function PlayerProfileDisplay({ profile }: { profile: PlayerProfi
                                 </div>
                             </div>
 
+                            {/* ICC Rankings Card */}
+                            <ICCRankingsCard rankings={profile.rankings} />
+
+                            {/* Recent Form */}
+                            <RecentFormCard recentForm={profile.recentForm} />
 
                             {/* Teams Card */}
                             {info.teams && info.teams !== '--' && (
@@ -109,156 +116,22 @@ export default function PlayerProfileDisplay({ profile }: { profile: PlayerProfi
 
                         {/* Right Content */}
                         <div className="lg:col-span-8 space-y-6">
-                            {/* Recent Form */}
-                            {profile.recentForm && (profile.recentForm.batting.length > 0 || profile.recentForm.bowling.length > 0) && (
-                                <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-200/50 dark:border-zinc-800/50 overflow-hidden">
-                                    <div className="px-6 py-4 border-b border-zinc-200/50 dark:border-zinc-800/50 bg-zinc-50 dark:bg-zinc-900/50">
-                                        <h3 className="text-sm font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
-                                            Recent Form
-                                        </h3>
-                                    </div>
-                                    <div className="p-6">
-                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                            {/* Batting Form */}
-                                            {profile.recentForm.batting.length > 0 && (
-                                                <div>
-                                                    <h4 className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 mb-3">Batting Form</h4>
-                                                    <div className="border border-zinc-200/50 dark:border-zinc-800/50 rounded-lg overflow-hidden">
-                                                        <div className="bg-zinc-50 dark:bg-zinc-900/50 px-3 py-2 grid grid-cols-[1.2fr_0.8fr_0.8fr_1fr] gap-2 text-xs font-semibold uppercase text-muted-foreground">
-                                                            <div>Score</div>
-                                                            <div className="text-right">OPPN.</div>
-                                                            <div className="text-right">Format</div>
-                                                            <div className="text-right">Date</div>
-                                                        </div>
-                                                        <div className="divide-y divide-zinc-200/30 dark:divide-zinc-800/30">
-                                                            {profile.recentForm.batting.slice(0, 5).map((match, idx) => (
-                                                                <div key={idx} className="px-3 py-2.5 grid grid-cols-[1.2fr_0.8fr_0.8fr_1fr] gap-2 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
-                                                                    <div className="font-bold text-foreground">{match.score}</div>
-                                                                    <div className="text-right font-medium text-foreground">{match.opponent}</div>
-                                                                    <div className="text-right text-muted-foreground">{match.format}</div>
-                                                                    <div className="text-right text-muted-foreground">{match.date}</div>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* Bowling Form */}
-                                            {profile.recentForm.bowling.length > 0 && (
-                                                <div>
-                                                    <h4 className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 mb-3">Bowling Form</h4>
-                                                    <div className="border border-zinc-200/50 dark:border-zinc-800/50 rounded-lg overflow-hidden">
-                                                        <div className="bg-zinc-50 dark:bg-zinc-900/50 px-3 py-2 grid grid-cols-[1.2fr_0.8fr_0.8fr_1fr] gap-2 text-xs font-semibold uppercase text-muted-foreground">
-                                                            <div>Wickets</div>
-                                                            <div className="text-right">OPPN.</div>
-                                                            <div className="text-right">Format</div>
-                                                            <div className="text-right">Date</div>
-                                                        </div>
-                                                        <div className="divide-y divide-zinc-200/30 dark:divide-zinc-800/30">
-                                                            {profile.recentForm.bowling.slice(0, 5).map((match, idx) => (
-                                                                <div key={idx} className="px-3 py-2.5 grid grid-cols-[1.2fr_0.8fr_0.8fr_1fr] gap-2 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
-                                                                    <div className="font-bold text-foreground">{match.wickets}</div>
-                                                                    <div className="text-right font-medium text-foreground">{match.opponent}</div>
-                                                                    <div className="text-right text-muted-foreground">{match.format}</div>
-                                                                    <div className="text-right text-muted-foreground">{match.date}</div>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Career Statistics - Side by Side */}
-                            {(profile.battingCareerSummary && profile.battingCareerSummary.length > 0) || (profile.bowlingCareerSummary && profile.bowlingCareerSummary.length > 0) ? (
-                                <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-200/50 dark:border-zinc-800/50 overflow-hidden">
-                                    <div className="px-6 py-4 border-b border-zinc-200/50 dark:border-zinc-800/50 bg-zinc-50 dark:bg-zinc-900/50">
-                                        <h3 className="text-sm font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
-                                            Career Summary
-                                        </h3>
-                                    </div>
-                                    <div className="p-6">
-                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                            {/* Batting Career Summary */}
-                                            {profile.battingCareerSummary && profile.battingCareerSummary.length > 0 && (
-                                                <div>
-                                                    <h4 className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 mb-3">Batting Career Summary</h4>
-                                                    <div className="border border-zinc-200/50 dark:border-zinc-800/50 rounded-lg overflow-hidden">
-                                                        <table className="w-full text-xs">
-                                                            <thead>
-                                                                <tr className="bg-zinc-50 dark:bg-zinc-900/50">
-                                                                    <th className="px-3 py-2 text-left font-bold text-zinc-600 dark:text-zinc-400"></th>
-                                                                    <th className="px-3 py-2 text-right font-bold text-zinc-600 dark:text-zinc-400">Test</th>
-                                                                    <th className="px-3 py-2 text-right font-bold text-zinc-600 dark:text-zinc-400">ODI</th>
-                                                                    <th className="px-3 py-2 text-right font-bold text-zinc-600 dark:text-zinc-400">T20</th>
-                                                                    <th className="px-3 py-2 text-right font-bold text-zinc-600 dark:text-zinc-400">IPL</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody className="divide-y divide-zinc-200/30 dark:divide-zinc-800/30">
-                                                                {profile.battingCareerSummary.map((row, idx) => (
-                                                                    <tr key={idx} className={idx % 2 === 0 ? 'bg-white dark:bg-zinc-900' : 'bg-zinc-50/50 dark:bg-zinc-900/30'}>
-                                                                        <td className="px-3 py-2 font-bold text-foreground">{row.stat}</td>
-                                                                        <td className="px-3 py-2 text-right text-zinc-600 dark:text-zinc-400">{row.values.test}</td>
-                                                                        <td className="px-3 py-2 text-right text-zinc-600 dark:text-zinc-400">{row.values.odi}</td>
-                                                                        <td className="px-3 py-2 text-right text-zinc-600 dark:text-zinc-400">{row.values.t20}</td>
-                                                                        <td className="px-3 py-2 text-right text-zinc-600 dark:text-zinc-400">{row.values.ipl}</td>
-                                                                    </tr>
-                                                                ))}
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* Bowling Career Summary */}
-                                            {profile.bowlingCareerSummary && profile.bowlingCareerSummary.length > 0 && (
-                                                <div>
-                                                    <h4 className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 mb-3">Bowling Career Summary</h4>
-                                                    <div className="border border-zinc-200/50 dark:border-zinc-800/50 rounded-lg overflow-hidden">
-                                                        <table className="w-full text-xs">
-                                                            <thead>
-                                                                <tr className="bg-zinc-50 dark:bg-zinc-900/50">
-                                                                    <th className="px-3 py-2 text-left font-bold text-zinc-600 dark:text-zinc-400"></th>
-                                                                    <th className="px-3 py-2 text-right font-bold text-zinc-600 dark:text-zinc-400">Test</th>
-                                                                    <th className="px-3 py-2 text-right font-bold text-zinc-600 dark:text-zinc-400">ODI</th>
-                                                                    <th className="px-3 py-2 text-right font-bold text-zinc-600 dark:text-zinc-400">T20</th>
-                                                                    <th className="px-3 py-2 text-right font-bold text-zinc-600 dark:text-zinc-400">IPL</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody className="divide-y divide-zinc-200/30 dark:divide-zinc-800/30">
-                                                                {profile.bowlingCareerSummary.map((row, idx) => (
-                                                                    <tr key={idx} className={idx % 2 === 0 ? 'bg-white dark:bg-zinc-900' : 'bg-zinc-50/50 dark:bg-zinc-900/30'}>
-                                                                        <td className="px-3 py-2 font-bold text-foreground">{row.stat}</td>
-                                                                        <td className="px-3 py-2 text-right text-zinc-600 dark:text-zinc-400">{row.values.test}</td>
-                                                                        <td className="px-3 py-2 text-right text-zinc-600 dark:text-zinc-400">{row.values.odi}</td>
-                                                                        <td className="px-3 py-2 text-right text-zinc-600 dark:text-zinc-400">{row.values.t20}</td>
-                                                                        <td className="px-3 py-2 text-right text-zinc-600 dark:text-zinc-400">{row.values.ipl}</td>
-                                                                    </tr>
-                                                                ))}
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            ) : null}
+                            {/* Career Summary */}
+                            <CareerSummaryCard
+                                battingCareerSummary={profile.battingCareerSummary}
+                                bowlingCareerSummary={profile.bowlingCareerSummary}
+                            />
 
                             {/* Profile/Bio */}
                             {bio && (
                                 <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-200/50 dark:border-zinc-800/50 overflow-hidden">
-                                    <div className="px-6 py-4 border-b border-zinc-200/50 dark:border-zinc-800/50 bg-zinc-50 dark:bg-zinc-900/50">
+                                    <div className="px-5 py-3.5 border-b border-zinc-200/50 dark:border-zinc-800/50 bg-zinc-50 dark:bg-zinc-900/50">
                                         <h3 className="text-sm font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
                                             Profile
                                         </h3>
                                     </div>
-                                    <div className="p-6">
-                                        <div 
+                                    <div className="p-5">
+                                        <div
                                             className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed prose prose-sm dark:prose-invert max-w-none"
                                             dangerouslySetInnerHTML={{ __html: bio }}
                                         />
@@ -409,6 +282,243 @@ export default function PlayerProfileDisplay({ profile }: { profile: PlayerProfi
                     </div>
                 </div>
             </div>
+        </div>
+    );
+}
+
+function ICCRankingsCard({ rankings }: { rankings?: PlayerProfile['rankings'] }) {
+    const [tab, setTab] = useState<'batting' | 'bowling' | 'allRounder'>('batting');
+
+    if (!rankings) return null;
+
+    const hasAnyRanking = ['batting', 'bowling', 'allRounder'].some((cat) => {
+        const r = rankings[cat as keyof typeof rankings];
+        return r && (r.test !== '--' || r.odi !== '--' || r.t20 !== '--');
+    });
+    if (!hasAnyRanking) return null;
+
+    const current = rankings[tab];
+    const tabs = [
+        { key: 'batting' as const, label: 'Bat' },
+        { key: 'bowling' as const, label: 'Bowl' },
+        { key: 'allRounder' as const, label: 'All-Round' },
+    ];
+
+    const rows = [
+        { format: 'Test', rank: current?.test ?? '--', best: current?.testBest ?? '--' },
+        { format: 'ODI', rank: current?.odi ?? '--', best: current?.odiBest ?? '--' },
+        { format: 'T20I', rank: current?.t20 ?? '--', best: current?.t20Best ?? '--' },
+    ];
+
+    return (
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-200/50 dark:border-zinc-800/50 overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-zinc-200/50 dark:border-zinc-800/50 bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-between">
+                <h3 className="text-sm font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
+                    ICC Rankings
+                </h3>
+                <div className="flex items-center bg-zinc-200/60 dark:bg-zinc-800 rounded-full p-0.5">
+                    {tabs.map((t) => (
+                        <button
+                            key={t.key}
+                            onClick={() => setTab(t.key)}
+                            className={`px-2.5 py-0.5 text-[11px] rounded-full transition-all ${
+                                tab === t.key
+                                    ? 'bg-green-600 text-white font-semibold shadow-sm'
+                                    : 'text-zinc-500 dark:text-zinc-400 hover:text-foreground'
+                            }`}
+                        >
+                            {t.label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+            <div className="p-4">
+                <div className="grid grid-cols-3 gap-3">
+                    {rows.map((row) => (
+                        <div key={row.format} className="text-center rounded-xl bg-zinc-50 dark:bg-zinc-800/50 py-3 px-2">
+                            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">{row.format}</div>
+                            <div className={`text-2xl font-bold tracking-tight ${row.rank !== '--' ? 'text-foreground' : 'text-zinc-300 dark:text-zinc-600'}`}>
+                                {row.rank !== '--' ? row.rank : '--'}
+                            </div>
+                            {row.best !== '--' && (
+                                <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium mt-1">
+                                    Best {row.best}
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function RecentFormCard({ recentForm }: { recentForm?: PlayerProfile['recentForm'] }) {
+    const hasBatting = recentForm && recentForm.batting.length > 0;
+    const hasBowling = recentForm && recentForm.bowling.length > 0;
+    if (!hasBatting && !hasBowling) return null;
+
+    const [tab, setTab] = useState<'batting' | 'bowling'>(hasBatting ? 'batting' : 'bowling');
+
+    const tabs = [
+        ...(hasBatting ? [{ key: 'batting' as const, label: 'Batting' }] : []),
+        ...(hasBowling ? [{ key: 'bowling' as const, label: 'Bowling' }] : []),
+    ];
+
+    const isBatting = tab === 'batting' && hasBatting;
+    const data = isBatting ? recentForm!.batting.slice(0, 5) : recentForm!.bowling.slice(0, 5);
+
+    return (
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-200/50 dark:border-zinc-800/50 overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-zinc-200/50 dark:border-zinc-800/50 bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-between">
+                <h3 className="text-sm font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
+                    Recent Form
+                </h3>
+                {tabs.length > 1 && (
+                    <div className="flex items-center bg-zinc-200/60 dark:bg-zinc-800 rounded-full p-0.5">
+                        {tabs.map((t) => (
+                            <button
+                                key={t.key}
+                                onClick={() => setTab(t.key)}
+                                className={`px-2.5 py-0.5 text-[11px] rounded-full transition-all ${
+                                    tab === t.key
+                                        ? 'bg-green-600 text-white font-semibold shadow-sm'
+                                        : 'text-zinc-500 dark:text-zinc-400 hover:text-foreground'
+                                }`}
+                            >
+                                {t.label}
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+            <div className="p-4">
+                <div className="grid grid-cols-[1.2fr_0.8fr_0.8fr_1fr] gap-2 px-3 pb-2 mb-1 border-b border-zinc-200/50 dark:border-zinc-800/50">
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{isBatting ? 'Score' : 'Figures'}</div>
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground text-right">Vs</div>
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground text-right">Format</div>
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground text-right">Date</div>
+                </div>
+                <div className="space-y-0.5">
+                    {data.map((match, idx) => (
+                        <div key={idx} className="grid grid-cols-[1.2fr_0.8fr_0.8fr_1fr] gap-2 px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
+                            <div className="text-sm font-bold text-foreground tabular-nums">
+                                {isBatting ? (match as any).score : (match as any).wickets}
+                            </div>
+                            <div className="text-xs text-right text-foreground self-center">{match.opponent}</div>
+                            <div className="text-xs text-right text-muted-foreground self-center">{match.format}</div>
+                            <div className="text-xs text-right text-muted-foreground self-center">{match.date}</div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function CareerSummaryCard({ battingCareerSummary, bowlingCareerSummary }: {
+    battingCareerSummary?: PlayerProfile['battingCareerSummary'];
+    bowlingCareerSummary?: PlayerProfile['bowlingCareerSummary'];
+}) {
+    const hasBatting = battingCareerSummary && battingCareerSummary.length > 0;
+    const hasBowling = bowlingCareerSummary && bowlingCareerSummary.length > 0;
+    if (!hasBatting && !hasBowling) return null;
+
+    const [tab, setTab] = useState<'batting' | 'bowling'>(hasBatting ? 'batting' : 'bowling');
+
+    const tabs = [
+        ...(hasBatting ? [{ key: 'batting' as const, label: 'Batting' }] : []),
+        ...(hasBowling ? [{ key: 'bowling' as const, label: 'Bowling' }] : []),
+    ];
+
+    const rows = tab === 'batting' && hasBatting ? battingCareerSummary! : bowlingCareerSummary!;
+
+    return (
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-200/50 dark:border-zinc-800/50 overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-zinc-200/50 dark:border-zinc-800/50 bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-between">
+                <h3 className="text-sm font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
+                    Career Summary
+                </h3>
+                {tabs.length > 1 && (
+                    <div className="flex items-center bg-zinc-200/60 dark:bg-zinc-800 rounded-full p-0.5">
+                        {tabs.map((t) => (
+                            <button
+                                key={t.key}
+                                onClick={() => setTab(t.key)}
+                                className={`px-2.5 py-0.5 text-[11px] rounded-full transition-all ${
+                                    tab === t.key
+                                        ? 'bg-green-600 text-white font-semibold shadow-sm'
+                                        : 'text-zinc-500 dark:text-zinc-400 hover:text-foreground'
+                                }`}
+                            >
+                                {t.label}
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+            <div className="p-4 overflow-x-auto">
+                <table className="w-full text-sm">
+                    <thead>
+                        <tr className="border-b border-zinc-200/50 dark:border-zinc-800/50">
+                            <th className="pb-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground"></th>
+                            <th className="pb-2 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Test</th>
+                            <th className="pb-2 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">ODI</th>
+                            <th className="pb-2 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">T20</th>
+                            <th className="pb-2 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">IPL</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows.map((row, idx) => (
+                            <tr key={idx} className="border-b last:border-b-0 border-zinc-200/20 dark:border-zinc-800/20">
+                                <td className="py-2 pr-3 font-semibold text-foreground whitespace-nowrap">{row.stat}</td>
+                                <td className="py-2 text-right text-zinc-500 dark:text-zinc-400 tabular-nums">{row.values.test}</td>
+                                <td className="py-2 text-right text-zinc-500 dark:text-zinc-400 tabular-nums">{row.values.odi}</td>
+                                <td className="py-2 text-right text-zinc-500 dark:text-zinc-400 tabular-nums">{row.values.t20}</td>
+                                <td className="py-2 text-right text-zinc-500 dark:text-zinc-400 tabular-nums">{row.values.ipl}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+}
+
+function HeaderRankings({ rankings }: { rankings?: PlayerProfile['rankings'] }) {
+    if (!rankings) return null;
+
+    const categories = [
+        { key: 'batting' as const, label: 'Bat', data: rankings.batting },
+        { key: 'bowling' as const, label: 'Bowl', data: rankings.bowling },
+        { key: 'allRounder' as const, label: 'AR', data: rankings.allRounder },
+    ];
+
+    const badges: { label: string; rank: string }[] = [];
+    for (const cat of categories) {
+        if (!cat.data) continue;
+        const formats = [
+            { fmt: 'Test', rank: cat.data.test },
+            { fmt: 'ODI', rank: cat.data.odi },
+            { fmt: 'T20I', rank: cat.data.t20 },
+        ];
+        for (const f of formats) {
+            if (f.rank !== '--') {
+                badges.push({ label: `${cat.label} ${f.fmt}`, rank: f.rank });
+            }
+        }
+    }
+
+    if (badges.length === 0) return null;
+
+    return (
+        <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
+            {badges.map((b) => (
+                <span key={b.label} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/10 text-white/90 text-xs">
+                    <span className="text-white/50">{b.label}</span>
+                    <span className="font-bold">{b.rank}</span>
+                </span>
+            ))}
         </div>
     );
 }
