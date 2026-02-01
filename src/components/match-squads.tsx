@@ -95,7 +95,7 @@ export default function MatchSquadsDisplay({ matchId }: { matchId: string }) {
         return (
             <div
                 key={player.name}
-                className={`flex gap-2 p-2 md:p-3 border-b border-cbBorderGrey items-center h-[70px] md:h-[80px] hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors cursor-pointer ${isRightSide ? 'justify-end text-right border-l-0' : 'border-r-2'}`}
+                className={`flex gap-2 p-2 md:p-3 border-b border-cbBorderGrey items-center h-[70px] md:h-[80px] hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors cursor-pointer ${isRightSide ? 'justify-end text-right border-l-0' : 'border-r-2'} ${player.isIn ? 'bg-emerald-100 dark:bg-emerald-900/40' : ''} ${player.isOut ? 'bg-red-100 dark:bg-red-900/40' : ''}`}
                 onClick={() => handleProfileClick(player.profileId, player.name)}
             >
                 {!isRightSide && (
@@ -119,10 +119,16 @@ export default function MatchSquadsDisplay({ matchId }: { matchId: string }) {
                 )}
                 <div className={`flex justify-between items-center w-full ${isRightSide ? 'flex-row-reverse' : ''}`}>
                     <div className={`flex flex-col gap-0.5 md:gap-1 ${isRightSide ? 'items-end' : ''}`}>
-                        <div className="flex flex-row items-center">
+                        <div className="flex flex-row items-center gap-0.5">
                             <span className="text-xs md:text-sm font-medium">{player.name}</span>
                             {captainWKText && (
-                                <span className="ml-1 text-xs md:text-sm">({captainWKText})</span>
+                                <span className="text-xs md:text-sm">({captainWKText})</span>
+                            )}
+                            {player.isIn && (
+                                <span className="text-emerald-500 text-[10px] leading-none" title="New in XI">&#9650;</span>
+                            )}
+                            {player.isOut && (
+                                <span className="text-red-500 text-[10px] leading-none" title="Out of XI">&#9660;</span>
                             )}
                         </div>
                         <div className="text-[10px] md:text-xs text-muted-foreground">{player.role}</div>

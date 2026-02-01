@@ -304,6 +304,8 @@ const SquadPlayerSchema = z.object({
   imageUrl: z.string().optional(),
   isCaptain: z.boolean().optional(),
   isWicketKeeper: z.boolean().optional(),
+  isIn: z.boolean().optional(),
+  isOut: z.boolean().optional(),
 });
 
 const TeamSquadSchema = z.object({
@@ -2819,120 +2821,79 @@ export async function getMatchSquads(matchId: string): Promise<MatchSquads> {
     const $section = $(sectionHeader).parent();
     const $squadGrid = $section.find('.w-full.flex');
     
-    // Left column (Team 1)
-    $squadGrid.find('.w-1\\/2').first().find('a').each((_, player) => {
-      const $player = $(player);
+    // Helper to parse a player anchor element
+    const parsePlayer = ($player: ReturnType<typeof $>) => {
       const href = $player.attr('href') || '';
       const profileId = href.match(/\/profiles\/(\d+)\//)?.[1];
-      
-      // Name is in the first span inside flex-row
-      const name = $player.find('.flex.flex-row span').first().text().trim();
-      
-      // Captain/WK is in the second span (if exists)
-      const captainWK = $player.find('.flex.flex-row span').eq(1).text().trim();
-      
-      // Role is in the div with text-cbTxtSec text-xs classes
+      const $nameSpans = $player.find('.flex.flex-row span');
+      const name = $nameSpans.filter((_, s) => $(s).text().trim().length > 1).first().text().trim();
+      const captainWK = $nameSpans.filter((_, s) => /\(/.test($(s).text())).first().text().trim();
       const role = $player.find('div.text-cbTxtSec.text-xs').text().trim();
-      
-      // Image URL from img tag
       const imageUrl = $player.find('img').attr('src') || $player.find('img').attr('srcset')?.split(' ')[0];
+      const isIn = $player.find('.cbPlayerIn').length > 0;
+      const isOut = $player.find('.cbPlayerOut').length > 0;
 
-      if (name) {
-        teams[0].playingXI.push({
-          name,
-          role: role || 'Player',
-          profileId,
-          imageUrl,
-          isCaptain: captainWK.includes('C'),
-          isWicketKeeper: captainWK.includes('WK'),
-        });
-      }
+      if (!name) return null;
+      return {
+        name,
+        role: role || 'Player',
+        profileId,
+        imageUrl,
+        isCaptain: captainWK.includes('C'),
+        isWicketKeeper: captainWK.includes('WK'),
+        ...(isIn ? { isIn: true } : {}),
+        ...(isOut ? { isOut: true } : {}),
+      };
+    };
+
+    // Left column (Team 1)
+    $squadGrid.find('.w-1\\/2').first().find('a').each((_, player) => {
+      const p = parsePlayer($(player));
+      if (p) teams[0].playingXI.push(p);
     });
 
     // Right column (Team 2)
     $squadGrid.find('.w-1\\/2').last().find('a').each((_, player) => {
-      const $player = $(player);
-      const href = $player.attr('href') || '';
-      const profileId = href.match(/\/profiles\/(\d+)\//)?.[1];
-      
-      // Name is in the first span inside flex-row
-      const name = $player.find('.flex.flex-row span').first().text().trim();
-      
-      // Captain/WK is in the second span (if exists)
-      const captainWK = $player.find('.flex.flex-row span').eq(1).text().trim();
-      
-      // Role is in the div with text-cbTxtSec text-xs classes
-      const role = $player.find('div.text-cbTxtSec.text-xs').text().trim();
-      
-      // Image URL from img tag
-      const imageUrl = $player.find('img').attr('src') || $player.find('img').attr('srcset')?.split(' ')[0];
-
-      if (name) {
-        teams[1].playingXI.push({
-          name,
-          role: role || 'Player',
-          profileId,
-          imageUrl,
-          isCaptain: captainWK.includes('C'),
-          isWicketKeeper: captainWK.includes('WK'),
-        });
-      }
+      const p = parsePlayer($(player));
+      if (p) teams[1].playingXI.push(p);
     });
   });
 
-  // Process Bench section
+  // Process Bench section (reuse parsePlayer from Playing XI scope — define a shared version)
+  const parseBenchPlayer = ($player: ReturnType<typeof $>) => {
+    const href = $player.attr('href') || '';
+    const profileId = href.match(/\/profiles\/(\d+)\//)?.[1];
+    const name = $player.find('.flex.flex-row span').filter((_, s) => $(s).text().trim().length > 1).first().text().trim();
+    const role = $player.find('div.text-cbTxtSec.text-xs').text().trim();
+    const imageUrl = $player.find('img').attr('src') || $player.find('img').attr('srcset')?.split(' ')[0];
+    const isIn = $player.find('.cbPlayerIn').length > 0;
+    const isOut = $player.find('.cbPlayerOut').length > 0;
+
+    if (!name) return null;
+    return {
+      name,
+      role: role || 'Player',
+      profileId,
+      imageUrl,
+      ...(isIn ? { isIn: true } : {}),
+      ...(isOut ? { isOut: true } : {}),
+    };
+  };
+
   $('h1:contains("bench"), h1:contains("Bench")').each((_, sectionHeader) => {
     const $section = $(sectionHeader).parent();
     const $squadGrid = $section.find('.w-full.flex');
-    
+
     // Left column (Team 1)
     $squadGrid.find('.w-1\\/2').first().find('a').each((_, player) => {
-      const $player = $(player);
-      const href = $player.attr('href') || '';
-      const profileId = href.match(/\/profiles\/(\d+)\//)?.[1];
-      
-      // Name is in the first span inside flex-row
-      const name = $player.find('.flex.flex-row span').first().text().trim();
-      
-      // Role is in the div with text-cbTxtSec text-xs classes
-      const role = $player.find('div.text-cbTxtSec.text-xs').text().trim();
-      
-      // Image URL from img tag
-      const imageUrl = $player.find('img').attr('src') || $player.find('img').attr('srcset')?.split(' ')[0];
-
-      if (name) {
-        teams[0].bench.push({
-          name,
-          role: role || 'Player',
-          profileId,
-          imageUrl,
-        });
-      }
+      const p = parseBenchPlayer($(player));
+      if (p) teams[0].bench.push(p);
     });
 
     // Right column (Team 2)
     $squadGrid.find('.w-1\\/2').last().find('a').each((_, player) => {
-      const $player = $(player);
-      const href = $player.attr('href') || '';
-      const profileId = href.match(/\/profiles\/(\d+)\//)?.[1];
-      
-      // Name is in the first span inside flex-row
-      const name = $player.find('.flex.flex-row span').first().text().trim();
-      
-      // Role is in the div with text-cbTxtSec text-xs classes
-      const role = $player.find('div.text-cbTxtSec.text-xs').text().trim();
-      
-      // Image URL from img tag
-      const imageUrl = $player.find('img').attr('src') || $player.find('img').attr('srcset')?.split(' ')[0];
-
-      if (name) {
-        teams[1].bench.push({
-          name,
-          role: role || 'Player',
-          profileId,
-          imageUrl,
-        });
-      }
+      const p = parseBenchPlayer($(player));
+      if (p) teams[1].bench.push(p);
     });
   });
 
@@ -2960,8 +2921,9 @@ export async function getMatchSquads(matchId: string): Promise<MatchSquads> {
           const href = $link.attr('href') || '';
           const profileId = href.match(/\/profiles\/(\d+)\//)?.[1];
           
-          const name = $link.find('.flex.flex-row span').first().text().trim();
-          const roleMarker = $link.find('.flex.flex-row span').eq(1).text().trim();
+          const $nameSpans = $link.find('.flex.flex-row span');
+          const name = $nameSpans.filter((_, s) => $(s).text().trim().length > 1).first().text().trim();
+          const roleMarker = $nameSpans.filter((_, s) => /\(/.test($(s).text())).first().text().trim();
           const role = $link.find('div.text-xs').text().trim() || 'Player';
           const imageUrl = $link.find('img').attr('src') || $link.find('img').attr('srcset')?.split(' ')[0];
           
@@ -2986,6 +2948,9 @@ export async function getMatchSquads(matchId: string): Promise<MatchSquads> {
               if ($parent.length === 0) break;
             }
             
+            const isIn = $link.find('.cbPlayerIn').length > 0;
+            const isOut = $link.find('.cbPlayerOut').length > 0;
+
             teams[teamIndex].playingXI.push({
               name,
               role,
@@ -2993,6 +2958,8 @@ export async function getMatchSquads(matchId: string): Promise<MatchSquads> {
               imageUrl,
               isCaptain: roleMarker.includes('C'),
               isWicketKeeper: roleMarker.includes('WK'),
+              ...(isIn ? { isIn: true } : {}),
+              ...(isOut ? { isOut: true } : {}),
             });
           }
         });
