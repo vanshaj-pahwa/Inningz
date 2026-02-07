@@ -173,10 +173,12 @@ export async function loadMoreCommentary(matchId: string, timestamp: number, inn
                         });
                     }
                 } else if (item.commType === 'snippet') {
-                    // Video snippets
+                    // Snippet cards (forecasts, insights, etc.)
                     commentary.push({
-                        type: 'stat',
-                        text: item.headline || '',
+                        type: 'snippet',
+                        text: item.content || '',
+                        headline: item.headline || '',
+                        snippetType: item.eventType || '',
                     });
                 }
             }

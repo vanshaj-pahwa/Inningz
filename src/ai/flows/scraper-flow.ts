@@ -6,7 +6,7 @@ import { z } from 'zod';
 import * as cheerio from 'cheerio';
 
 const CommentarySchema = z.object({
-  type: z.enum(['live', 'user', 'stat']),
+  type: z.enum(['live', 'user', 'stat', 'snippet']),
   text: z.string(),
   author: z.string().optional(),
   event: z.string().optional(),
@@ -18,6 +18,8 @@ const CommentarySchema = z.object({
   teamShortName: z.string().optional(),
   teamScore: z.number().optional(),
   teamWickets: z.number().optional(),
+  headline: z.string().optional(),
+  snippetType: z.string().optional(),
 });
 
 const AwardPlayerSchema = z.object({
@@ -2173,8 +2175,18 @@ export async function getScoreForMatchId(
   }
 
   const commentary: Commentary[] = commentaryArray
-    ?.filter((c: any) => c.commText)
+    ?.filter((c: any) => c.commText || c.commType === 'snippet')
     .map((c: any): Commentary => {
+      // Handle snippet type (forecasts, insights, etc.)
+      if (c.commType === 'snippet') {
+        return {
+          type: 'snippet',
+          text: c.content || '',
+          headline: c.headline || '',
+          snippetType: c.eventType || '',
+        };
+      }
+
       let commText = c.commText.replace(/\\n/g, '<br />');
       let milestone;
 

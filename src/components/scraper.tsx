@@ -241,6 +241,12 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
     }
 
     const renderCommentaryItem = (comment: Commentary, index: number) => {
+        // Filter out Cricbuzz promotional/branding text
+        const cricbuzzPattern = /cricbuzz|comm\s*box|download\s*app|#cricbuzz/i;
+        if (cricbuzzPattern.test(comment.text) || cricbuzzPattern.test(comment.headline || '')) {
+            return null;
+        }
+
         if (comment.type === 'user' && comment.author) {
             return (
                 <div key={index} className="slide-in-left ml-8 md:ml-12 py-2 px-3 my-1 rounded-xl bg-zinc-100 dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/50">
@@ -253,8 +259,82 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
             );
         }
 
+        if (comment.type === 'snippet' || comment.headline) {
+            // Different styles based on snippetType
+            const snippetType = comment.snippetType?.toLowerCase() || '';
+            let accentColor = 'text-zinc-500';
+            let bgClass = 'bg-zinc-50 dark:bg-zinc-900/30 border-zinc-200/30 dark:border-zinc-800/30';
+
+            if (snippetType.includes('forecast')) {
+                accentColor = 'text-amber-600 dark:text-amber-400';
+                bgClass = 'bg-amber-500/5 border-amber-500/20';
+            } else if (snippetType.includes('stat') || snippetType.includes('record')) {
+                accentColor = 'text-blue-600 dark:text-blue-400';
+                bgClass = 'bg-blue-500/5 border-blue-500/20';
+            } else if (snippetType.includes('milestone') || snippetType.includes('achievement')) {
+                accentColor = 'text-green-600 dark:text-green-400';
+                bgClass = 'bg-green-500/5 border-green-500/20';
+            } else if (snippetType.includes('alert') || snippetType.includes('breaking')) {
+                accentColor = 'text-red-600 dark:text-red-400';
+                bgClass = 'bg-red-500/5 border-red-500/20';
+            } else if (snippetType.includes('trivia') || snippetType.includes('fun')) {
+                accentColor = 'text-purple-600 dark:text-purple-400';
+                bgClass = 'bg-purple-500/5 border-purple-500/20';
+            }
+
+            return (
+                <div key={index} className={`slide-in-left py-3 px-4 my-2 rounded-xl border ${bgClass}`}>
+                    <p className={`text-xs font-semibold mb-1 ${accentColor}`}>{comment.headline}</p>
+                    {comment.text && (
+                        <p className="text-xs text-muted-foreground leading-relaxed">{comment.text}</p>
+                    )}
+                </div>
+            );
+        }
+
         if (comment.type === 'stat') {
             const isShortText = comment.text.length < 100;
+
+            // Check if this is an over summary with bullet points
+            const isOverSummary = comment.text.includes('Over Summary') || comment.text.includes('over summary');
+
+            if (isOverSummary) {
+                // Parse the over summary text and clean HTML
+                const cleanText = (text: string) => text.replace(/<br\s*\/?>/gi, '').replace(/<[^>]*>/g, '').trim();
+                const lines = comment.text.split(/\*\s*/).filter(line => line.trim());
+                const headerMatch = lines[0]?.match(/Over Summary\s*\(([^)]+)\)/i);
+                const header = headerMatch ? headerMatch[1] : null;
+                const summaryItems = lines.slice(headerMatch ? 1 : 0).map(line => cleanText(line)).filter(Boolean);
+
+                return (
+                    <div key={index} className="slide-in-left my-3">
+                        <div className="rounded-xl overflow-hidden bg-zinc-900/60 border border-zinc-700/50">
+                            {/* Header */}
+                            <div className="px-3 py-2 bg-zinc-800/80 border-b border-zinc-700/50 flex items-center justify-between">
+                                <span className="text-[11px] font-semibold text-zinc-300">
+                                    Over Summary
+                                </span>
+                                {header && (
+                                    <span className="text-[10px] font-mono text-zinc-500">
+                                        {header}
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Summary Items */}
+                            <div className="p-2.5 space-y-1.5">
+                                {summaryItems.map((item, idx) => (
+                                    <div key={idx} className="flex items-start gap-2 text-xs text-zinc-400 leading-relaxed">
+                                        <span className="text-zinc-600 mt-0.5">•</span>
+                                        <span>{item}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
             return (
                 <div key={index} className="slide-in-left py-3 px-4 my-2 rounded-xl bg-zinc-50 dark:bg-zinc-900/30 border border-zinc-200/30 dark:border-zinc-800/30">
                     <p className={`text-xs text-muted-foreground ${isShortText ? 'text-center font-medium' : ''}`} dangerouslySetInnerHTML={{ __html: comment.text }} />
