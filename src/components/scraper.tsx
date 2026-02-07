@@ -288,6 +288,15 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
         )
     }
 
+    // Helper function to highlight "THATS OUT!!" in any commentary text
+    const highlightThatsOut = (html: string) => {
+        // Match various forms: "THATS OUT!!", "THAT'S OUT!!", "Thats Out!!", etc.
+        return html.replace(
+            /(that'?s\s*out!*)/gi,
+            '<span class="font-bold text-red-500">$1</span>'
+        );
+    };
+
     const renderCommentaryItem = (comment: Commentary, index: number) => {
         // Filter out Cricbuzz promotional/branding text
         const cricbuzzPattern = /cricbuzz|comm\s*box|download\s*app|#cricbuzz/i;
@@ -334,7 +343,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                 <div key={index} className={`slide-in-left py-3 px-4 my-2 rounded-xl border ${bgClass}`}>
                     <p className={`text-xs font-semibold mb-1 ${accentColor}`}>{comment.headline}</p>
                     {comment.text && (
-                        <p className="text-xs text-muted-foreground leading-relaxed">{comment.text}</p>
+                        <p className="text-xs text-muted-foreground leading-relaxed" dangerouslySetInnerHTML={{ __html: highlightThatsOut(comment.text) }} />
                     )}
                 </div>
             );
@@ -385,7 +394,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
 
             return (
                 <div key={index} className="slide-in-left py-3 px-4 my-2 rounded-xl bg-zinc-50 dark:bg-zinc-900/30 border border-zinc-200/30 dark:border-zinc-800/30">
-                    <p className={`text-xs text-muted-foreground ${isShortText ? 'text-center font-medium' : ''}`} dangerouslySetInnerHTML={{ __html: comment.text }} />
+                    <p className={`text-xs text-muted-foreground ${isShortText ? 'text-center font-medium' : ''}`} dangerouslySetInnerHTML={{ __html: highlightThatsOut(comment.text) }} />
                 </div>
             );
         }
@@ -523,7 +532,9 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                             );
                         })}
                     </div>
-                    <p className="text-sm text-foreground/80 flex-1 leading-relaxed" dangerouslySetInnerHTML={{ __html: text }} />
+                    <p className="text-sm text-foreground/80 flex-1 leading-relaxed">
+                        <span dangerouslySetInnerHTML={{ __html: highlightThatsOut(text) }} />
+                    </p>
                 </div>
             </div>
         );
