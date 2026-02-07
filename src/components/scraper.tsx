@@ -701,6 +701,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                 requiredRunRate={data.requiredRunRate}
                                 previousInnings={data.previousInnings}
                                 status={data.status}
+                                scrapedProbability={data.winProbability}
                             />
                         )}
 

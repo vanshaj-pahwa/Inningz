@@ -74,6 +74,16 @@ const ScrapeCricbuzzUrlOutputSchema = z.object({
   seriesId: z.string().optional(),
   playerOfTheMatch: AwardPlayerSchema.optional(),
   playerOfTheSeries: AwardPlayerSchema.optional(),
+  winProbability: z.object({
+    team1: z.object({
+      name: z.string(),
+      probability: z.number(),
+    }),
+    team2: z.object({
+      name: z.string(),
+      probability: z.number(),
+    }),
+  }).optional(),
 });
 
 const LiveMatchSchema = z.object({
@@ -89,6 +99,16 @@ const LiveMatchSchema = z.object({
   seriesName: z.string().optional(),
   seriesUrl: z.string().optional(),
   venue: z.string().optional(),
+  winProbability: z.object({
+    team1: z.object({
+      name: z.string(),
+      probability: z.number(),
+    }),
+    team2: z.object({
+      name: z.string(),
+      probability: z.number(),
+    }),
+  }).optional(),
 });
 
 const FullScorecardBatsmanSchema = z.object({
@@ -1735,6 +1755,37 @@ export async function scrapeLiveMatches(): Promise<LiveMatch[]> {
         status = $match.find('span[class*="text-cb"]').last().text().trim();
       }
 
+      // Extract win probability if available
+      // Structure: <div class="w-full flex items-center gap-2 text-xs"> with two team divs containing probabilities
+      let winProbability: { team1: { name: string; probability: number }; team2: { name: string; probability: number } } | undefined;
+      const $probContainer = $match.find('.w-full.flex.items-center.gap-2.text-xs');
+      if ($probContainer.length > 0) {
+        const probDivs = $probContainer.find('div[title]').filter((_, el) => {
+          const $el = $(el);
+          return $el.find('.font-semibold').text().includes('%');
+        });
+
+        if (probDivs.length >= 2) {
+          const $team1 = $(probDivs[0]);
+          const $team2 = $(probDivs[1]);
+
+          const team1Name = $team1.attr('title') || $team1.find('.font-normal').text().trim();
+          const team1ProbStr = $team1.find('.font-semibold').text().replace('%', '').trim();
+          const team1Prob = parseFloat(team1ProbStr) || 0;
+
+          const team2Name = $team2.attr('title') || $team2.find('.font-normal').text().trim();
+          const team2ProbStr = $team2.find('.font-semibold').text().replace('%', '').trim();
+          const team2Prob = parseFloat(team2ProbStr) || 0;
+
+          if (team1Name && team2Name && (team1Prob > 0 || team2Prob > 0)) {
+            winProbability = {
+              team1: { name: team1Name, probability: team1Prob },
+              team2: { name: team2Name, probability: team2Prob },
+            };
+          }
+        }
+      }
+
       if (teams.length > 0) {
         liveMatches.push({
           title,
@@ -1745,6 +1796,7 @@ export async function scrapeLiveMatches(): Promise<LiveMatch[]> {
           seriesName: seriesName || undefined,
           seriesUrl: seriesUrl || undefined,
           venue: venue || undefined,
+          winProbability,
         });
       }
     });
@@ -2267,6 +2319,19 @@ export async function getScoreForMatchId(
     }
   }
 
+  // Extract win probability from API response
+  let winProbability: { team1: { name: string; probability: number }; team2: { name: string; probability: number } } | undefined;
+
+  // Win probability is at data.winProbability.team1/team2
+  const wp = data?.winProbability;
+  if (wp?.team1?.percent !== undefined && wp?.team2?.percent !== undefined) {
+    winProbability = {
+      team1: { name: wp.team1.shortName || wp.team1.name, probability: wp.team1.percent },
+      team2: { name: wp.team2.shortName || wp.team2.name, probability: wp.team2.percent },
+    };
+    console.log('[getScoreForMatchId] Win probability extracted:', winProbability);
+  }
+
   const result = {
     title,
     status,
@@ -2290,6 +2355,7 @@ export async function getScoreForMatchId(
     seriesId: matchHeader?.seriesId ? String(matchHeader.seriesId) : undefined,
     playerOfTheMatch: extractAwardPlayer(matchHeader?.playersOfTheMatch),
     playerOfTheSeries: extractAwardPlayer(matchHeader?.playersOfTheSeries),
+    winProbability,
   };
 
   const validation = ScrapeCricbuzzUrlOutputSchema.safeParse(result);

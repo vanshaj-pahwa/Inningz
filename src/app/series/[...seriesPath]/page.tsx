@@ -82,10 +82,10 @@ export default function SeriesPage() {
     ? matches
     : matches.filter(m => m.teams.some(t => t.name === teamFilter));
 
-  const tabs: { value: SeriesView; label: string; icon: typeof Calendar; hidden?: boolean }[] = [
-    { value: 'matches', label: 'Matches', icon: Calendar },
-    { value: 'points', label: 'Points Table', icon: TableProperties, hidden: hasPointsTable === false },
-    { value: 'stats', label: 'Stats', icon: BarChart3 },
+  const tabs: { value: SeriesView; label: string; shortLabel: string; icon: typeof Calendar; hidden?: boolean }[] = [
+    { value: 'matches', label: 'Matches', shortLabel: 'Matches', icon: Calendar },
+    { value: 'points', label: 'Points Table', shortLabel: 'Table', icon: TableProperties, hidden: hasPointsTable === false },
+    { value: 'stats', label: 'Stats', shortLabel: 'Stats', icon: BarChart3 },
   ];
 
   const visibleTabs = tabs.filter(t => !t.hidden);
@@ -113,7 +113,7 @@ export default function SeriesPage() {
                   key={tab.value}
                   onClick={() => setView(tab.value)}
                   className={`
-                    flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all
+                    flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-all
                     ${isActive
                       ? 'text-primary bg-primary/10'
                       : 'text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10'
@@ -121,7 +121,8 @@ export default function SeriesPage() {
                   `}
                 >
                   <Icon className="h-4 w-4" />
-                  {tab.label}
+                  <span className="md:hidden">{tab.shortLabel}</span>
+                  <span className="hidden md:inline">{tab.label}</span>
                 </button>
               );
             })}

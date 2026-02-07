@@ -98,29 +98,31 @@ function HomeContent() {
                         </div>
                     </div>
 
-                    {/* Mobile: nav tabs as full-width row below logo */}
-                    <nav className="md:hidden flex items-center gap-1.5 pb-3">
-                        {tabs.map((tab) => {
-                            const Icon = tab.icon;
-                            const isActive = view === tab.value;
-                            return (
-                                <button
-                                    key={tab.value}
-                                    onClick={() => switchView(tab.value)}
-                                    className={`
-                                        flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-medium
-                                        transition-all duration-200 ease-out
-                                        ${isActive
-                                            ? 'active-tab'
-                                            : 'text-muted-foreground glass-pill'
-                                        }
-                                    `}
-                                >
-                                    <Icon className={`w-3.5 h-3.5 ${isActive && tab.value === 'live' ? 'animate-pulse' : ''}`} />
-                                    <span>{tab.label}</span>
-                                </button>
-                            );
-                        })}
+                    {/* Mobile: iOS-style segmented control */}
+                    <nav className="md:hidden pb-3">
+                        <div className="flex p-1 rounded-lg bg-neutral-100 dark:bg-neutral-800/80">
+                            {tabs.map((tab) => {
+                                const Icon = tab.icon;
+                                const isActive = view === tab.value;
+                                return (
+                                    <button
+                                        key={tab.value}
+                                        onClick={() => switchView(tab.value)}
+                                        className={`
+                                            flex-1 flex flex-col items-center justify-center gap-0.5 py-2 rounded-md text-[10px] font-medium
+                                            transition-all duration-200
+                                            ${isActive
+                                                ? 'bg-primary text-white'
+                                                : 'text-muted-foreground'
+                                            }
+                                        `}
+                                    >
+                                        <Icon className={`w-4 h-4 ${isActive && tab.value === 'live' ? 'animate-pulse' : ''}`} />
+                                        <span>{tab.label}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </nav>
                 </div>
             </header>

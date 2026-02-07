@@ -7,12 +7,18 @@ interface PreviousInning {
   score?: string;
 }
 
+interface ScrapedWinProbability {
+  team1: { name: string; probability: number };
+  team2: { name: string; probability: number };
+}
+
 interface WinProbabilityProps {
   score: string;
   currentRunRate: string;
   requiredRunRate: string;
   previousInnings: PreviousInning[];
   status: string;
+  scrapedProbability?: ScrapedWinProbability;
 }
 
 function parseScoreString(score: string): { runs: number; wickets: number; overs: number } | null {
@@ -32,7 +38,6 @@ function oversToDecimal(overs: number): number {
   return full + balls / 6;
 }
 
-// Logistic sigmoid: maps any real number to 0-1
 function sigmoid(x: number): number {
   return 1 / (1 + Math.exp(-x));
 }
@@ -50,133 +55,134 @@ function computeWinProbability(
   const oversRemaining = maxOvers - oversDecimal;
   const ballsRemaining = Math.max(oversRemaining * 6, 0);
 
-  // Terminal states
   if (runsNeeded <= 0) return 98;
   if (wicketsInHand <= 0) return 2;
   if (ballsRemaining <= 0) return 2;
 
-  // Required run rate for remaining overs
   const rrr = runsNeeded / oversRemaining;
-
-  // --- Factor 1: Run rate difficulty ---
-  // Compare RRR against realistic scoring benchmarks
-  // T20 average ~8.5 rpo, max sustainable ~12-14
-  // A RRR of 6 is easy, 10 is moderate, 15 is very hard, 20+ is nearly impossible
-  const rateScore = -0.35 * (rrr - 8);  // centered at 8 rpo as neutral
-
-  // --- Factor 2: Wickets in hand ---
-  // Losing wickets exponentially hurts — going from 4 to 2 wickets is worse than 8 to 6
+  const rateScore = -0.35 * (rrr - 8);
   const wktScore = (wicketsInHand - 4) * 0.45;
-
-  // --- Factor 3: Runs per ball needed ---
-  // Direct measure: how many runs needed per remaining ball
   const runsPerBall = runsNeeded / ballsRemaining;
-  // Average T20 is ~1.3 rpb, >2 is very hard, >3 is nearly impossible
   const rpbScore = -2.5 * (runsPerBall - 1.3);
-
-  // --- Factor 4: Match phase pressure ---
-  // In death overs with many runs needed, probability drops sharply
   const progressFraction = oversDecimal / maxOvers;
   const phaseScore = progressFraction > 0.75 ? -0.5 * (progressFraction - 0.75) * 4 : 0;
 
-  // Combine with logistic function
   const logit = rateScore * 0.35 + wktScore * 0.25 + rpbScore * 0.30 + phaseScore * 0.10;
   const raw = sigmoid(logit) * 100;
 
   return Math.max(2, Math.min(98, Math.round(raw)));
 }
 
-function getBarColor(probability: number): string {
-  if (probability >= 65) return 'bg-emerald-500';
-  if (probability >= 50) return 'bg-yellow-500';
-  if (probability >= 30) return 'bg-orange-500';
-  return 'bg-red-500';
-}
-
-function getTextColor(probability: number): string {
-  if (probability >= 65) return 'text-emerald-400';
-  if (probability >= 50) return 'text-yellow-400';
-  if (probability >= 30) return 'text-orange-400';
-  return 'text-red-400';
-}
-
-export default function WinProbability({ score, currentRunRate, requiredRunRate, previousInnings, status }: WinProbabilityProps) {
-  // Don't show for completed matches
+export default function WinProbability({ score, currentRunRate, requiredRunRate, previousInnings, status, scrapedProbability }: WinProbabilityProps) {
   const statusLower = status.toLowerCase();
   if (statusLower.includes('won') || statusLower.includes('complete') || statusLower.includes('drawn') || statusLower.includes('tied') || statusLower.includes('no result')) {
     return null;
   }
 
-  const current = parseScoreString(score);
-  if (!current) return null;
+  let battingProb: number;
+  let bowlingProb: number;
+  let battingTeam: string;
+  let bowlingTeam: string;
 
-  const targetInning = previousInnings[0];
-  if (!targetInning || !targetInning.score) return null;
-  const targetParsed = parseScoreString(targetInning.score);
-  if (!targetParsed) return null;
+  if (scrapedProbability) {
+    const scoreTeamMatch = score.match(/^([A-Za-z\s]+?)\s+\d+\//);
+    const currentBattingTeam = scoreTeamMatch ? scoreTeamMatch[1].trim().toLowerCase() : '';
 
-  const target = targetParsed.runs + 1;
+    const team1Lower = scrapedProbability.team1.name.toLowerCase();
+    const team2Lower = scrapedProbability.team2.name.toLowerCase();
 
-  let maxOvers = targetParsed.overs > 0 ? oversToDecimal(targetParsed.overs) : 0;
-  if (maxOvers <= 0) {
-    maxOvers = current.overs > 20 ? 50 : 20;
+    if (currentBattingTeam.includes(team1Lower) || team1Lower.includes(currentBattingTeam)) {
+      battingTeam = scrapedProbability.team1.name;
+      battingProb = scrapedProbability.team1.probability;
+      bowlingTeam = scrapedProbability.team2.name;
+      bowlingProb = scrapedProbability.team2.probability;
+    } else {
+      battingTeam = scrapedProbability.team2.name;
+      battingProb = scrapedProbability.team2.probability;
+      bowlingTeam = scrapedProbability.team1.name;
+      bowlingProb = scrapedProbability.team1.probability;
+    }
+  } else {
+    const current = parseScoreString(score);
+    if (!current) return null;
+
+    const targetInning = previousInnings[0];
+    if (!targetInning || !targetInning.score) return null;
+    const targetParsed = parseScoreString(targetInning.score);
+    if (!targetParsed) return null;
+
+    const target = targetParsed.runs + 1;
+
+    let maxOvers = targetParsed.overs > 0 ? oversToDecimal(targetParsed.overs) : 0;
+    if (maxOvers <= 0) {
+      maxOvers = current.overs > 20 ? 50 : 20;
+    }
+    if (maxOvers > 20 && maxOvers <= 50) maxOvers = 50;
+    else if (maxOvers <= 20) maxOvers = 20;
+
+    battingProb = computeWinProbability(
+      current.runs,
+      current.wickets,
+      current.overs,
+      maxOvers,
+      target,
+    );
+    bowlingProb = 100 - battingProb;
+
+    bowlingTeam = targetInning.teamShortName || targetInning.teamName || 'Bowling';
+    const scoreTeamMatch = score.match(/^([A-Za-z\s]+?)\s+\d+\//);
+    battingTeam = scoreTeamMatch ? scoreTeamMatch[1].trim() : 'Batting';
   }
-  if (maxOvers > 20 && maxOvers <= 50) maxOvers = 50;
-  else if (maxOvers <= 20) maxOvers = 20;
 
-  const battingProb = computeWinProbability(
-    current.runs,
-    current.wickets,
-    current.overs,
-    maxOvers,
-    target,
-  );
-  const bowlingProb = 100 - battingProb;
-
-  const bowlingTeam = targetInning.teamShortName || targetInning.teamName || 'Bowling';
-  const scoreTeamMatch = score.match(/^([A-Za-z\s]+?)\s+\d+\//);
-  const battingTeam = scoreTeamMatch ? scoreTeamMatch[1].trim() : 'Batting';
+  // Determine leader - leading team gets green
+  const battingIsLeader = battingProb >= bowlingProb;
 
   return (
-    <div className="rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800/50 bg-zinc-50/50 dark:bg-zinc-900/30">
-      <div className="px-4 py-2.5">
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-            Win Probability
+    <div className="rounded-xl bg-zinc-900/80 border border-zinc-800 px-3 py-2.5">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">
+          Win Probability
+        </span>
+      </div>
+
+      {/* Teams row */}
+      <div className="flex items-center justify-between mb-2">
+        {/* Team 1 (Batting) */}
+        <div className="flex items-center gap-2">
+          <span className={`text-xs font-bold uppercase ${battingIsLeader ? 'text-emerald-400' : 'text-rose-400'}`}>
+            {battingTeam}
+          </span>
+          <span className={`text-lg font-display font-black tabular-nums ${battingIsLeader ? 'text-emerald-400' : 'text-rose-400'}`}>
+            {battingProb}%
           </span>
         </div>
 
-        {/* Team labels + percentages */}
-        <div className="flex items-center justify-between mb-1">
-          <div className="flex items-center gap-1.5">
-            <span className={`text-xs font-bold ${getTextColor(battingProb)}`}>
-              {battingTeam}
-            </span>
-            <span className={`text-sm font-display font-bold tabular-nums ${getTextColor(battingProb)}`}>
-              {battingProb}%
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className={`text-sm font-display font-bold tabular-nums ${getTextColor(bowlingProb)}`}>
-              {bowlingProb}%
-            </span>
-            <span className={`text-xs font-bold ${getTextColor(bowlingProb)}`}>
-              {bowlingTeam}
-            </span>
-          </div>
+        {/* Team 2 (Bowling) */}
+        <div className="flex items-center gap-2">
+          <span className={`text-lg font-display font-black tabular-nums ${!battingIsLeader ? 'text-emerald-400' : 'text-rose-400'}`}>
+            {bowlingProb}%
+          </span>
+          <span className={`text-xs font-bold uppercase ${!battingIsLeader ? 'text-emerald-400' : 'text-rose-400'}`}>
+            {bowlingTeam}
+          </span>
         </div>
+      </div>
 
-        {/* Probability bar */}
-        <div className="flex h-2 rounded-full overflow-hidden bg-zinc-200 dark:bg-zinc-800">
-          <div
-            className={`${getBarColor(battingProb)} transition-all duration-700 ease-out rounded-l-full`}
-            style={{ width: `${battingProb}%` }}
-          />
-          <div
-            className={`${getBarColor(bowlingProb)} transition-all duration-700 ease-out rounded-r-full`}
-            style={{ width: `${bowlingProb}%` }}
-          />
-        </div>
+      {/* Probability bar */}
+      <div className="relative h-1.5 rounded-full overflow-hidden bg-zinc-800">
+        <div
+          className={`absolute inset-y-0 left-0 transition-all duration-500 ${battingIsLeader ? 'bg-emerald-500' : 'bg-rose-500'}`}
+          style={{ width: `${battingProb}%` }}
+        />
+        <div
+          className={`absolute inset-y-0 right-0 transition-all duration-500 ${!battingIsLeader ? 'bg-emerald-500' : 'bg-rose-500'}`}
+          style={{ width: `${bowlingProb}%` }}
+        />
+        <div
+          className="absolute top-0 bottom-0 w-0.5 bg-zinc-900 z-10"
+          style={{ left: `${battingProb}%` }}
+        />
       </div>
     </div>
   );
