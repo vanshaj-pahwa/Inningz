@@ -6,7 +6,7 @@ import { getLiveMatches } from '@/app/actions';
 interface MatchInfo {
   matchId: string;
   title: string;
-  teams: { name: string; score?: string }[];
+  teams: { name?: string; score?: string }[];
   status: string;
 }
 
