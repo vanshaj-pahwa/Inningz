@@ -701,7 +701,10 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                 requiredRunRate={data.requiredRunRate}
                                 previousInnings={data.previousInnings}
                                 status={data.status}
-                                scrapedProbability={data.winProbability}
+                                scrapedProbability={data.winProbability?.team1?.name && data.winProbability?.team2?.name ? {
+                                    team1: { name: data.winProbability.team1.name, probability: data.winProbability.team1.probability ?? 0 },
+                                    team2: { name: data.winProbability.team2.name, probability: data.winProbability.team2.probability ?? 0 },
+                                } : undefined}
                             />
                         )}
 
