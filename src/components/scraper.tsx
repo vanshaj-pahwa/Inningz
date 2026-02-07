@@ -352,6 +352,56 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
         if (comment.type === 'stat') {
             const isShortText = comment.text.length < 100;
 
+            // Check if this is a Playing XI announcement
+            const playingXIMatch = comment.text.match(/^(.+?)\s*\(Playing XI\)\s*:\s*(.+)$/i);
+            if (playingXIMatch) {
+                const teamName = playingXIMatch[1].replace(/<[^>]*>/g, '').trim();
+                const playersStr = playingXIMatch[2].replace(/<[^>]*>/g, '').trim();
+                const players = playersStr.split(',').map(p => p.trim()).filter(Boolean);
+
+                return (
+                    <div key={index} className="slide-in-left my-3">
+                        <div className="rounded-xl overflow-hidden bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
+                            {/* Header */}
+                            <div className="px-3 py-2 bg-primary/10 border-b border-primary/20 flex items-center gap-2">
+                                <span className="text-sm font-bold text-primary">
+                                    {teamName}
+                                </span>
+                                <span className="text-[10px] font-medium text-primary/70 uppercase tracking-wider">
+                                    Playing XI
+                                </span>
+                            </div>
+
+                            {/* Players */}
+                            <div className="p-3 flex flex-wrap gap-1.5">
+                                {players.map((player, idx) => {
+                                    const isCaptain = player.includes('(c)');
+                                    const isWicketkeeper = player.includes('(w)');
+                                    const isBoth = player.includes('(c)') && player.includes('(w)');
+                                    const cleanName = player.replace(/\([cw]+\)/gi, '').trim();
+
+                                    return (
+                                        <span
+                                            key={idx}
+                                            className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs ${
+                                                isCaptain || isWicketkeeper
+                                                    ? 'bg-primary/20 text-primary font-medium'
+                                                    : 'bg-zinc-800/60 text-zinc-300'
+                                            }`}
+                                        >
+                                            {cleanName}
+                                            {isBoth && <span className="text-[9px] text-primary">(c)(w)</span>}
+                                            {isCaptain && !isBoth && <span className="text-[9px] text-amber-400">(c)</span>}
+                                            {isWicketkeeper && !isBoth && <span className="text-[9px] text-blue-400">(w)</span>}
+                                        </span>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
             // Check if this is an over summary with bullet points
             const isOverSummary = comment.text.includes('Over Summary') || comment.text.includes('over summary');
 
@@ -1016,8 +1066,8 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                     </div>
                                 )}
 
-                                {/* Mobile Commentary - Only visible on smaller screens */}
-                                <div className="xl:hidden glass-card overflow-hidden">
+                                {/* Commentary - visible on mobile always, on desktop only when no scorecard */}
+                                <div className={`glass-card overflow-hidden ${data && (data.batsmen.length !== 0 || data.bowlers.length !== 0) ? 'xl:hidden' : ''}`}>
                                     <div className="px-4 py-3 border-b border-zinc-200/50 dark:border-zinc-800/50 bg-gradient-to-r from-zinc-50 to-transparent dark:from-zinc-900/50">
                                         <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Commentary</h3>
                                     </div>
