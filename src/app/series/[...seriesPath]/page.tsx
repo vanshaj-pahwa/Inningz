@@ -11,12 +11,14 @@ import { ArrowLeft, Calendar, BarChart3, TableProperties, Filter, ChevronDown } 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import SeriesStatsDisplay from '@/components/series-stats';
 import PointsTableDisplay from '@/components/points-table';
+import { useRecentHistoryContext } from '@/contexts/recent-history-context';
 
 type SeriesView = 'matches' | 'stats' | 'points';
 
 export default function SeriesPage() {
   const router = useRouter();
   const params = useParams();
+  const { addSeries } = useRecentHistoryContext();
   const seriesPath = params.seriesPath as string[] | undefined;
   const seriesId = seriesPath ? seriesPath.join('/') : undefined;
 
@@ -26,6 +28,7 @@ export default function SeriesPage() {
   const [error, setError] = useState<string | null>(null);
   const [hasPointsTable, setHasPointsTable] = useState<boolean | null>(null);
   const [teamFilter, setTeamFilter] = useState<string>('all');
+  const [hasTrackedSeries, setHasTrackedSeries] = useState(false);
 
   useEffect(() => {
     if (!seriesId) return;
@@ -42,6 +45,15 @@ export default function SeriesPage() {
     };
     fetchMatches();
   }, [seriesId]);
+
+  // Track series in recent history
+  useEffect(() => {
+    if (matches.length > 0 && seriesId && !hasTrackedSeries) {
+      const seriesName = matches[0].seriesName || 'Series';
+      addSeries(seriesId, seriesName);
+      setHasTrackedSeries(true);
+    }
+  }, [matches, seriesId, addSeries, hasTrackedSeries]);
 
   const handlePointsAvailability = useCallback((available: boolean) => {
     setHasPointsTable(available);

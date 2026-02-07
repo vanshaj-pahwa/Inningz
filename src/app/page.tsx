@@ -8,6 +8,7 @@ import LiveMatches from "@/components/live-matches";
 import RecentMatches from "@/components/recent-matches";
 import UpcomingMatches from "@/components/upcoming-matches";
 import SeriesSchedule from "@/components/series-schedule";
+import RecentHistory from "@/components/recent-history";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Flame, History, Calendar, Trophy, Medal } from "lucide-react";
 
@@ -141,6 +142,11 @@ function HomeContent() {
                             view === 'upcoming' ? 'Upcoming fixtures' :
                                 'All cricket series'}
                 </p>
+            </div>
+
+            {/* Recent History */}
+            <div className="max-w-7xl mx-auto px-4 md:px-6 pb-4">
+                <RecentHistory />
             </div>
 
             {/* Content */}

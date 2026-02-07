@@ -8,7 +8,7 @@ import Image from 'next/image';
 import { getScoreForMatchId, loadMoreCommentary as loadMoreCommentaryAction, getPlayerProfile, getPlayerHighlights } from '@/app/actions';
 import type { ScrapeCricbuzzUrlOutput, Commentary, PlayerProfile, PlayerHighlights } from '@/app/actions';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { LoaderCircle, User, ArrowLeft } from "lucide-react";
+import { LoaderCircle, User, ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { cn } from '@/lib/utils';
@@ -18,6 +18,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import MatchSquadsDisplay from './match-squads';
 import { ThemeToggle } from './theme-toggle';
 import WinProbability from './win-probability';
+import QuickScoreWidget from './quick-score-widget';
+import { useRecentHistoryContext } from '@/contexts/recent-history-context';
+import { useSwipe } from '@/hooks/use-swipe';
 
 export interface ScrapeState {
     success: boolean;
@@ -34,13 +37,41 @@ type LastEventType = {
 
 type View = 'live' | 'scorecard' | 'squads';
 
+function isLive(status: string): boolean {
+    const s = status.toLowerCase();
+    return s.includes('live') || s.includes('need') || s.includes('session') ||
+        s.includes('innings') || s.includes('lead') || s.includes('rain') ||
+        s.includes('weather') || s.includes('delay') || s.includes('stops play') ||
+        (!s.includes('won') && !s.includes('complete') && !s.includes('drawn') && !s.includes('tied'));
+}
 
 export default function ScoreDisplay({ matchId }: { matchId: string }) {
     const router = useRouter();
+    const { addMatch, addPlayer } = useRecentHistoryContext();
     const [scoreState, setScoreState] = useState<ScrapeState>({ success: false });
+    const hasTrackedMatch = useRef(false);
     const [lastEvent, setLastEvent] = useState<LastEventType | null>(null);
     const previousData = useRef<ScrapeCricbuzzUrlOutput | null>(null);
     const [view, setView] = useState<View>('live');
+    const views: View[] = ['live', 'scorecard', 'squads'];
+    const currentViewIndex = views.indexOf(view);
+
+    // Swipe between tabs
+    const { swiping, swipeDirection, swipeProgress } = useSwipe({
+        onSwipeLeft: () => {
+            if (currentViewIndex < views.length - 1) {
+                setView(views[currentViewIndex + 1]);
+            }
+        },
+        onSwipeRight: () => {
+            if (currentViewIndex > 0) {
+                setView(views[currentViewIndex - 1]);
+            }
+        },
+        threshold: 80,
+        enabled: true,
+    });
+
     const [loadingMore, setLoadingMore] = useState(false);
     const [lastTimestamp, setLastTimestamp] = useState<number | null>(null);
     const lastTimestampRef = useRef<number | null>(null);
@@ -56,6 +87,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
     const [highlightsLoading, setHighlightsLoading] = useState(false);
     const [highlightsUrl, setHighlightsUrl] = useState<string | null>(null);
     const [timeLeft, setTimeLeft] = useState<{ hours: number; minutes: number; seconds: number } | null>(null);
+    const scoreHeroRef = useRef<HTMLDivElement>(null);
 
 
     const fetchScore = async () => {
@@ -144,6 +176,22 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
         const interval = setInterval(fetchScore, 10000);
         return () => clearInterval(interval);
     }, [matchId]);
+
+    // Track match in recent history
+    useEffect(() => {
+        if (scoreState.success && scoreState.data && !hasTrackedMatch.current) {
+            const data = scoreState.data;
+            // Use the match title (e.g., "Scotland vs West Indies, 3rd T20I")
+            let matchTitle = data.title || 'Match';
+            // Keep only team names part before the comma
+            const commaIndex = matchTitle.indexOf(',');
+            if (commaIndex > 0) {
+                matchTitle = matchTitle.substring(0, commaIndex).trim();
+            }
+            addMatch(matchId, matchTitle, data.seriesName || undefined);
+            hasTrackedMatch.current = true;
+        }
+    }, [scoreState.success, scoreState.data, matchId, addMatch]);
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -503,6 +551,10 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
             setSelectedProfileId(profileId);
             setSelectedPlayerName(playerName || null);
             setSelectedProfile(null);
+            // Track player in recent history
+            if (playerName) {
+                addPlayer(profileId, playerName);
+            }
         }
     }
 
@@ -652,7 +704,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
 
                         {/* Score Hero */}
                         {(!timeLeft || (data && data.batsmen.length > 0)) && (
-                            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-zinc-100 via-zinc-50 to-white dark:from-zinc-900 dark:via-zinc-950 dark:to-black border border-zinc-200 dark:border-zinc-800/50">
+                            <div ref={scoreHeroRef} className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-zinc-100 via-zinc-50 to-white dark:from-zinc-900 dark:via-zinc-950 dark:to-black border border-zinc-200 dark:border-zinc-800/50">
                                 {/* Atmospheric background layers */}
                                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(34,197,94,0.08)_0%,_transparent_60%)]" />
                                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_rgba(251,191,36,0.05)_0%,_transparent_60%)]" />
@@ -1143,6 +1195,38 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                     )}
                 </DialogContent>
             </Dialog>
+
+            {/* Quick Score Widget - shows when scrolling */}
+            {data && view === 'live' && (
+                <QuickScoreWidget
+                    score={data.score}
+                    status={data.status}
+                    previousInnings={data.previousInnings}
+                    targetRef={scoreHeroRef}
+                />
+            )}
+
+            {/* Swipe indicators */}
+            {swiping && swipeDirection === 'right' && currentViewIndex > 0 && (
+                <div
+                    className="fixed left-0 top-0 bottom-0 w-16 z-50 flex items-center justify-center pointer-events-none"
+                    style={{ opacity: swipeProgress }}
+                >
+                    <div className="bg-primary/20 backdrop-blur-sm rounded-r-2xl h-24 w-10 flex items-center justify-center">
+                        <ChevronLeft className="w-5 h-5 text-primary" />
+                    </div>
+                </div>
+            )}
+            {swiping && swipeDirection === 'left' && currentViewIndex < views.length - 1 && (
+                <div
+                    className="fixed right-0 top-0 bottom-0 w-16 z-50 flex items-center justify-center pointer-events-none"
+                    style={{ opacity: swipeProgress }}
+                >
+                    <div className="bg-primary/20 backdrop-blur-sm rounded-l-2xl h-24 w-10 flex items-center justify-center">
+                        <ChevronRight className="w-5 h-5 text-primary" />
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

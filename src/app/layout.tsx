@@ -4,6 +4,8 @@ import './globals.css';
 import { cn } from '@/lib/utils';
 import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/components/theme-provider';
+import { MatchesProvider } from '@/contexts/matches-context';
+import { RecentHistoryProvider } from '@/contexts/recent-history-context';
 
 const dmSerifDisplay = DM_Serif_Display({
     subsets: ['latin'],
@@ -49,7 +51,11 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
         >
-          {children}
+          <MatchesProvider>
+            <RecentHistoryProvider>
+              {children}
+            </RecentHistoryProvider>
+          </MatchesProvider>
           <Toaster />
         </ThemeProvider>
       </body>
