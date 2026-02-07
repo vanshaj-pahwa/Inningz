@@ -20,10 +20,17 @@
 - Live batsmen and bowler stats, partnerships, and recent overs
 - Ball-by-ball commentary with infinite scroll pagination
 - Win probability indicator based on run rate, wickets, and match phase
+- **Quick Score Widget**: Floating mini scorecard that appears when scrolling, showing both innings and match status
 
 ### Match Views
 - **Live** / **Recent** / **Upcoming** match tabs with category filters (International, League, Domestic, Women)
 - Series-grouped match listings
+- **Swipe Navigation**: Swipe left/right to switch between Live, Scorecard, and Squads tabs (supports touch, mouse drag, and arrow keys)
+
+### Recent History
+- Tracks recently viewed matches, series, and players
+- Horizontal scrollable list on home page for quick access
+- Persistent storage using localStorage
 
 ### Full Scorecards
 - Innings-by-innings batting and bowling breakdowns
@@ -77,38 +84,6 @@
 
 ---
 
-## Architecture
-
-```
-src/
-  app/
-    page.tsx                      # Home (Live / Recent / Upcoming tabs)
-    match/[matchId]/page.tsx      # Match detail view
-    rankings/page.tsx             # ICC Rankings page
-    series/[...seriesPath]/page.tsx # Series detail view
-    actions.ts                    # Server actions (data fetching layer)
-
-  ai/
-    flows/scraper-flow.ts         # Cheerio-based scraping flows (16 flows)
-
-  components/
-    scraper.tsx                   # Main match display component
-    live-matches.tsx              # Live match grid
-    recent-matches.tsx            # Recent matches
-    upcoming-matches.tsx          # Upcoming matches
-    full-scorecard.tsx            # Complete scorecard
-    player-profile.tsx            # Player bio, stats, rankings, form
-    over-by-over-chart.tsx        # Runs per over visualization
-    win-probability.tsx           # Match prediction algorithm
-    match-squads.tsx              # Team lineups
-    series-schedule.tsx           # Series fixtures
-    series-stats.tsx              # Series statistics
-    points-table.tsx              # League standings
-    ui/                           # shadcn/ui component library
-```
-
----
-
 ## Getting Started
 
 ### Prerequisites
@@ -142,5 +117,3 @@ No environment variables or API keys are required — the app scrapes publicly a
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.
-
-
