@@ -50,57 +50,18 @@ function HomeContent() {
     }, [router, searchParams]);
 
     return (
-        <div className="min-h-screen">
-            {/* Sticky Header */}
-            <header className="sticky top-0 z-50 w-full gradient-border">
-                <div className="bg-background/90 backdrop-blur-xl">
-                    <div className="max-w-7xl mx-auto px-4 md:px-6">
-                        {/* Top row: Logo + Actions */}
-                        <div className="flex items-center justify-between h-14 md:h-16">
-                            <h1 className="text-2xl md:text-3xl font-display tracking-tight">
-                                <span className="text-primary">Inningz</span>
-                            </h1>
+        <div className="min-h-screen stadium-glow">
+            {/* Sticky Header - Glass Nav */}
+            <header className="sticky top-0 z-50 w-full glass-nav">
+                <div className="max-w-7xl mx-auto px-4 md:px-6">
+                    {/* Top row: Logo + Actions */}
+                    <div className="flex items-center justify-between h-14 md:h-16">
+                        <h1 className="text-2xl md:text-3xl font-display tracking-tight">
+                            <span className="text-primary">Inningz</span>
+                        </h1>
 
-                            {/* Desktop: inline nav tabs */}
-                            <nav className="hidden md:flex items-center gap-1 bg-zinc-100 dark:bg-zinc-900 p-1 rounded-xl">
-                                {tabs.map((tab) => {
-                                    const Icon = tab.icon;
-                                    const isActive = view === tab.value;
-                                    return (
-                                        <button
-                                            key={tab.value}
-                                            onClick={() => switchView(tab.value)}
-                                            className={`
-                                                flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium
-                                                transition-all duration-200 ease-out
-                                                ${isActive
-                                                    ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25'
-                                                    : 'text-muted-foreground hover:text-foreground hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'
-                                                }
-                                            `}
-                                        >
-                                            <Icon className={`w-4 h-4 ${isActive && tab.value === 'live' ? 'animate-pulse' : ''}`} />
-                                            <span>{tab.label}</span>
-                                        </button>
-                                    );
-                                })}
-                            </nav>
-
-                            {/* Actions */}
-                            <div className="flex items-center gap-1.5">
-                                <Link
-                                    href="/rankings"
-                                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
-                                >
-                                    <Medal className="w-4 h-4" />
-                                    <span className="hidden sm:inline">Rankings</span>
-                                </Link>
-                                <ThemeToggle />
-                            </div>
-                        </div>
-
-                        {/* Mobile: nav tabs as full-width row below logo */}
-                        <nav className="md:hidden flex items-center gap-1 pb-2.5">
+                        {/* Desktop: inline nav tabs */}
+                        <nav className="hidden md:flex items-center gap-1 p-1 rounded-xl" style={{ background: 'rgba(120, 120, 128, 0.12)' }}>
                             {tabs.map((tab) => {
                                 const Icon = tab.icon;
                                 const isActive = view === tab.value;
@@ -109,21 +70,58 @@ function HomeContent() {
                                         key={tab.value}
                                         onClick={() => switchView(tab.value)}
                                         className={`
-                                            flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium
+                                            flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium
                                             transition-all duration-200 ease-out
                                             ${isActive
-                                                ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25'
-                                                : 'text-muted-foreground hover:text-foreground bg-zinc-100 dark:bg-zinc-900'
+                                                ? 'active-tab'
+                                                : 'text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10'
                                             }
                                         `}
                                     >
-                                        <Icon className={`w-3.5 h-3.5 ${isActive && tab.value === 'live' ? 'animate-pulse' : ''}`} />
+                                        <Icon className={`w-4 h-4 ${isActive && tab.value === 'live' ? 'animate-pulse' : ''}`} />
                                         <span>{tab.label}</span>
                                     </button>
                                 );
                             })}
                         </nav>
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-1.5">
+                            <Link
+                                href="/rankings"
+                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                            >
+                                <Medal className="w-4 h-4" />
+                                <span className="hidden sm:inline">Rankings</span>
+                            </Link>
+                            <ThemeToggle />
+                        </div>
                     </div>
+
+                    {/* Mobile: nav tabs as full-width row below logo */}
+                    <nav className="md:hidden flex items-center gap-1.5 pb-3">
+                        {tabs.map((tab) => {
+                            const Icon = tab.icon;
+                            const isActive = view === tab.value;
+                            return (
+                                <button
+                                    key={tab.value}
+                                    onClick={() => switchView(tab.value)}
+                                    className={`
+                                        flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-medium
+                                        transition-all duration-200 ease-out
+                                        ${isActive
+                                            ? 'active-tab'
+                                            : 'text-muted-foreground glass-pill'
+                                        }
+                                    `}
+                                >
+                                    <Icon className={`w-3.5 h-3.5 ${isActive && tab.value === 'live' ? 'animate-pulse' : ''}`} />
+                                    <span>{tab.label}</span>
+                                </button>
+                            );
+                        })}
+                    </nav>
                 </div>
             </header>
 

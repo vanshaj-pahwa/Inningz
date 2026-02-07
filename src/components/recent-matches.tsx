@@ -235,8 +235,8 @@ function FilterBar({ activeFilter, setActiveFilter }: { activeFilter: MatchFilte
             className={`
               shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200
               ${activeFilter === filter.value
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25'
-                : 'bg-zinc-100 dark:bg-zinc-900 text-muted-foreground hover:text-foreground hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-transparent'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-neutral-100 dark:bg-neutral-800 text-muted-foreground hover:text-foreground hover:bg-neutral-200 dark:hover:bg-neutral-700'
               }
             `}
           >

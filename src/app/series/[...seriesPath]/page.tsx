@@ -91,42 +91,40 @@ export default function SeriesPage() {
   const visibleTabs = tabs.filter(t => !t.hidden);
 
   return (
-    <div className="min-h-screen">
-      {/* Header */}
-      <header className="sticky top-0 z-50 w-full gradient-border">
-        <div className="bg-background/90 backdrop-blur-xl">
-          <div className="max-w-7xl mx-auto px-4 md:px-6">
-            <div className="flex items-center gap-4 h-16">
-              <Button variant="ghost" size="icon" className="rounded-xl shrink-0" onClick={() => router.back()}>
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <h1 className="text-lg md:text-xl font-display tracking-tight truncate">
-                {loading ? 'Loading...' : seriesName}
-              </h1>
-            </div>
-            {/* Tabs */}
-            <div className="flex gap-1 -mb-px">
-              {visibleTabs.map(tab => {
-                const Icon = tab.icon;
-                const isActive = view === tab.value;
-                return (
-                  <button
-                    key={tab.value}
-                    onClick={() => setView(tab.value)}
-                    className={`
-                      flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors border-b-2
-                      ${isActive
-                        ? 'border-primary text-primary'
-                        : 'border-transparent text-muted-foreground hover:text-foreground'
-                      }
-                    `}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {tab.label}
-                  </button>
-                );
-              })}
-            </div>
+    <div className="min-h-screen stadium-glow">
+      {/* Header - Glass Nav */}
+      <header className="sticky top-0 z-50 w-full glass-nav">
+        <div className="max-w-7xl mx-auto px-4 md:px-6">
+          <div className="flex items-center gap-4 h-14">
+            <Button variant="ghost" size="icon" className="rounded-xl shrink-0 hover:bg-black/5 dark:hover:bg-white/10" onClick={() => router.back()}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-lg md:text-xl font-display tracking-tight truncate">
+              {loading ? 'Loading...' : seriesName}
+            </h1>
+          </div>
+          {/* Tabs */}
+          <div className="flex gap-1 pb-2">
+            {visibleTabs.map(tab => {
+              const Icon = tab.icon;
+              const isActive = view === tab.value;
+              return (
+                <button
+                  key={tab.value}
+                  onClick={() => setView(tab.value)}
+                  className={`
+                    flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all
+                    ${isActive
+                      ? 'text-primary bg-primary/10'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10'
+                    }
+                  `}
+                >
+                  <Icon className="h-4 w-4" />
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
         </div>
       </header>
@@ -219,24 +217,18 @@ export default function SeriesPage() {
                         </div>
 
                         <div className="space-y-3">
-                          {match.teams.map((team, idx) => {
-                            const isBatting = idx === 0 && matchIsLive;
-                            return (
-                              <div key={idx} className="flex items-center justify-between gap-3">
-                                <span className={`text-sm font-semibold truncate ${isBatting ? 'text-foreground' : 'text-muted-foreground'}`}>
-                                  {team.name}
+                          {match.teams.map((team, idx) => (
+                            <div key={idx} className="flex items-center justify-between gap-3">
+                              <span className="text-sm font-semibold truncate text-foreground">
+                                {team.name}
+                              </span>
+                              {team.score && (
+                                <span className="font-display text-lg tabular-nums flex-shrink-0 text-foreground">
+                                  {team.score}
                                 </span>
-                                {team.score && (
-                                  <span className={`
-                                    font-display text-lg tabular-nums flex-shrink-0
-                                    ${isBatting ? 'text-amber-400 score-glow' : 'text-muted-foreground'}
-                                  `}>
-                                    {team.score}
-                                  </span>
-                                )}
-                              </div>
-                            );
-                          })}
+                              )}
+                            </div>
+                          ))}
                         </div>
 
                         {match.status && match.status.toLowerCase() !== 'status not available' && (

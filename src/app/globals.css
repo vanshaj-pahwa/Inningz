@@ -4,56 +4,60 @@
 
 @layer base {
   :root {
-    /* Stadium Lights - Light Mode */
-    --background: 210 20% 98%; /* crisp off-white with cool undertone */
-    --foreground: 222 47% 11%; /* deep navy ink */
+    /* iOS Glassmorphism - Light Mode */
+    --background: 240 5% 96%; /* iOS light gray */
+    --foreground: 0 0% 0%;
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 0 0% 0%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
-    --primary: 173 80% 40%; /* electric teal #14b8a6 */
+    --popover-foreground: 0 0% 0%;
+    --primary: 211 100% 50%; /* iOS blue #007AFF */
     --primary-foreground: 0 0% 100%;
-    --secondary: 173 30% 94%;
-    --secondary-foreground: 173 80% 25%;
-    --muted: 210 20% 94%;
-    --muted-foreground: 215 16% 47%;
-    --accent: 12 90% 58%; /* hot coral #f05a3e - for scores & highlights */
+    --secondary: 240 5% 92%;
+    --secondary-foreground: 0 0% 0%;
+    --muted: 240 5% 92%;
+    --muted-foreground: 240 4% 46%;
+    --accent: 211 100% 50%; /* Use iOS blue for accent too - cleaner */
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 214 20% 88%;
-    --input: 214 20% 88%;
-    --ring: 173 80% 40%;
-    --radius: 0.75rem;
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 211 100% 50%;
+    --radius: 0.875rem;
   }
 
   .dark {
-    /* Stadium Lights - Dark Mode (Night Match) */
-    --background: 224 71% 4%; /* deep indigo-black #020617 */
-    --foreground: 210 40% 96%; /* cool white #f1f5f9 */
-    --card: 222 47% 8%; /* slate-950 with blue tint */
-    --card-foreground: 210 40% 96%;
-    --popover: 222 47% 8%;
-    --popover-foreground: 210 40% 96%;
-    --primary: 173 80% 45%; /* electric teal - slightly brighter for dark */
-    --primary-foreground: 224 71% 4%;
-    --secondary: 217 33% 14%;
-    --secondary-foreground: 210 40% 96%;
-    --muted: 217 33% 14%;
-    --muted-foreground: 215 20% 55%;
-    --accent: 14 100% 60%; /* hot coral - vivid for dark mode */
+    /* iOS Glassmorphism - Dark Mode */
+    --background: 0 0% 0%; /* true black for OLED */
+    --foreground: 0 0% 98%;
+    --card: 0 0% 11%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 11%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 211 100% 50%; /* iOS blue */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 17%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 17%;
+    --muted-foreground: 0 0% 55%;
+    --accent: 211 100% 50%; /* iOS blue for accent */
     --accent-foreground: 0 0% 100%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 173 80% 45%;
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 211 100% 50%;
   }
 }
 
 @layer base {
   * {
     @apply border-border;
+  }
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
   body {
     @apply bg-background text-foreground;
@@ -70,56 +74,48 @@
     display: none;
   }
 
-  /* Glass card effect - with subtle blue tint in dark mode */
+  /* Card effect - clean solid background */
   .glass-card {
-    @apply bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm;
-    @apply dark:shadow-[0_4px_24px_rgba(0,0,0,0.3)];
+    @apply rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800;
   }
 
-  /* Score glow - hot coral for that stadium scoreboard feel */
+  /* Score highlight */
   .score-glow {
-    color: #ea580c;
-    text-shadow: 0 0 20px rgba(234, 88, 12, 0.3);
-  }
-  .dark .score-glow {
-    color: #fb923c;
-    text-shadow: 0 0 30px rgba(251, 146, 60, 0.4);
+    color: hsl(var(--primary));
+    font-weight: 600;
   }
 
-  /* Live pulse glow - electric teal pulse */
+  /* Live pulse glow - iOS red */
   .live-pulse {
     animation: live-glow 2s ease-in-out infinite;
   }
   @keyframes live-glow {
     0%, 100% {
-      box-shadow: 0 0 8px rgba(20, 184, 166, 0.5), 0 0 20px rgba(20, 184, 166, 0.15);
+      box-shadow: 0 0 8px rgba(255, 59, 48, 0.4), 0 0 16px rgba(255, 59, 48, 0.2);
     }
     50% {
-      box-shadow: 0 0 20px rgba(20, 184, 166, 0.7), 0 0 50px rgba(20, 184, 166, 0.3);
+      box-shadow: 0 0 12px rgba(255, 59, 48, 0.6), 0 0 24px rgba(255, 59, 48, 0.3);
     }
   }
 
-  /* Card hover effect - teal glow on hover */
+  /* Card hover effect - subtle lift */
   .card-hover {
-    @apply transition-all duration-300 ease-out;
+    @apply transition-transform duration-200 ease-out;
   }
   .card-hover:hover {
-    @apply scale-[1.02] shadow-xl;
-  }
-  .dark .card-hover:hover {
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(20, 184, 166, 0.15);
+    transform: translateY(-2px);
   }
 
   /* Staggered entrance animation */
   .stagger-in {
-    animation: stagger-fade-in 0.5s ease-out forwards;
-    animation-delay: calc(var(--stagger-index, 0) * 80ms);
+    animation: stagger-fade-in 0.4s ease-out forwards;
+    animation-delay: calc(var(--stagger-index, 0) * 60ms);
     opacity: 0;
   }
   @keyframes stagger-fade-in {
     from {
       opacity: 0;
-      transform: translateY(12px);
+      transform: translateY(8px);
     }
     to {
       opacity: 1;
@@ -151,7 +147,7 @@
     50% { opacity: 0.85; }
   }
 
-  /* Event animation (keep existing, enhanced) */
+  /* Event animation */
   .event-animation {
     animation: event-pop 3s ease-out forwards;
   }
@@ -162,7 +158,7 @@
     }
     15% {
       opacity: 1;
-      transform: scale(1.2) translateY(0);
+      transform: scale(1.1) translateY(0);
     }
     25% {
       transform: scale(1) translateY(0);
@@ -173,11 +169,11 @@
     }
     100% {
       opacity: 0;
-      transform: scale(0.8) translateY(-10px);
+      transform: scale(0.9) translateY(-8px);
     }
   }
 
-  /* Gradient border utility - teal to coral gradient */
+  /* Gradient border utility - subtle iOS style */
   .gradient-border {
     position: relative;
   }
@@ -187,8 +183,11 @@
     bottom: 0;
     left: 0;
     right: 0;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, hsl(var(--primary) / 0.4), hsl(var(--accent) / 0.2), transparent);
+    height: 0.5px;
+    background: rgba(0, 0, 0, 0.15);
+  }
+  .dark .gradient-border::after {
+    background: rgba(255, 255, 255, 0.1);
   }
 
   .hide-scrollbar::-webkit-scrollbar {
@@ -211,42 +210,130 @@
     border-width: 0;
   }
 
-  /* Skeleton loading pulse */
+  /* Skeleton loading pulse - iOS style */
   .skeleton {
-    @apply bg-slate-200 dark:bg-slate-800 rounded-lg animate-pulse;
+    @apply rounded-xl animate-pulse;
+    background: rgba(120, 120, 128, 0.12);
+  }
+  .dark .skeleton {
+    background: rgba(120, 120, 128, 0.2);
   }
 
-  /* Stadium ambient glow - subtle background radial for dark mode */
+  /* Ambient gradient background */
   .stadium-glow {
-    background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(20, 184, 166, 0.08), transparent);
+    background: radial-gradient(ellipse 100% 80% at 50% -30%, rgba(0, 122, 255, 0.04), transparent);
+  }
+  .dark .stadium-glow {
+    background: radial-gradient(ellipse 100% 80% at 50% -30%, rgba(10, 132, 255, 0.08), transparent);
   }
 
-  /* Wicket/boundary flash animation */
+  /* Highlight flash animation */
   .highlight-flash {
     animation: highlight-flash 0.6s ease-out;
   }
   @keyframes highlight-flash {
     0% {
-      background-color: rgba(251, 146, 60, 0.3);
+      background-color: rgba(0, 122, 255, 0.2);
     }
     100% {
       background-color: transparent;
     }
   }
 
-  /* Premium text gradient for headings */
+  /* Premium text gradient */
   .text-gradient {
-    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+    background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
-  /* Stat number styling - monospace with subtle glow */
+  /* Stat number styling */
   .stat-number {
     @apply font-mono tabular-nums tracking-tight;
   }
-  .dark .stat-number {
-    text-shadow: 0 0 40px rgba(20, 184, 166, 0.15);
+
+  /* Glass header - for sticky headers */
+  .glass-header {
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+  }
+  .dark .glass-header {
+    background: rgba(0, 0, 0, 0.72);
+  }
+
+  /* Glass nav bar */
+  .glass-nav {
+    background: rgba(249, 249, 249, 0.94);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-bottom: 0.5px solid rgba(0, 0, 0, 0.1);
+  }
+  .dark .glass-nav {
+    background: rgba(29, 29, 31, 0.94);
+    border-bottom: 0.5px solid rgba(255, 255, 255, 0.1);
+  }
+
+  /* Glass button */
+  .glass-button {
+    @apply rounded-xl px-4 py-2 font-medium transition-all;
+    background: rgba(0, 122, 255, 0.1);
+    color: #007AFF;
+  }
+  .glass-button:hover {
+    background: rgba(0, 122, 255, 0.15);
+  }
+  .glass-button:active {
+    background: rgba(0, 122, 255, 0.2);
+    transform: scale(0.98);
+  }
+  .dark .glass-button {
+    background: rgba(10, 132, 255, 0.15);
+    color: #0A84FF;
+  }
+  .dark .glass-button:hover {
+    background: rgba(10, 132, 255, 0.2);
+  }
+
+  /* iOS-style separator */
+  .ios-separator {
+    height: 0.5px;
+    background: rgba(60, 60, 67, 0.18);
+  }
+  .dark .ios-separator {
+    background: rgba(84, 84, 88, 0.36);
+  }
+
+  /* Glass input */
+  .glass-input {
+    @apply rounded-xl px-4 py-3;
+    background: rgba(120, 120, 128, 0.08);
+    border: none;
+  }
+  .glass-input:focus {
+    outline: none;
+    background: rgba(120, 120, 128, 0.12);
+  }
+  .dark .glass-input {
+    background: rgba(120, 120, 128, 0.16);
+  }
+  .dark .glass-input:focus {
+    background: rgba(120, 120, 128, 0.24);
+  }
+
+  /* Glass pill/badge */
+  .glass-pill {
+    @apply rounded-full px-3 py-1 text-xs font-medium;
+    background: rgba(120, 120, 128, 0.12);
+  }
+  .dark .glass-pill {
+    background: rgba(120, 120, 128, 0.24);
+  }
+
+  /* Active tab indicator */
+  .active-tab {
+    background: hsl(var(--primary));
+    color: white;
   }
 }

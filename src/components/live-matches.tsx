@@ -199,24 +199,18 @@ export default function LiveMatches() {
 
                     {/* Teams and Scores */}
                     <div className="space-y-3">
-                      {match.teams.map((team, idx) => {
-                        const isBatting = idx === 0 && matchIsLive;
-                        return (
-                          <div key={idx} className="flex items-center justify-between gap-3">
-                            <span className={`text-sm font-semibold truncate ${isBatting ? 'text-foreground' : 'text-muted-foreground'}`}>
-                              {team.name}
+                      {match.teams.map((team, idx) => (
+                        <div key={idx} className="flex items-center justify-between gap-3">
+                          <span className="text-sm font-semibold truncate text-foreground">
+                            {team.name}
+                          </span>
+                          {team.score && (
+                            <span className="font-display text-lg tabular-nums flex-shrink-0 text-foreground">
+                              {team.score}
                             </span>
-                            {team.score && (
-                              <span className={`
-                                font-display text-lg tabular-nums flex-shrink-0
-                                ${isBatting ? 'text-amber-400 score-glow' : 'text-muted-foreground'}
-                              `}>
-                                {team.score}
-                              </span>
-                            )}
-                          </div>
-                        );
-                      })}
+                          )}
+                        </div>
+                      ))}
                     </div>
 
                     {/* Status */}
@@ -263,8 +257,8 @@ function FilterBar({ activeFilter, setActiveFilter }: { activeFilter: MatchFilte
             className={`
               shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200
               ${activeFilter === filter.value
-                ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25'
-                : 'bg-zinc-100 dark:bg-zinc-900 text-muted-foreground hover:text-foreground hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-transparent'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-neutral-100 dark:bg-neutral-800 text-muted-foreground hover:text-foreground hover:bg-neutral-200 dark:hover:bg-neutral-700'
               }
             `}
           >
