@@ -4,48 +4,50 @@
 
 @layer base {
   :root {
-    --background: 50 100% 97%; /* warm cream #fefce8 */
-    --foreground: 220 20% 14%; /* deep navy #1e2430 */
+    /* Stadium Lights - Light Mode */
+    --background: 210 20% 98%; /* crisp off-white with cool undertone */
+    --foreground: 222 47% 11%; /* deep navy ink */
     --card: 0 0% 100%;
-    --card-foreground: 220 20% 14%;
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 220 20% 14%;
-    --primary: 142 71% 45%; /* pitch green #22c55e */
+    --popover-foreground: 222 47% 11%;
+    --primary: 173 80% 40%; /* electric teal #14b8a6 */
     --primary-foreground: 0 0% 100%;
-    --secondary: 142 40% 92%;
-    --secondary-foreground: 142 71% 25%;
-    --muted: 45 30% 92%;
-    --muted-foreground: 220 10% 46%;
-    --accent: 45 93% 58%; /* amber gold #fbbf24 */
-    --accent-foreground: 220 20% 14%;
+    --secondary: 173 30% 94%;
+    --secondary-foreground: 173 80% 25%;
+    --muted: 210 20% 94%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 12 90% 58%; /* hot coral #f05a3e - for scores & highlights */
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 220 13% 88%;
-    --input: 220 13% 88%;
-    --ring: 142 71% 45%;
+    --border: 214 20% 88%;
+    --input: 214 20% 88%;
+    --ring: 173 80% 40%;
     --radius: 0.75rem;
   }
 
   .dark {
-    --background: 240 6% 4%; /* pitch black #09090b */
-    --foreground: 60 9% 92%; /* warm white #eae8e0 */
-    --card: 240 4% 10%; /* zinc-900 #18181b */
-    --card-foreground: 60 9% 92%;
-    --popover: 240 4% 10%;
-    --popover-foreground: 60 9% 92%;
-    --primary: 142 71% 45%; /* pitch green */
-    --primary-foreground: 240 6% 4%;
-    --secondary: 240 4% 16%;
-    --secondary-foreground: 60 9% 92%;
-    --muted: 240 4% 16%;
-    --muted-foreground: 240 5% 55%;
-    --accent: 43 96% 56%; /* amber gold #fbbf24 */
-    --accent-foreground: 240 6% 4%;
-    --destructive: 0 63% 31%;
+    /* Stadium Lights - Dark Mode (Night Match) */
+    --background: 224 71% 4%; /* deep indigo-black #020617 */
+    --foreground: 210 40% 96%; /* cool white #f1f5f9 */
+    --card: 222 47% 8%; /* slate-950 with blue tint */
+    --card-foreground: 210 40% 96%;
+    --popover: 222 47% 8%;
+    --popover-foreground: 210 40% 96%;
+    --primary: 173 80% 45%; /* electric teal - slightly brighter for dark */
+    --primary-foreground: 224 71% 4%;
+    --secondary: 217 33% 14%;
+    --secondary-foreground: 210 40% 96%;
+    --muted: 217 33% 14%;
+    --muted-foreground: 215 20% 55%;
+    --accent: 14 100% 60%; /* hot coral - vivid for dark mode */
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 240 4% 16%;
-    --input: 240 4% 16%;
-    --ring: 142 71% 45%;
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 173 80% 45%;
   }
 }
 
@@ -68,33 +70,36 @@
     display: none;
   }
 
-  /* Glass card effect */
+  /* Glass card effect - with subtle blue tint in dark mode */
   .glass-card {
-    @apply bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm;
+    @apply bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm;
+    @apply dark:shadow-[0_4px_24px_rgba(0,0,0,0.3)];
   }
 
-  /* Score glow - subtle warm amber */
+  /* Score glow - hot coral for that stadium scoreboard feel */
   .score-glow {
-    color: #d97706;
+    color: #ea580c;
+    text-shadow: 0 0 20px rgba(234, 88, 12, 0.3);
   }
   .dark .score-glow {
-    color: #fbbf24;
+    color: #fb923c;
+    text-shadow: 0 0 30px rgba(251, 146, 60, 0.4);
   }
 
-  /* Live pulse glow */
+  /* Live pulse glow - electric teal pulse */
   .live-pulse {
     animation: live-glow 2s ease-in-out infinite;
   }
   @keyframes live-glow {
     0%, 100% {
-      box-shadow: 0 0 8px rgba(239, 68, 68, 0.4), 0 0 20px rgba(239, 68, 68, 0.1);
+      box-shadow: 0 0 8px rgba(20, 184, 166, 0.5), 0 0 20px rgba(20, 184, 166, 0.15);
     }
     50% {
-      box-shadow: 0 0 16px rgba(239, 68, 68, 0.6), 0 0 40px rgba(239, 68, 68, 0.2);
+      box-shadow: 0 0 20px rgba(20, 184, 166, 0.7), 0 0 50px rgba(20, 184, 166, 0.3);
     }
   }
 
-  /* Card hover effect */
+  /* Card hover effect - teal glow on hover */
   .card-hover {
     @apply transition-all duration-300 ease-out;
   }
@@ -102,7 +107,7 @@
     @apply scale-[1.02] shadow-xl;
   }
   .dark .card-hover:hover {
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(34, 197, 94, 0.1);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(20, 184, 166, 0.15);
   }
 
   /* Staggered entrance animation */
@@ -172,7 +177,7 @@
     }
   }
 
-  /* Gradient border utility */
+  /* Gradient border utility - teal to coral gradient */
   .gradient-border {
     position: relative;
   }
@@ -183,7 +188,7 @@
     left: 0;
     right: 0;
     height: 1px;
-    background: linear-gradient(90deg, transparent, hsl(var(--primary) / 0.3), transparent);
+    background: linear-gradient(90deg, transparent, hsl(var(--primary) / 0.4), hsl(var(--accent) / 0.2), transparent);
   }
 
   .hide-scrollbar::-webkit-scrollbar {
@@ -208,6 +213,40 @@
 
   /* Skeleton loading pulse */
   .skeleton {
-    @apply bg-zinc-200 dark:bg-zinc-800 rounded-lg animate-pulse;
+    @apply bg-slate-200 dark:bg-slate-800 rounded-lg animate-pulse;
+  }
+
+  /* Stadium ambient glow - subtle background radial for dark mode */
+  .stadium-glow {
+    background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(20, 184, 166, 0.08), transparent);
+  }
+
+  /* Wicket/boundary flash animation */
+  .highlight-flash {
+    animation: highlight-flash 0.6s ease-out;
+  }
+  @keyframes highlight-flash {
+    0% {
+      background-color: rgba(251, 146, 60, 0.3);
+    }
+    100% {
+      background-color: transparent;
+    }
+  }
+
+  /* Premium text gradient for headings */
+  .text-gradient {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Stat number styling - monospace with subtle glow */
+  .stat-number {
+    @apply font-mono tabular-nums tracking-tight;
+  }
+  .dark .stat-number {
+    text-shadow: 0 0 40px rgba(20, 184, 166, 0.15);
   }
 }

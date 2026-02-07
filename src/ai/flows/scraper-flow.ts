@@ -3338,8 +3338,11 @@ export async function scrapeSeriesStats(seriesId: string, statsType: string): Pr
       const playerId = vals[0];
       const playerName = vals[1];
       const valueMap: Record<string, string> = {};
-      for (let i = 0; i < headers.length; i++) {
-        valueMap[headers[i]] = vals[i + 2] || '';
+      // Headers: ["PLAYER", "MATCHES", "INNS", "RUNS", ...]
+      // Values:  [playerId, playerName, matches, inns, runs, ...]
+      // Skip headers[0] ("PLAYER") - map headers[1+] to vals[2+]
+      for (let i = 1; i < headers.length; i++) {
+        valueMap[headers[i]] = vals[i + 1] ?? '';
       }
 
       entries.push({ playerId, playerName, values: valueMap });
