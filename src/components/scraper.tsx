@@ -409,7 +409,8 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
             if (isOverSummary) {
                 // Parse the over summary text and clean HTML
                 const cleanText = (text: string) => text.replace(/<br\s*\/?>/gi, '').replace(/<[^>]*>/g, '').trim();
-                const lines = comment.text.split(/\*\s*/).filter(line => line.trim());
+                // Handle both "*" and "--" bullet formats
+                const lines = comment.text.split(/(?:\*|--)\s*/).filter(line => line.trim());
                 const headerMatch = lines[0]?.match(/Over Summary\s*\(([^)]+)\)/i);
                 const header = headerMatch ? headerMatch[1] : null;
                 const summaryItems = lines.slice(headerMatch ? 1 : 0).map(line => cleanText(line)).filter(Boolean);
