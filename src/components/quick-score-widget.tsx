@@ -62,27 +62,27 @@ export default function QuickScoreWidget({
         'animate-in slide-in-from-bottom-4 fade-in duration-300'
       )}
     >
-      <div className="flex flex-col gap-1 px-4 py-2.5 rounded-2xl bg-zinc-900/95 backdrop-blur-xl border border-zinc-700/50 shadow-2xl shadow-black/40 max-w-md w-full">
+      <div className="flex flex-col gap-1 px-4 py-2.5 rounded-2xl bg-card/95 backdrop-blur-xl border border-border shadow-2xl shadow-black/40 max-w-md w-full">
         {/* Row 1: Scores and actions */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {/* Previous innings */}
             {previousInnings && previousInnings.length > 0 && (
               <div className="flex items-baseline gap-1">
-                <span className="text-xs text-zinc-500">{previousInnings[0].teamShortName || previousInnings[0].teamName}</span>
-                <span className="text-sm font-display font-bold text-zinc-400">{previousInnings[0].score?.split('(')[0].trim()}</span>
+                <span className="text-xs text-muted-foreground">{previousInnings[0].teamShortName || previousInnings[0].teamName}</span>
+                <span className="text-sm font-display font-bold text-muted-foreground">{previousInnings[0].score?.split('(')[0].trim()}</span>
               </div>
             )}
 
             {previousInnings && previousInnings.length > 0 && (
-              <span className="text-zinc-600">|</span>
+              <span className="text-muted-foreground/50">|</span>
             )}
 
             {/* Current score */}
             <div className="flex items-baseline gap-1">
-              {teamName && <span className="text-xs font-semibold text-zinc-400">{teamName}</span>}
+              {teamName && <span className="text-xs font-semibold text-muted-foreground">{teamName}</span>}
               <span className="text-lg font-display font-black text-amber-400 tabular-nums">{teamScore}</span>
-              {overs && <span className="text-xs text-zinc-500 tabular-nums">({overs})</span>}
+              {overs && <span className="text-xs text-muted-foreground tabular-nums">({overs})</span>}
             </div>
           </div>
 
@@ -90,24 +90,24 @@ export default function QuickScoreWidget({
           <div className="flex items-center gap-0.5">
             <button
               onClick={scrollToTop}
-              className="p-1.5 rounded-lg hover:bg-zinc-800 transition-colors"
+              className="p-1.5 rounded-lg hover:bg-muted transition-colors"
               aria-label="Scroll to top"
             >
-              <ChevronUp className="w-4 h-4 text-zinc-400" />
+              <ChevronUp className="w-4 h-4 text-muted-foreground" />
             </button>
             <button
               onClick={() => setIsDismissed(true)}
-              className="p-1.5 rounded-lg hover:bg-zinc-800 transition-colors"
+              className="p-1.5 rounded-lg hover:bg-muted transition-colors"
               aria-label="Dismiss"
             >
-              <X className="w-4 h-4 text-zinc-400" />
+              <X className="w-4 h-4 text-muted-foreground" />
             </button>
           </div>
         </div>
 
         {/* Row 2: Status */}
         {status && (
-          <p className="text-[11px] text-zinc-400 truncate">{status}</p>
+          <p className="text-[11px] text-muted-foreground truncate">{status}</p>
         )}
       </div>
     </div>

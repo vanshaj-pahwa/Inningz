@@ -14,7 +14,7 @@ export default function PlayerProfileDisplay({ profile }: { profile: PlayerProfi
     const { info, bio, battingStats, bowlingStats } = profile;
 
     return (
-        <div className="w-full bg-zinc-50 dark:bg-zinc-950">
+        <div className="w-full bg-background">
             {/* Header Section */}
             <div className="relative bg-gradient-to-r from-green-900 to-zinc-950 overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent"></div>
@@ -56,8 +56,8 @@ export default function PlayerProfileDisplay({ profile }: { profile: PlayerProfi
                         {/* Left Sidebar */}
                         <div className="lg:col-span-4 space-y-6">
                             {/* Personal Information Card */}
-                            <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-200/50 dark:border-zinc-800/50 overflow-hidden">
-                                <div className="px-6 py-4 border-b border-zinc-200/50 dark:border-zinc-800/50 bg-zinc-50 dark:bg-zinc-900/50">
+                            <div className="bg-card rounded-2xl shadow-sm border border-border/50 overflow-hidden">
+                                <div className="px-6 py-4 border-b border-border/50 bg-muted/50">
                                     <h3 className="text-sm font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
                                         Personal Information
                                     </h3>
@@ -78,7 +78,7 @@ export default function PlayerProfileDisplay({ profile }: { profile: PlayerProfi
                                                 <dd className="text-sm font-semibold text-foreground">{info.personal.height}</dd>
                                             </div>
                                         )}
-                                        <div className="pt-3 border-t border-zinc-200/30 dark:border-zinc-800/30"></div>
+                                        <div className="pt-3 border-t border-border/30"></div>
                                         <div className="flex justify-between items-start">
                                             <dt className="text-sm text-muted-foreground">Batting Style</dt>
                                             <dd className="text-sm font-semibold text-foreground text-right">{info.personal.battingStyle}</dd>
@@ -101,8 +101,8 @@ export default function PlayerProfileDisplay({ profile }: { profile: PlayerProfi
 
                             {/* Teams Card */}
                             {info.teams && info.teams !== '--' && (
-                                <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-200/50 dark:border-zinc-800/50 overflow-hidden">
-                                    <div className="px-6 py-4 border-b border-zinc-200/50 dark:border-zinc-800/50 bg-zinc-50 dark:bg-zinc-900/50">
+                                <div className="bg-card rounded-2xl shadow-sm border border-border/50 overflow-hidden">
+                                    <div className="px-6 py-4 border-b border-border/50 bg-muted/50">
                                         <h3 className="text-sm font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
                                             Teams
                                         </h3>
@@ -124,8 +124,8 @@ export default function PlayerProfileDisplay({ profile }: { profile: PlayerProfi
 
                             {/* Profile/Bio */}
                             {bio && (
-                                <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-200/50 dark:border-zinc-800/50 overflow-hidden">
-                                    <div className="px-5 py-3.5 border-b border-zinc-200/50 dark:border-zinc-800/50 bg-zinc-50 dark:bg-zinc-900/50">
+                                <div className="bg-card rounded-2xl shadow-sm border border-border/50 overflow-hidden">
+                                    <div className="px-5 py-3.5 border-b border-border/50 bg-muted/50">
                                         <h3 className="text-sm font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
                                             Profile
                                         </h3>
@@ -145,8 +145,8 @@ export default function PlayerProfileDisplay({ profile }: { profile: PlayerProfi
                     <div className="mt-6 space-y-6">
                         {/* Batting Stats - Old Format (fallback) */}
                         {(!profile.battingCareerSummary || profile.battingCareerSummary.length === 0) && battingStats.length > 0 && (
-                            <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-200/50 dark:border-zinc-800/50 overflow-hidden">
-                                <div className="px-6 py-4 border-b border-zinc-200/50 dark:border-zinc-800/50 bg-zinc-50 dark:bg-zinc-900/50">
+                            <div className="bg-card rounded-2xl shadow-sm border border-border/50 overflow-hidden">
+                                <div className="px-6 py-4 border-b border-border/50 bg-muted/50">
                                     <h3 className="text-sm font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
                                         Batting Career Summary
                                     </h3>
@@ -154,7 +154,7 @@ export default function PlayerProfileDisplay({ profile }: { profile: PlayerProfi
                                 <div className="overflow-x-auto">
                                     <table className="w-full">
                                         <thead>
-                                            <tr className="bg-zinc-50 dark:bg-zinc-900/30">
+                                            <tr className="bg-muted/30">
                                                 <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400"></th>
                                                 <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Test</th>
                                                 <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">ODI</th>
@@ -164,7 +164,7 @@ export default function PlayerProfileDisplay({ profile }: { profile: PlayerProfi
                                         </thead>
                                         <tbody className="divide-y divide-zinc-200/30 dark:divide-zinc-800/30">
                                             {profile.battingCareerSummary.map((row, idx) => (
-                                                <tr key={idx} className={idx % 2 === 0 ? 'bg-white dark:bg-zinc-900' : 'bg-zinc-50/50 dark:bg-zinc-900/30'}>
+                                                <tr key={idx} className={idx % 2 === 0 ? 'bg-card' : 'bg-muted/30'}>
                                                     <td className="px-4 py-3 text-sm font-bold text-foreground">{row.stat}</td>
                                                     <td className="px-4 py-3 text-sm text-right text-zinc-600 dark:text-zinc-400">{row.values.test}</td>
                                                     <td className="px-4 py-3 text-sm text-right text-zinc-600 dark:text-zinc-400">{row.values.odi}</td>
@@ -180,8 +180,8 @@ export default function PlayerProfileDisplay({ profile }: { profile: PlayerProfi
 
                         {/* Batting Stats - Old Format (fallback) */}
                         {(!profile.battingCareerSummary || profile.battingCareerSummary.length === 0) && battingStats.length > 0 && (
-                            <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-200/50 dark:border-zinc-800/50 overflow-hidden">
-                                <div className="px-6 py-4 border-b border-zinc-200/50 dark:border-zinc-800/50 bg-zinc-50 dark:bg-zinc-900/50">
+                            <div className="bg-card rounded-2xl shadow-sm border border-border/50 overflow-hidden">
+                                <div className="px-6 py-4 border-b border-border/50 bg-muted/50">
                                     <h3 className="text-sm font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
                                         Batting Career Summary
                                     </h3>
@@ -189,7 +189,7 @@ export default function PlayerProfileDisplay({ profile }: { profile: PlayerProfi
                                 <div className="overflow-x-auto">
                                     <Table>
                                         <TableHeader>
-                                            <TableRow className="bg-zinc-50 dark:bg-zinc-900/30 hover:bg-zinc-50 dark:hover:bg-zinc-800/30">
+                                            <TableRow className="bg-muted/30 hover:bg-muted/30">
                                                 <TableHead className="font-bold text-foreground">Format</TableHead>
                                                 <TableHead className="text-right font-bold text-foreground">M</TableHead>
                                                 <TableHead className="text-right font-bold text-foreground">Inn</TableHead>
@@ -207,7 +207,7 @@ export default function PlayerProfileDisplay({ profile }: { profile: PlayerProfi
                                         </TableHeader>
                                         <TableBody>
                                             {battingStats.map((stat, idx) => (
-                                                <TableRow key={stat.format} className={idx % 2 === 0 ? 'bg-white dark:bg-zinc-900' : 'bg-zinc-50/50 dark:bg-zinc-900/30'}>
+                                                <TableRow key={stat.format} className={idx % 2 === 0 ? 'bg-card' : 'bg-muted/30'}>
                                                     <TableCell className="font-semibold text-foreground">{stat.format}</TableCell>
                                                     <TableCell className="text-right text-zinc-600 dark:text-zinc-400">{stat.matches}</TableCell>
                                                     <TableCell className="text-right text-zinc-600 dark:text-zinc-400">{stat.innings}</TableCell>
@@ -231,8 +231,8 @@ export default function PlayerProfileDisplay({ profile }: { profile: PlayerProfi
 
                         {/* Bowling Stats - Old Format (fallback) */}
                         {(!profile.bowlingCareerSummary || profile.bowlingCareerSummary.length === 0) && bowlingStats.length > 0 && (
-                            <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-200/50 dark:border-zinc-800/50 overflow-hidden">
-                                <div className="px-6 py-4 border-b border-zinc-200/50 dark:border-zinc-800/50 bg-zinc-50 dark:bg-zinc-900/50">
+                            <div className="bg-card rounded-2xl shadow-sm border border-border/50 overflow-hidden">
+                                <div className="px-6 py-4 border-b border-border/50 bg-muted/50">
                                     <h3 className="text-sm font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
                                         Bowling Career Summary
                                     </h3>
@@ -240,7 +240,7 @@ export default function PlayerProfileDisplay({ profile }: { profile: PlayerProfi
                                 <div className="overflow-x-auto">
                                     <Table>
                                         <TableHeader>
-                                            <TableRow className="bg-zinc-50 dark:bg-zinc-900/30 hover:bg-zinc-50 dark:hover:bg-zinc-800/30">
+                                            <TableRow className="bg-muted/30 hover:bg-muted/30">
                                                 <TableHead className="font-bold text-foreground">Format</TableHead>
                                                 <TableHead className="text-right font-bold text-foreground">M</TableHead>
                                                 <TableHead className="text-right font-bold text-foreground">Inn</TableHead>
@@ -258,7 +258,7 @@ export default function PlayerProfileDisplay({ profile }: { profile: PlayerProfi
                                         </TableHeader>
                                         <TableBody>
                                             {bowlingStats.map((stat, idx) => (
-                                                <TableRow key={stat.format} className={idx % 2 === 0 ? 'bg-white dark:bg-zinc-900' : 'bg-zinc-50/50 dark:bg-zinc-900/30'}>
+                                                <TableRow key={stat.format} className={idx % 2 === 0 ? 'bg-card' : 'bg-muted/30'}>
                                                     <TableCell className="font-semibold text-foreground">{stat.format}</TableCell>
                                                     <TableCell className="text-right text-zinc-600 dark:text-zinc-400">{stat.matches}</TableCell>
                                                     <TableCell className="text-right text-zinc-600 dark:text-zinc-400">{stat.innings}</TableCell>
@@ -311,12 +311,12 @@ function ICCRankingsCard({ rankings }: { rankings?: PlayerProfile['rankings'] })
     ];
 
     return (
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-200/50 dark:border-zinc-800/50 overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-zinc-200/50 dark:border-zinc-800/50 bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-between">
+        <div className="bg-card rounded-2xl shadow-sm border border-border/50 overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-border/50 bg-muted/50 flex items-center justify-between">
                 <h3 className="text-sm font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
                     ICC Rankings
                 </h3>
-                <div className="flex items-center bg-zinc-200/60 dark:bg-zinc-800 rounded-full p-0.5">
+                <div className="flex items-center bg-muted rounded-full p-0.5">
                     {tabs.map((t) => (
                         <button
                             key={t.key}
@@ -335,7 +335,7 @@ function ICCRankingsCard({ rankings }: { rankings?: PlayerProfile['rankings'] })
             <div className="p-4">
                 <div className="grid grid-cols-3 gap-3">
                     {rows.map((row) => (
-                        <div key={row.format} className="text-center rounded-xl bg-zinc-50 dark:bg-zinc-800/50 py-3 px-2">
+                        <div key={row.format} className="text-center rounded-xl bg-muted/50 py-3 px-2">
                             <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">{row.format}</div>
                             <div className={`text-2xl font-bold tracking-tight ${row.rank !== '--' ? 'text-foreground' : 'text-zinc-300 dark:text-zinc-600'}`}>
                                 {row.rank !== '--' ? row.rank : '--'}
@@ -369,13 +369,13 @@ function RecentFormCard({ recentForm }: { recentForm?: PlayerProfile['recentForm
     const data = isBatting ? recentForm!.batting.slice(0, 5) : recentForm!.bowling.slice(0, 5);
 
     return (
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-200/50 dark:border-zinc-800/50 overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-zinc-200/50 dark:border-zinc-800/50 bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-between">
+        <div className="bg-card rounded-2xl shadow-sm border border-border/50 overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-border/50 bg-muted/50 flex items-center justify-between">
                 <h3 className="text-sm font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
                     Recent Form
                 </h3>
                 {tabs.length > 1 && (
-                    <div className="flex items-center bg-zinc-200/60 dark:bg-zinc-800 rounded-full p-0.5">
+                    <div className="flex items-center bg-muted rounded-full p-0.5">
                         {tabs.map((t) => (
                             <button
                                 key={t.key}
@@ -393,7 +393,7 @@ function RecentFormCard({ recentForm }: { recentForm?: PlayerProfile['recentForm
                 )}
             </div>
             <div className="p-4">
-                <div className="grid grid-cols-[1.2fr_0.8fr_0.8fr_1fr] gap-2 px-3 pb-2 mb-1 border-b border-zinc-200/50 dark:border-zinc-800/50">
+                <div className="grid grid-cols-[1.2fr_0.8fr_0.8fr_1fr] gap-2 px-3 pb-2 mb-1 border-b border-border/50">
                     <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{isBatting ? 'Score' : 'Figures'}</div>
                     <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground text-right">Vs</div>
                     <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground text-right">Format</div>
@@ -401,7 +401,7 @@ function RecentFormCard({ recentForm }: { recentForm?: PlayerProfile['recentForm
                 </div>
                 <div className="space-y-0.5">
                     {data.map((match, idx) => (
-                        <div key={idx} className="grid grid-cols-[1.2fr_0.8fr_0.8fr_1fr] gap-2 px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
+                        <div key={idx} className="grid grid-cols-[1.2fr_0.8fr_0.8fr_1fr] gap-2 px-3 py-2 rounded-lg hover:bg-muted/30 transition-colors">
                             <div className="text-sm font-bold text-foreground tabular-nums">
                                 {isBatting ? (match as any).score : (match as any).wickets}
                             </div>
@@ -434,13 +434,13 @@ function CareerSummaryCard({ battingCareerSummary, bowlingCareerSummary }: {
     const rows = tab === 'batting' && hasBatting ? battingCareerSummary! : bowlingCareerSummary!;
 
     return (
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-200/50 dark:border-zinc-800/50 overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-zinc-200/50 dark:border-zinc-800/50 bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-between">
+        <div className="bg-card rounded-2xl shadow-sm border border-border/50 overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-border/50 bg-muted/50 flex items-center justify-between">
                 <h3 className="text-sm font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
                     Career Summary
                 </h3>
                 {tabs.length > 1 && (
-                    <div className="flex items-center bg-zinc-200/60 dark:bg-zinc-800 rounded-full p-0.5">
+                    <div className="flex items-center bg-muted rounded-full p-0.5">
                         {tabs.map((t) => (
                             <button
                                 key={t.key}
@@ -460,7 +460,7 @@ function CareerSummaryCard({ battingCareerSummary, bowlingCareerSummary }: {
             <div className="p-4 overflow-x-auto">
                 <table className="w-full text-sm">
                     <thead>
-                        <tr className="border-b border-zinc-200/50 dark:border-zinc-800/50">
+                        <tr className="border-b border-border/50">
                             <th className="pb-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground"></th>
                             <th className="pb-2 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Test</th>
                             <th className="pb-2 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">ODI</th>
@@ -470,7 +470,7 @@ function CareerSummaryCard({ battingCareerSummary, bowlingCareerSummary }: {
                     </thead>
                     <tbody>
                         {rows.map((row, idx) => (
-                            <tr key={idx} className="border-b last:border-b-0 border-zinc-200/20 dark:border-zinc-800/20">
+                            <tr key={idx} className="border-b last:border-b-0 border-border/20">
                                 <td className="py-2 pr-3 font-semibold text-foreground whitespace-nowrap">{row.stat}</td>
                                 <td className="py-2 text-right text-zinc-500 dark:text-zinc-400 tabular-nums">{row.values.test}</td>
                                 <td className="py-2 text-right text-zinc-500 dark:text-zinc-400 tabular-nums">{row.values.odi}</td>

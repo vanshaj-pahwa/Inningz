@@ -181,7 +181,7 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                 className="w-full px-0 md:px-4"
             >
                 {scorecard.innings.map((inning, index) => (
-                    <AccordionItem value={inning.name} key={index} className="border border-zinc-200/50 dark:border-zinc-800/50 rounded-none md:rounded-2xl mb-2 md:mb-4 shadow-sm hover:shadow-md transition-shadow">
+                    <AccordionItem value={inning.name} key={index} className="border border-border/50 rounded-none md:rounded-2xl mb-2 md:mb-4 shadow-sm hover:shadow-md transition-shadow">
                         <AccordionTrigger className="px-2 md:px-6 py-2.5 md:py-4 hover:no-underline">
                             <div className="flex items-center justify-between w-full gap-2 md:gap-4">
                                 <div className="flex-1 text-left">
@@ -207,7 +207,7 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                                             </Card>
                                         )}
                                         <Card className="glass-card rounded-none md:rounded-lg">
-                                            <CardHeader className="border-b dark:border-zinc-800/50 p-2 md:p-6">
+                                            <CardHeader className="border-b border-border/50 p-2 md:p-6">
                                                 <CardTitle className="flex items-center gap-2 text-xs md:text-base">
                                                     {inning.battingTeamName} Batting
                                                 </CardTitle>
@@ -233,8 +233,8 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                                                         transition-colors
                                                         ${Number(batsman.runs) >= 50 ? 'bg-green-50/50 dark:bg-green-950/20' :
                                                                             Number(batsman.runs) >= 30 ? 'bg-emerald-50/30 dark:bg-emerald-950/10' :
-                                                                                'even:bg-zinc-50/50 dark:even:bg-zinc-900/30'}
-                                                        hover:bg-zinc-100/50 dark:hover:bg-zinc-800/40
+                                                                                'even:bg-muted/30'}
+                                                        hover:bg-muted/40
                                                     `}
                                                                 >
                                                                     <TableCell className="font-medium py-2 md:py-3 px-1 md:px-3">
@@ -282,7 +282,7 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                                         </Card>
 
                                         <Card className="glass-card rounded-none md:rounded-lg">
-                                            <CardHeader className="border-b dark:border-zinc-800/50 p-2 md:p-6">
+                                            <CardHeader className="border-b border-border/50 p-2 md:p-6">
                                                 <CardTitle className="flex items-center gap-2 text-xs md:text-base">
                                                     {inning.bowlingTeamName} Bowling
                                                 </CardTitle>
@@ -309,8 +309,8 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                                                         transition-colors
                                                         ${Number(bowler.wickets) >= 3 ? 'bg-orange-50/50 dark:bg-orange-950/20' :
                                                                             Number(bowler.wickets) >= 2 ? 'bg-amber-50/30 dark:bg-amber-950/10' :
-                                                                                'even:bg-zinc-50/50 dark:even:bg-zinc-900/30'}
-                                                        hover:bg-zinc-100/50 dark:hover:bg-zinc-800/40
+                                                                                'even:bg-muted/30'}
+                                                        hover:bg-muted/40
                                                     `}
                                                                 >
                                                                     <TableCell className="font-medium py-2 md:py-3 px-1 md:px-3">
@@ -358,7 +358,7 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                                     <div className="lg:col-span-2 space-y-3 md:space-y-6">
                                         {inning.partnerships && inning.partnerships.length > 0 && (
                                             <Card className="glass-card rounded-none md:rounded-lg">
-                                                <CardHeader className="border-b dark:border-zinc-800/50 p-2 md:p-6">
+                                                <CardHeader className="border-b border-border/50 p-2 md:p-6">
                                                     <CardTitle className="flex items-center gap-2 text-xs md:text-base">
                                                         Partnerships
                                                     </CardTitle>
@@ -402,7 +402,7 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                                         )}
                                         {inning.fallOfWickets.length > 0 && (
                                             <Card className="glass-card rounded-none md:rounded-lg">
-                                                <CardHeader className="border-b dark:border-zinc-800/50 p-2 md:p-6">
+                                                <CardHeader className="border-b border-border/50 p-2 md:p-6">
                                                     <CardTitle className="flex items-center gap-2 text-xs md:text-base">
                                                         Fall of Wickets
                                                     </CardTitle>
@@ -410,12 +410,12 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                                                 <CardContent className="grid gap-2 md:gap-3 p-2 md:p-4">
                                                     {inning.fallOfWickets.map((fow, i) => (
                                                         <div key={i}
-                                                            className="flex justify-between items-center gap-2 md:gap-4 p-2 md:p-3 rounded-lg bg-zinc-50/50 dark:bg-zinc-900/30 hover:bg-zinc-100/50 dark:hover:bg-zinc-800/40 transition-colors"
+                                                            className="flex justify-between items-center gap-2 md:gap-4 p-2 md:p-3 rounded-lg bg-muted/30 hover:bg-muted/40 transition-colors"
                                                         >
                                                             <div className="flex-1 min-w-0">
                                                                 <p className="font-semibold text-primary text-xs md:text-sm truncate">{fow.player.replace(/,/g, '')}</p>
                                                                 <div className="flex items-center gap-1 md:gap-2 mt-0.5 md:mt-1">
-                                                                    <span className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 rounded-full bg-zinc-200/50 dark:bg-zinc-800/50 text-muted-foreground">
+                                                                    <span className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 rounded-full bg-muted/50 text-muted-foreground">
                                                                         {fow.over.replace(/,/g, '')} ov
                                                                     </span>
                                                                 </div>
@@ -430,7 +430,7 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                                         )}
                                         {inning.yetToBat.length > 0 && (
                                             <Card className="glass-card rounded-none md:rounded-lg">
-                                                <CardHeader className="border-b dark:border-zinc-800/50 p-2 md:p-6">
+                                                <CardHeader className="border-b border-border/50 p-2 md:p-6">
                                                     <CardTitle className="flex items-center gap-2 text-xs md:text-base">
                                                         Yet to Bat
                                                     </CardTitle>
@@ -458,13 +458,13 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
             <div className="px-0 md:px-4">
                 {scorecard.matchInfo && (
                     <Card className="glass-card rounded-none md:rounded-lg">
-                        <CardHeader className="border-b dark:border-zinc-800/50 p-2 md:p-6">
+                        <CardHeader className="border-b border-border/50 p-2 md:p-6">
                             <CardTitle className="text-sm md:text-2xl">Match Information</CardTitle>
                         </CardHeader>
                         <CardContent className="p-2 md:p-6">
                         <div className="space-y-4 md:space-y-6">
                             {/* Basic Info */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 pb-3 md:pb-4 border-b dark:border-zinc-800/50">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 pb-3 md:pb-4 border-b border-border/50">
                                 <div className="flex flex-col gap-0.5 md:gap-1">
                                     <span className="text-xs md:text-sm font-semibold text-muted-foreground uppercase tracking-wide">Match</span>
                                     <span className="font-medium text-sm md:text-lg">{scorecard.title}</span>
@@ -497,7 +497,7 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                                     </div>
                                 )}
                                 {(scorecard.matchInfo.playerOfTheMatch || scorecard.matchInfo.playerOfTheSeries) && (
-                                    <div className="flex flex-wrap gap-3 pt-3 md:pt-4 border-t dark:border-zinc-800/50">
+                                    <div className="flex flex-wrap gap-3 pt-3 md:pt-4 border-t border-border/50">
                                         {scorecard.matchInfo.playerOfTheMatch && (
                                             <button
                                                 onClick={() => {
@@ -547,7 +547,7 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
 
             {/* Player Profile Dialog */}
             <Dialog open={!!selectedProfileId} onOpenChange={handleDialogOpenChange}>
-                <DialogContent className="max-w-[95vw] w-full max-h-[95vh] overflow-y-auto p-0 rounded-2xl">
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 rounded-2xl">
                     <DialogHeader className="sr-only">
                         <DialogTitle>Player Profile</DialogTitle>
                     </DialogHeader>

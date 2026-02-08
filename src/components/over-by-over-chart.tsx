@@ -45,7 +45,7 @@ export default function OverByOverChart({ data }: OverByOverChartProps) {
             text-[10px] md:text-xs px-2.5 py-1 rounded-full transition-colors
             ${showCumulative
               ? 'bg-green-500/20 text-green-400'
-              : 'bg-zinc-200/50 dark:bg-zinc-800/50 text-muted-foreground hover:text-foreground'
+              : 'bg-muted/50 text-muted-foreground hover:text-foreground'
             }
           `}
         >
@@ -149,7 +149,7 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: any[] 
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
-    <div className="bg-zinc-900/95 text-white p-2.5 rounded-xl text-xs shadow-lg border border-zinc-700/50 space-y-0.5">
+    <div className="bg-card/95 text-card-foreground p-2.5 rounded-xl text-xs shadow-lg border border-border space-y-0.5">
       <p className="font-semibold font-display">Over {d.over}</p>
       <p className="tabular-nums">
         {d.runs} run{d.runs !== 1 ? 's' : ''}
@@ -160,7 +160,7 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: any[] 
         )}
       </p>
       {d.summary && (
-        <p className="text-zinc-400 font-mono text-[10px]">{d.summary}</p>
+        <p className="text-muted-foreground font-mono text-[10px]">{d.summary}</p>
       )}
       <p className="text-zinc-400 tabular-nums">Score: {d.cumulative}</p>
     </div>

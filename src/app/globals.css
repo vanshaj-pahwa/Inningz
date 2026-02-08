@@ -49,6 +49,98 @@
     --input: 0 0% 20%;
     --ring: 211 100% 50%;
   }
+
+  /* Midnight Theme - Deep navy/indigo night match vibes */
+  .midnight {
+    --background: 230 35% 7%; /* Deep navy black */
+    --foreground: 220 20% 95%;
+    --card: 230 30% 12%;
+    --card-foreground: 220 20% 95%;
+    --popover: 230 30% 12%;
+    --popover-foreground: 220 20% 95%;
+    --primary: 220 90% 56%; /* Electric blue */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 230 25% 18%;
+    --secondary-foreground: 220 20% 95%;
+    --muted: 230 25% 18%;
+    --muted-foreground: 220 15% 55%;
+    --accent: 262 83% 58%; /* Purple accent */
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 230 20% 22%;
+    --input: 230 20% 22%;
+    --ring: 220 90% 56%;
+  }
+
+  /* Pitch Theme - Cricket green inspired */
+  .pitch {
+    --background: 150 25% 6%; /* Deep cricket green */
+    --foreground: 140 15% 95%;
+    --card: 150 20% 11%;
+    --card-foreground: 140 15% 95%;
+    --popover: 150 20% 11%;
+    --popover-foreground: 140 15% 95%;
+    --primary: 142 71% 45%; /* Vibrant grass green */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 150 18% 16%;
+    --secondary-foreground: 140 15% 95%;
+    --muted: 150 18% 16%;
+    --muted-foreground: 140 10% 50%;
+    --accent: 45 93% 47%; /* Golden accent */
+    --accent-foreground: 0 0% 0%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 150 15% 20%;
+    --input: 150 15% 20%;
+    --ring: 142 71% 45%;
+  }
+
+  /* Sunset Theme - Warm day-night match vibes */
+  .sunset {
+    --background: 20 30% 6%; /* Warm dark */
+    --foreground: 30 20% 95%;
+    --card: 20 25% 11%;
+    --card-foreground: 30 20% 95%;
+    --popover: 20 25% 11%;
+    --popover-foreground: 30 20% 95%;
+    --primary: 25 95% 53%; /* Vibrant orange */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 20 20% 16%;
+    --secondary-foreground: 30 20% 95%;
+    --muted: 20 20% 16%;
+    --muted-foreground: 20 15% 50%;
+    --accent: 350 89% 60%; /* Coral pink accent */
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 20 18% 20%;
+    --input: 20 18% 20%;
+    --ring: 25 95% 53%;
+  }
+
+  /* Sepia Theme - Vintage cricket nostalgia */
+  .sepia {
+    --background: 35 30% 92%; /* Warm cream */
+    --foreground: 30 20% 15%;
+    --card: 35 35% 97%;
+    --card-foreground: 30 20% 15%;
+    --popover: 35 35% 97%;
+    --popover-foreground: 30 20% 15%;
+    --primary: 25 75% 35%; /* Warm brown */
+    --primary-foreground: 35 30% 97%;
+    --secondary: 35 25% 85%;
+    --secondary-foreground: 30 20% 15%;
+    --muted: 35 25% 85%;
+    --muted-foreground: 30 15% 45%;
+    --accent: 35 80% 45%; /* Golden amber */
+    --accent-foreground: 35 30% 97%;
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 35 30% 97%;
+    --border: 35 20% 80%;
+    --input: 35 20% 80%;
+    --ring: 25 75% 35%;
+  }
 }
 
 @layer base {
@@ -76,7 +168,298 @@
 
   /* Card effect - clean solid background */
   .glass-card {
-    @apply rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800;
+    @apply rounded-2xl bg-white border border-neutral-200;
+  }
+  .dark .glass-card {
+    @apply bg-neutral-900 border-neutral-800;
+  }
+  .midnight .glass-card {
+    @apply bg-[hsl(230,30%,12%)] border-[hsl(230,20%,22%)];
+  }
+  .pitch .glass-card {
+    @apply bg-[hsl(150,20%,11%)] border-[hsl(150,15%,20%)];
+  }
+  .sunset .glass-card {
+    @apply bg-[hsl(20,25%,11%)] border-[hsl(20,18%,20%)];
+  }
+  .sepia .glass-card {
+    @apply bg-[hsl(35,35%,97%)] border-[hsl(35,20%,80%)];
+  }
+
+  /* Score Hero - uses CSS variables for all themes */
+  .score-hero {
+    @apply rounded-2xl border border-border;
+    background: hsl(var(--card));
+  }
+
+  /* Win Probability - theme-aware colors */
+  .win-prob-leader {
+    color: #059669; /* emerald-600 for light themes */
+  }
+  .dark .win-prob-leader,
+  .midnight .win-prob-leader,
+  .pitch .win-prob-leader,
+  .sunset .win-prob-leader {
+    color: #34d399; /* emerald-400 for dark themes */
+  }
+
+  .win-prob-trailing {
+    color: #e11d48; /* rose-600 for light themes */
+  }
+  .dark .win-prob-trailing,
+  .midnight .win-prob-trailing,
+  .pitch .win-prob-trailing,
+  .sunset .win-prob-trailing {
+    color: #fb7185; /* rose-400 for dark themes */
+  }
+
+  /* Tab container - theme-aware */
+  .tab-container {
+    @apply bg-muted/80 p-1 rounded-xl;
+  }
+
+  /* Commentary item - theme-aware */
+  .commentary-item {
+    @apply rounded-xl bg-card/50 border border-border/30;
+  }
+
+  /* Over Summary card - theme-aware */
+  .over-summary {
+    @apply rounded-xl overflow-hidden bg-card border border-border;
+  }
+  .over-summary-header {
+    @apply px-3 py-2 border-b border-border flex items-center justify-between;
+    background: hsl(var(--muted));
+  }
+
+  /* Over summary gradient background - theme-aware */
+  .over-summary-gradient {
+    background: linear-gradient(to right, hsl(var(--primary) / 0.08), hsl(var(--primary) / 0.04), hsl(var(--primary) / 0.08));
+  }
+  .dark .over-summary-gradient,
+  .midnight .over-summary-gradient,
+  .pitch .over-summary-gradient,
+  .sunset .over-summary-gradient {
+    background: linear-gradient(to right, hsl(var(--primary) / 0.1), hsl(var(--primary) / 0.05), hsl(var(--primary) / 0.1));
+  }
+
+  /* Over badge background - theme-aware */
+  .over-badge-bg {
+    background-color: hsl(var(--primary) / 0.15);
+  }
+  .dark .over-badge-bg,
+  .midnight .over-badge-bg,
+  .pitch .over-badge-bg,
+  .sunset .over-badge-bg {
+    background-color: hsl(var(--primary) / 0.2);
+  }
+
+  /* Section header gradient - theme-aware */
+  .section-header-gradient {
+    background: linear-gradient(to right, rgb(250 250 250), transparent);
+  }
+  .dark .section-header-gradient,
+  .midnight .section-header-gradient,
+  .pitch .section-header-gradient,
+  .sunset .section-header-gradient {
+    background: linear-gradient(to right, hsl(var(--muted) / 0.5), transparent);
+  }
+
+  /* Commentary header gradient - theme-aware */
+  .commentary-header-gradient {
+    background: linear-gradient(to right, hsl(var(--primary) / 0.05), hsl(142 76% 36% / 0.05), transparent);
+  }
+  .dark .commentary-header-gradient,
+  .midnight .commentary-header-gradient,
+  .pitch .commentary-header-gradient,
+  .sunset .commentary-header-gradient {
+    background: linear-gradient(to right, hsl(var(--primary) / 0.1), hsl(142 76% 36% / 0.1), transparent);
+  }
+  .over-summary-title {
+    @apply text-[11px] font-semibold text-foreground;
+  }
+  .over-summary-meta {
+    @apply text-[10px] font-mono text-muted-foreground;
+  }
+  .over-summary-item {
+    @apply flex items-start gap-2 text-xs text-muted-foreground leading-relaxed;
+  }
+  .over-summary-bullet {
+    @apply text-muted-foreground/50 mt-0.5;
+  }
+
+  /* Ball indicator colors - theme-aware */
+  .ball-dot {
+    @apply bg-muted text-muted-foreground;
+  }
+  .ball-run {
+    @apply bg-muted text-muted-foreground;
+  }
+
+  /* Table row - theme-aware borders and hover */
+  .table-row-themed {
+    @apply border-b border-border/40 transition-colors;
+  }
+  .table-row-themed:hover {
+    @apply bg-muted/30;
+  }
+
+  /* Stat highlight colors - theme-aware */
+  .stat-green {
+    color: #16a34a; /* green-600 */
+  }
+  .dark .stat-green,
+  .midnight .stat-green,
+  .pitch .stat-green,
+  .sunset .stat-green {
+    color: #4ade80; /* green-400 */
+  }
+
+  .stat-emerald {
+    color: #059669; /* emerald-600 */
+  }
+  .dark .stat-emerald,
+  .midnight .stat-emerald,
+  .pitch .stat-emerald,
+  .sunset .stat-emerald {
+    color: #34d399; /* emerald-400 */
+  }
+
+  .stat-orange {
+    color: #ea580c; /* orange-600 */
+  }
+  .dark .stat-orange,
+  .midnight .stat-orange,
+  .pitch .stat-orange,
+  .sunset .stat-orange {
+    color: #fb923c; /* orange-400 */
+  }
+
+  .stat-blue {
+    color: #2563eb; /* blue-600 */
+  }
+  .dark .stat-blue,
+  .midnight .stat-blue,
+  .pitch .stat-blue,
+  .sunset .stat-blue {
+    color: #60a5fa; /* blue-400 */
+  }
+
+  .stat-purple {
+    color: #9333ea; /* purple-600 */
+  }
+  .dark .stat-purple,
+  .midnight .stat-purple,
+  .pitch .stat-purple,
+  .sunset .stat-purple {
+    color: #c084fc; /* purple-400 */
+  }
+
+  .stat-amber {
+    color: #d97706; /* amber-600 */
+  }
+  .dark .stat-amber,
+  .midnight .stat-amber,
+  .pitch .stat-amber,
+  .sunset .stat-amber {
+    color: #fbbf24; /* amber-400 */
+  }
+
+  .stat-red {
+    color: #dc2626; /* red-600 */
+  }
+  .dark .stat-red,
+  .midnight .stat-red,
+  .pitch .stat-red,
+  .sunset .stat-red {
+    color: #f87171; /* red-400 */
+  }
+
+  /* Mini Scorecard Table Headers - Batting (Green themed) */
+  .mini-sc-batting-header {
+    background-color: rgba(220, 252, 231, 0.8); /* green-50/80 */
+    border-bottom: 1px solid rgba(187, 247, 208, 0.5); /* green-200/50 */
+  }
+  .dark .mini-sc-batting-header,
+  .midnight .mini-sc-batting-header,
+  .pitch .mini-sc-batting-header,
+  .sunset .mini-sc-batting-header {
+    background-color: rgba(5, 46, 22, 0.3); /* green-950/30 */
+    border-bottom: 1px solid rgba(20, 83, 45, 0.3); /* green-900/30 */
+  }
+
+  .mini-sc-batting-text {
+    color: #166534; /* green-800 */
+  }
+  .dark .mini-sc-batting-text,
+  .midnight .mini-sc-batting-text,
+  .pitch .mini-sc-batting-text,
+  .sunset .mini-sc-batting-text {
+    color: #4ade80; /* green-400 */
+  }
+
+  /* Mini Scorecard Table Headers - Bowling (Orange themed) */
+  .mini-sc-bowling-header {
+    background-color: rgba(255, 237, 213, 0.8); /* orange-50/80 */
+    border-bottom: 1px solid rgba(254, 215, 170, 0.5); /* orange-200/50 */
+  }
+  .dark .mini-sc-bowling-header,
+  .midnight .mini-sc-bowling-header,
+  .pitch .mini-sc-bowling-header,
+  .sunset .mini-sc-bowling-header {
+    background-color: rgba(67, 20, 7, 0.3); /* orange-950/30 */
+    border-bottom: 1px solid rgba(124, 45, 18, 0.3); /* orange-900/30 */
+  }
+
+  .mini-sc-bowling-text {
+    color: #9a3412; /* orange-800 */
+  }
+  .dark .mini-sc-bowling-text,
+  .midnight .mini-sc-bowling-text,
+  .pitch .mini-sc-bowling-text,
+  .sunset .mini-sc-bowling-text {
+    color: #fb923c; /* orange-400 */
+  }
+
+  /* Row highlights - performance-based */
+  .row-highlight-batting-50 {
+    background-color: rgba(220, 252, 231, 0.5); /* green-50/50 */
+  }
+  .dark .row-highlight-batting-50,
+  .midnight .row-highlight-batting-50,
+  .pitch .row-highlight-batting-50,
+  .sunset .row-highlight-batting-50 {
+    background-color: rgba(5, 46, 22, 0.2); /* green-950/20 */
+  }
+
+  .row-highlight-batting-30 {
+    background-color: rgba(209, 250, 229, 0.3); /* emerald-50/30 */
+  }
+  .dark .row-highlight-batting-30,
+  .midnight .row-highlight-batting-30,
+  .pitch .row-highlight-batting-30,
+  .sunset .row-highlight-batting-30 {
+    background-color: rgba(2, 44, 34, 0.1); /* emerald-950/10 */
+  }
+
+  .row-highlight-bowling-3 {
+    background-color: rgba(255, 237, 213, 0.5); /* orange-50/50 */
+  }
+  .dark .row-highlight-bowling-3,
+  .midnight .row-highlight-bowling-3,
+  .pitch .row-highlight-bowling-3,
+  .sunset .row-highlight-bowling-3 {
+    background-color: rgba(67, 20, 7, 0.2); /* orange-950/20 */
+  }
+
+  .row-highlight-bowling-2 {
+    background-color: rgba(255, 251, 235, 0.3); /* amber-50/30 */
+  }
+  .dark .row-highlight-bowling-2,
+  .midnight .row-highlight-bowling-2,
+  .pitch .row-highlight-bowling-2,
+  .sunset .row-highlight-bowling-2 {
+    background-color: rgba(69, 26, 3, 0.1); /* amber-950/10 */
   }
 
   /* Score highlight */
@@ -145,6 +528,17 @@
   @keyframes breathe {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.85; }
+  }
+
+  /* Score glow effect - theme-aware */
+  .score-glow-effect {
+    /* No glow in light themes */
+  }
+  .dark .score-glow-effect,
+  .midnight .score-glow-effect,
+  .pitch .score-glow-effect,
+  .sunset .score-glow-effect {
+    filter: drop-shadow(0 0 20px rgba(251, 191, 36, 0.15));
   }
 
   /* Event animation */
@@ -218,6 +612,18 @@
   .dark .skeleton {
     background: rgba(120, 120, 128, 0.2);
   }
+  .midnight .skeleton {
+    background: rgba(100, 120, 180, 0.2);
+  }
+  .pitch .skeleton {
+    background: rgba(80, 160, 100, 0.2);
+  }
+  .sunset .skeleton {
+    background: rgba(200, 140, 100, 0.2);
+  }
+  .sepia .skeleton {
+    background: rgba(140, 120, 90, 0.15);
+  }
 
   /* Ambient gradient background */
   .stadium-glow {
@@ -225,6 +631,18 @@
   }
   .dark .stadium-glow {
     background: radial-gradient(ellipse 100% 80% at 50% -30%, rgba(10, 132, 255, 0.08), transparent);
+  }
+  .midnight .stadium-glow {
+    background: radial-gradient(ellipse 100% 80% at 50% -30%, rgba(100, 120, 220, 0.12), transparent);
+  }
+  .pitch .stadium-glow {
+    background: radial-gradient(ellipse 100% 80% at 50% -30%, rgba(60, 180, 90, 0.1), transparent);
+  }
+  .sunset .stadium-glow {
+    background: radial-gradient(ellipse 100% 80% at 50% -30%, rgba(255, 140, 50, 0.1), transparent);
+  }
+  .sepia .stadium-glow {
+    background: radial-gradient(ellipse 100% 80% at 50% -30%, rgba(180, 140, 80, 0.06), transparent);
   }
 
   /* Highlight flash animation */
@@ -262,6 +680,18 @@
   .dark .glass-header {
     background: rgba(0, 0, 0, 0.72);
   }
+  .midnight .glass-header {
+    background: rgba(14, 20, 33, 0.85);
+  }
+  .pitch .glass-header {
+    background: rgba(10, 20, 15, 0.85);
+  }
+  .sunset .glass-header {
+    background: rgba(20, 14, 10, 0.85);
+  }
+  .sepia .glass-header {
+    background: rgba(245, 235, 220, 0.92);
+  }
 
   /* Glass nav bar */
   .glass-nav {
@@ -273,6 +703,22 @@
   .dark .glass-nav {
     background: rgba(29, 29, 31, 0.94);
     border-bottom: 0.5px solid rgba(255, 255, 255, 0.1);
+  }
+  .midnight .glass-nav {
+    background: rgba(20, 28, 48, 0.94);
+    border-bottom: 0.5px solid rgba(100, 120, 180, 0.2);
+  }
+  .pitch .glass-nav {
+    background: rgba(15, 30, 22, 0.94);
+    border-bottom: 0.5px solid rgba(80, 160, 100, 0.2);
+  }
+  .sunset .glass-nav {
+    background: rgba(30, 20, 15, 0.94);
+    border-bottom: 0.5px solid rgba(200, 140, 100, 0.2);
+  }
+  .sepia .glass-nav {
+    background: rgba(250, 240, 225, 0.96);
+    border-bottom: 0.5px solid rgba(100, 80, 60, 0.15);
   }
 
   /* Glass button */

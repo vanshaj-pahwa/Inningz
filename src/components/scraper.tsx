@@ -307,7 +307,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
 
         if (comment.type === 'user' && comment.author) {
             return (
-                <div key={index} className="slide-in-left ml-8 md:ml-12 py-2 px-3 my-1 rounded-xl bg-zinc-100 dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/50">
+                <div key={index} className="slide-in-left ml-8 md:ml-12 py-2 px-3 my-1 commentary-item">
                     <div className="flex items-center gap-2 mb-1">
                         <User size={12} className="text-muted-foreground" />
                         <span className="text-xs font-semibold text-primary">{comment.author}</span>
@@ -320,23 +320,23 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
         if (comment.type === 'snippet' || comment.headline) {
             // Different styles based on snippetType
             const snippetType = comment.snippetType?.toLowerCase() || '';
-            let accentColor = 'text-zinc-500';
-            let bgClass = 'bg-zinc-50 dark:bg-zinc-900/30 border-zinc-200/30 dark:border-zinc-800/30';
+            let accentColor = 'text-muted-foreground';
+            let bgClass = 'bg-card/50 border-border/30';
 
             if (snippetType.includes('forecast')) {
-                accentColor = 'text-amber-600 dark:text-amber-400';
+                accentColor = 'stat-amber';
                 bgClass = 'bg-amber-500/5 border-amber-500/20';
             } else if (snippetType.includes('stat') || snippetType.includes('record')) {
-                accentColor = 'text-blue-600 dark:text-blue-400';
+                accentColor = 'stat-blue';
                 bgClass = 'bg-blue-500/5 border-blue-500/20';
             } else if (snippetType.includes('milestone') || snippetType.includes('achievement')) {
-                accentColor = 'text-green-600 dark:text-green-400';
+                accentColor = 'stat-green';
                 bgClass = 'bg-green-500/5 border-green-500/20';
             } else if (snippetType.includes('alert') || snippetType.includes('breaking')) {
-                accentColor = 'text-red-600 dark:text-red-400';
+                accentColor = 'stat-red';
                 bgClass = 'bg-red-500/5 border-red-500/20';
             } else if (snippetType.includes('trivia') || snippetType.includes('fun')) {
-                accentColor = 'text-purple-600 dark:text-purple-400';
+                accentColor = 'stat-purple';
                 bgClass = 'bg-purple-500/5 border-purple-500/20';
             }
 
@@ -387,7 +387,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                             className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs ${
                                                 isCaptain || isWicketkeeper
                                                     ? 'bg-primary/20 text-primary font-medium'
-                                                    : 'bg-zinc-800/60 text-zinc-300'
+                                                    : 'bg-muted/60 text-muted-foreground'
                                             }`}
                                         >
                                             {cleanName}
@@ -417,14 +417,14 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
 
                 return (
                     <div key={index} className="slide-in-left my-3">
-                        <div className="rounded-xl overflow-hidden bg-zinc-900/60 border border-zinc-700/50">
+                        <div className="over-summary">
                             {/* Header */}
-                            <div className="px-3 py-2 bg-zinc-800/80 border-b border-zinc-700/50 flex items-center justify-between">
-                                <span className="text-[11px] font-semibold text-zinc-300">
+                            <div className="over-summary-header">
+                                <span className="over-summary-title">
                                     Over Summary
                                 </span>
                                 {header && (
-                                    <span className="text-[10px] font-mono text-zinc-500">
+                                    <span className="over-summary-meta">
                                         {header}
                                     </span>
                                 )}
@@ -433,8 +433,8 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                             {/* Summary Items */}
                             <div className="p-2.5 space-y-1.5">
                                 {summaryItems.map((item, idx) => (
-                                    <div key={idx} className="flex items-start gap-2 text-xs text-zinc-400 leading-relaxed">
-                                        <span className="text-zinc-600 mt-0.5">•</span>
+                                    <div key={idx} className="over-summary-item">
+                                        <span className="over-summary-bullet">•</span>
                                         <span>{item}</span>
                                     </div>
                                 ))}
@@ -445,7 +445,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
             }
 
             return (
-                <div key={index} className="slide-in-left py-3 px-4 my-2 rounded-xl bg-zinc-50 dark:bg-zinc-900/30 border border-zinc-200/30 dark:border-zinc-800/30">
+                <div key={index} className="slide-in-left py-3 px-4 my-2 commentary-item">
                     <p className={`text-xs text-muted-foreground ${isShortText ? 'text-center font-medium' : ''}`} dangerouslySetInnerHTML={{ __html: highlightThatsOut(comment.text) }} />
                 </div>
             );
@@ -469,7 +469,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
         return (
             <div key={index} className="slide-in-left">
                 {comment.overSummary && (
-                    <div className="my-3 p-2.5 md:p-4 rounded-2xl bg-gradient-to-r from-primary/8 via-primary/4 to-primary/8 dark:from-primary/10 dark:via-primary/5 dark:to-primary/10 border border-primary/15">
+                    <div className="my-3 p-2.5 md:p-4 rounded-2xl over-summary-gradient border border-primary/15">
                         {(() => {
                             const summaryStr = comment.overSummary || '';
                             const runsMatch = summaryStr.match(/\((\d+)\s*runs?\)/i);
@@ -480,7 +480,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                 <>
                                     {/* Mobile layout */}
                                     <div className="flex md:hidden items-start gap-2.5 py-1">
-                                        <div className="flex-shrink-0 flex flex-col items-center bg-primary/15 dark:bg-primary/20 rounded-xl px-2.5 py-2 min-w-[44px]">
+                                        <div className="flex-shrink-0 flex flex-col items-center over-badge-bg rounded-xl px-2.5 py-2 min-w-[44px]">
                                             <span className="text-[9px] text-muted-foreground font-medium">Over</span>
                                             <span className="text-xl font-display text-primary">{Math.floor(comment.overNumber || 0)}</span>
                                         </div>
@@ -501,9 +501,9 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                     else if (ballStr.toLowerCase().includes('nb') || ballStr.toLowerCase().includes('noball')) { ballClass += " bg-orange-500 text-white text-[8px]"; ballContent = 'Nb'; }
                                                     else if (ballStr.toLowerCase().includes('lb') || ballStr.toLowerCase().includes('legbye')) { ballClass += " bg-zinc-500 text-white text-[8px]"; ballContent = 'Lb'; }
                                                     else if (ballStr.toLowerCase().includes('b') && ballStr.length <= 2) { ballClass += " bg-zinc-500 text-white text-[8px]"; ballContent = 'B'; }
-                                                    else if (ballStr === '0' || ballStr === '.') { ballClass += " bg-zinc-300 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400"; ballContent = '\u2022'; }
+                                                    else if (ballStr === '0' || ballStr === '.') { ballClass += " bg-muted text-muted-foreground"; ballContent = '\u2022'; }
                                                     else if (/^\d+$/.test(ballStr)) ballClass += " bg-green-600 text-white";
-                                                    else ballClass += " bg-zinc-200 dark:bg-zinc-800 text-zinc-500 text-[8px]";
+                                                    else ballClass += " bg-muted text-muted-foreground text-[8px]";
 
                                                     return <span key={idx} className={ballClass}>{ballContent}</span>;
                                                 })}
@@ -513,7 +513,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                     </span>
                                                 )}
                                             </div>
-                                            <div className="flex items-center gap-1.5 self-start bg-zinc-100/80 dark:bg-zinc-900/80 px-2.5 py-1 rounded-full border border-zinc-200/50 dark:border-zinc-800/50">
+                                            <div className="flex items-center gap-1.5 self-start bg-muted/80 px-2.5 py-1 rounded-full border border-border/50">
                                                 <span className="font-bold text-xs text-primary">{comment.teamShortName}</span>
                                                 <span className="font-display text-sm font-bold text-foreground">{comment.teamScore}-{comment.teamWickets}</span>
                                             </div>
@@ -522,7 +522,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
 
                                     {/* Desktop layout */}
                                     <div className="hidden md:flex items-center gap-4">
-                                        <div className="flex-shrink-0 flex flex-col items-center bg-primary/15 dark:bg-primary/20 rounded-xl px-3 py-2 min-w-[48px]">
+                                        <div className="flex-shrink-0 flex flex-col items-center over-badge-bg rounded-xl px-3 py-2 min-w-[48px]">
                                             <span className="text-[10px] text-muted-foreground font-medium">Over</span>
                                             <span className="text-xl font-display text-primary">{Math.floor(comment.overNumber || 0)}</span>
                                         </div>
@@ -543,9 +543,9 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                     else if (ballStr.toLowerCase().includes('nb') || ballStr.toLowerCase().includes('noball')) { ballClass += " bg-orange-500 text-white text-[10px]"; ballContent = 'Nb'; }
                                                     else if (ballStr.toLowerCase().includes('lb') || ballStr.toLowerCase().includes('legbye')) { ballClass += " bg-zinc-500 text-white text-[10px]"; ballContent = 'Lb'; }
                                                     else if (ballStr.toLowerCase().includes('b') && ballStr.length <= 2) { ballClass += " bg-zinc-500 text-white text-[10px]"; ballContent = 'B'; }
-                                                    else if (ballStr === '0' || ballStr === '.') { ballClass += " bg-zinc-200 dark:bg-zinc-800 text-zinc-500"; ballContent = '\u2022'; }
+                                                    else if (ballStr === '0' || ballStr === '.') { ballClass += " bg-muted text-muted-foreground"; ballContent = '\u2022'; }
                                                     else if (/^\d+$/.test(ballStr)) ballClass += " bg-green-600 text-white";
-                                                    else ballClass += " bg-zinc-200 dark:bg-zinc-800 text-zinc-500 text-[10px]";
+                                                    else ballClass += " bg-muted text-muted-foreground text-[10px]";
 
                                                     return <span key={idx} className={ballClass}>{ballContent}</span>;
                                                 })}
@@ -554,7 +554,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                         ({overRuns} {overRuns === 1 ? 'run' : 'runs'})
                                                     </span>
                                                 )}
-                                                <div className="flex items-center gap-1.5 ml-auto bg-zinc-100/80 dark:bg-zinc-900/80 px-3 py-1.5 rounded-full border border-zinc-200/50 dark:border-zinc-800/50">
+                                                <div className="flex items-center gap-1.5 ml-auto bg-muted/80 px-3 py-1.5 rounded-full border border-border/50">
                                                     <span className="font-bold text-xs text-primary">{comment.teamShortName}</span>
                                                     <span className="font-display text-base text-foreground">{comment.teamScore}-{comment.teamWickets}</span>
                                                 </div>
@@ -658,7 +658,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
             <div className="flex flex-col gap-2 mb-4 md:mb-6 py-3 md:py-4 gradient-border">
                 {/* Desktop: single row | Mobile: title row */}
                 <div className="flex items-start gap-2 md:gap-4">
-                    <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8 md:h-9 md:w-9 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900 mt-0.5" onClick={() => router.back()}>
+                    <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8 md:h-9 md:w-9 rounded-xl hover:bg-muted mt-0.5" onClick={() => router.back()}>
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
                     <div className="flex-1 min-w-0">
@@ -690,7 +690,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                     </div>
                     {/* Desktop: tabs + theme toggle inline with title */}
                     <div className="hidden md:flex items-center gap-3 shrink-0">
-                        <div className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-900 p-1 rounded-xl">
+                        <div className="flex items-center gap-1 tab-container">
                             {(['live', 'scorecard', 'squads'] as View[]).map((v) => (
                                 <button
                                     key={v}
@@ -717,7 +717,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                 </div>
                 {/* Mobile: tabs row */}
                 <div className="flex md:hidden items-center gap-3">
-                    <div className="flex items-center gap-0.5 bg-zinc-100 dark:bg-zinc-900 p-0.5 rounded-xl flex-1">
+                    <div className="flex items-center gap-0.5 tab-container flex-1">
                         {(['live', 'scorecard', 'squads'] as View[]).map((v) => (
                             <button
                                 key={v}
@@ -767,7 +767,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
 
                         {/* Score Hero */}
                         {(!timeLeft || (data && data.batsmen.length > 0)) && (
-                            <div ref={scoreHeroRef} className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-zinc-100 via-zinc-50 to-white dark:from-zinc-900 dark:via-zinc-950 dark:to-black border border-zinc-200 dark:border-zinc-800/50">
+                            <div ref={scoreHeroRef} className="relative overflow-hidden score-hero">
                                 {/* Atmospheric background layers */}
                                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(6,182,212,0.12)_0%,_transparent_60%)]" />
                                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_rgba(59,130,246,0.08)_0%,_transparent_60%)]" />
@@ -816,8 +816,8 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                             <Image src={inning.teamFlagUrl} alt={inning.teamShortName || inning.teamName} width={20} height={14} className="w-full h-full object-cover" />
                                                         </div>
                                                     )}
-                                                    <span className="text-sm font-semibold text-zinc-400 dark:text-zinc-500 mr-1">{inning.teamShortName || inning.teamName}</span>
-                                                    <span className="text-2xl md:text-3xl font-display tracking-tight text-zinc-500 dark:text-zinc-400">
+                                                    <span className="text-sm font-semibold text-muted-foreground mr-1">{inning.teamShortName || inning.teamName}</span>
+                                                    <span className="text-2xl md:text-3xl font-display tracking-tight text-muted-foreground/80">
                                                         {inning.score}
                                                     </span>
                                                 </div>
@@ -827,7 +827,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
 
                                     {/* Current Score - the hero */}
                                     <div>
-                                        <span className="text-4xl md:text-5xl lg:text-6xl font-display tracking-tight text-amber-600 dark:text-amber-400 score-breathe dark:drop-shadow-[0_0_20px_rgba(251,191,36,0.15)]">
+                                        <span className="text-4xl md:text-5xl lg:text-6xl font-display tracking-tight stat-amber score-breathe score-glow-effect">
                                             {data?.score}
                                         </span>
 
@@ -837,7 +837,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                 {data?.status && (
                                                     <>
                                                         <div className="w-2 h-2 rounded-full bg-red-500 live-pulse" />
-                                                        <p className="text-sm font-semibold text-zinc-600 dark:text-zinc-300">{data.status}</p>
+                                                        <p className="text-sm font-semibold text-foreground/80">{data.status}</p>
                                                     </>
                                                 )}
                                             </div>
@@ -883,7 +883,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                             <Image src={data.playerOfTheMatch.imageUrl} alt={data.playerOfTheMatch.name} width={40} height={40} className="w-10 h-10 rounded-full object-cover" />
                                         )}
                                         <div className="text-left">
-                                            <p className="text-[10px] uppercase tracking-wider text-amber-600 dark:text-amber-400 font-semibold">Player of the Match</p>
+                                            <p className="text-[10px] uppercase tracking-wider stat-amber font-semibold">Player of the Match</p>
                                             <p className="text-sm font-medium">{data.playerOfTheMatch.name}</p>
                                         </div>
                                     </button>
@@ -902,7 +902,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                             <Image src={data.playerOfTheSeries.imageUrl} alt={data.playerOfTheSeries.name} width={40} height={40} className="w-10 h-10 rounded-full object-cover" />
                                         )}
                                         <div className="text-left">
-                                            <p className="text-[10px] uppercase tracking-wider text-purple-600 dark:text-purple-400 font-semibold">Player of the Series</p>
+                                            <p className="text-[10px] uppercase tracking-wider stat-purple font-semibold">Player of the Series</p>
                                             <p className="text-sm font-medium">{data.playerOfTheSeries.name}</p>
                                         </div>
                                     </button>
@@ -936,13 +936,13 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                         <div className="overflow-x-auto">
                                             <table className="w-full text-xs md:text-sm">
                                                 <thead>
-                                                    <tr className="bg-green-50/80 dark:bg-green-950/30 border-b border-green-200/50 dark:border-green-900/30">
-                                                        <th className="text-left text-xs font-bold text-green-800 dark:text-green-400 px-2 md:px-4 py-2 md:py-3">Batter</th>
-                                                        <th className="text-center text-xs font-bold text-green-800 dark:text-green-400 px-1 md:px-3 py-2 md:py-3 w-8 md:w-12">R</th>
-                                                        <th className="text-center text-xs font-bold text-green-800 dark:text-green-400 px-1 md:px-3 py-2 md:py-3 w-8 md:w-12">B</th>
-                                                        <th className="text-center text-xs font-bold text-green-800 dark:text-green-400 px-1 md:px-3 py-2 md:py-3 w-8 md:w-12">4s</th>
-                                                        <th className="text-center text-xs font-bold text-green-800 dark:text-green-400 px-1 md:px-3 py-2 md:py-3 w-8 md:w-12">6s</th>
-                                                        <th className="text-center text-xs font-bold text-green-800 dark:text-green-400 px-1 md:px-3 py-2 md:py-3 w-12 md:w-16">SR</th>
+                                                    <tr className="mini-sc-batting-header">
+                                                        <th className="text-left text-xs font-bold mini-sc-batting-text px-2 md:px-4 py-2 md:py-3">Batter</th>
+                                                        <th className="text-center text-xs font-bold mini-sc-batting-text px-1 md:px-3 py-2 md:py-3 w-8 md:w-12">R</th>
+                                                        <th className="text-center text-xs font-bold mini-sc-batting-text px-1 md:px-3 py-2 md:py-3 w-8 md:w-12">B</th>
+                                                        <th className="text-center text-xs font-bold mini-sc-batting-text px-1 md:px-3 py-2 md:py-3 w-8 md:w-12">4s</th>
+                                                        <th className="text-center text-xs font-bold mini-sc-batting-text px-1 md:px-3 py-2 md:py-3 w-8 md:w-12">6s</th>
+                                                        <th className="text-center text-xs font-bold mini-sc-batting-text px-1 md:px-3 py-2 md:py-3 w-12 md:w-16">SR</th>
                                                         <th className="w-6 md:w-8"></th>
                                                     </tr>
                                                 </thead>
@@ -951,27 +951,27 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                         const runs = Number(batsman.runs);
                                                         const sr = parseFloat(batsman.strikeRate);
                                                         return (
-                                                        <tr key={index} className={`border-b border-zinc-100 dark:border-zinc-800/40 hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors ${
-                                                            runs >= 50 ? 'bg-green-50/50 dark:bg-green-950/20' :
-                                                            runs >= 30 ? 'bg-emerald-50/30 dark:bg-emerald-950/10' : ''
+                                                        <tr key={index} className={`table-row-themed transition-colors ${
+                                                            runs >= 50 ? 'row-highlight-batting-50' :
+                                                            runs >= 30 ? 'row-highlight-batting-30' : ''
                                                         }`}>
                                                             <td className="px-2 md:px-4 py-2 md:py-3">
                                                                 <span
                                                                     className={`text-xs md:text-sm font-medium cursor-pointer hover:text-primary transition-colors ${
-                                                                        runs >= 50 ? 'text-green-600 dark:text-green-400' : ''
+                                                                        runs >= 50 ? 'stat-green' : ''
                                                                     }`}
                                                                     onClick={() => handleProfileClick(batsman.profileId, batsman.name)}
                                                                 >
                                                                     {batsman.name}{batsman.onStrike ? ' *' : ''}
                                                                 </span>
                                                             </td>
-                                                            <td className={`text-center text-xs md:text-sm font-bold px-1 md:px-3 py-2 md:py-3 ${runs >= 50 ? 'text-green-600 dark:text-green-400' : ''}`}>{batsman.runs}</td>
+                                                            <td className={`text-center text-xs md:text-sm font-bold px-1 md:px-3 py-2 md:py-3 ${runs >= 50 ? 'stat-green' : ''}`}>{batsman.runs}</td>
                                                             <td className="text-center text-xs md:text-sm text-muted-foreground px-1 md:px-3 py-2 md:py-3">{batsman.balls}</td>
-                                                            <td className={`text-center text-xs md:text-sm px-1 md:px-3 py-2 md:py-3 ${Number(batsman.fours) > 0 ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-muted-foreground'}`}>{batsman.fours}</td>
-                                                            <td className={`text-center text-xs md:text-sm px-1 md:px-3 py-2 md:py-3 ${Number(batsman.sixes) > 0 ? 'text-purple-600 dark:text-purple-400 font-medium' : 'text-muted-foreground'}`}>{batsman.sixes}</td>
+                                                            <td className={`text-center text-xs md:text-sm px-1 md:px-3 py-2 md:py-3 ${Number(batsman.fours) > 0 ? 'stat-blue font-medium' : 'text-muted-foreground'}`}>{batsman.fours}</td>
+                                                            <td className={`text-center text-xs md:text-sm px-1 md:px-3 py-2 md:py-3 ${Number(batsman.sixes) > 0 ? 'stat-purple font-medium' : 'text-muted-foreground'}`}>{batsman.sixes}</td>
                                                             <td className={`text-center text-xs md:text-sm font-mono px-1 md:px-3 py-2 md:py-3 ${
-                                                                sr >= 150 ? 'text-green-600 dark:text-green-400 font-bold' :
-                                                                sr >= 100 ? 'text-emerald-600 dark:text-emerald-400' :
+                                                                sr >= 150 ? 'stat-green font-bold' :
+                                                                sr >= 100 ? 'stat-emerald' :
                                                                 'text-muted-foreground'
                                                             }`}>{sr.toFixed(2)}</td>
                                                             <td className="text-center px-1 md:px-2 py-2 md:py-3">
@@ -996,13 +996,13 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                         <div className="overflow-x-auto">
                                             <table className="w-full text-xs md:text-sm">
                                                 <thead>
-                                                    <tr className="bg-orange-50/80 dark:bg-orange-950/30 border-b border-orange-200/50 dark:border-orange-900/30">
-                                                        <th className="text-left text-xs font-bold text-orange-800 dark:text-orange-400 px-2 md:px-4 py-2 md:py-3">Bowler</th>
-                                                        <th className="text-center text-xs font-bold text-orange-800 dark:text-orange-400 px-1 md:px-3 py-2 md:py-3 w-8 md:w-12">O</th>
-                                                        <th className="text-center text-xs font-bold text-orange-800 dark:text-orange-400 px-1 md:px-3 py-2 md:py-3 w-8 md:w-12">M</th>
-                                                        <th className="text-center text-xs font-bold text-orange-800 dark:text-orange-400 px-1 md:px-3 py-2 md:py-3 w-8 md:w-12">R</th>
-                                                        <th className="text-center text-xs font-bold text-orange-800 dark:text-orange-400 px-1 md:px-3 py-2 md:py-3 w-8 md:w-12">W</th>
-                                                        <th className="text-center text-xs font-bold text-orange-800 dark:text-orange-400 px-1 md:px-3 py-2 md:py-3 w-12 md:w-16">ECO</th>
+                                                    <tr className="mini-sc-bowling-header">
+                                                        <th className="text-left text-xs font-bold mini-sc-bowling-text px-2 md:px-4 py-2 md:py-3">Bowler</th>
+                                                        <th className="text-center text-xs font-bold mini-sc-bowling-text px-1 md:px-3 py-2 md:py-3 w-8 md:w-12">O</th>
+                                                        <th className="text-center text-xs font-bold mini-sc-bowling-text px-1 md:px-3 py-2 md:py-3 w-8 md:w-12">M</th>
+                                                        <th className="text-center text-xs font-bold mini-sc-bowling-text px-1 md:px-3 py-2 md:py-3 w-8 md:w-12">R</th>
+                                                        <th className="text-center text-xs font-bold mini-sc-bowling-text px-1 md:px-3 py-2 md:py-3 w-8 md:w-12">W</th>
+                                                        <th className="text-center text-xs font-bold mini-sc-bowling-text px-1 md:px-3 py-2 md:py-3 w-12 md:w-16">ECO</th>
                                                         <th className="w-6 md:w-8"></th>
                                                     </tr>
                                                 </thead>
@@ -1011,14 +1011,14 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                         const wkts = Number(bowler.wickets);
                                                         const eco = parseFloat(bowler.economy);
                                                         return (
-                                                        <tr key={index} className={`border-b border-zinc-100 dark:border-zinc-800/40 hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors ${
-                                                            wkts >= 3 ? 'bg-orange-50/50 dark:bg-orange-950/20' :
-                                                            wkts >= 2 ? 'bg-amber-50/30 dark:bg-amber-950/10' : ''
+                                                        <tr key={index} className={`table-row-themed transition-colors ${
+                                                            wkts >= 3 ? 'row-highlight-bowling-3' :
+                                                            wkts >= 2 ? 'row-highlight-bowling-2' : ''
                                                         }`}>
                                                             <td className="px-2 md:px-4 py-2 md:py-3">
                                                                 <span
                                                                     className={`text-xs md:text-sm font-medium cursor-pointer hover:text-primary transition-colors ${
-                                                                        wkts >= 3 ? 'text-orange-600 dark:text-orange-400' : ''
+                                                                        wkts >= 3 ? 'stat-orange' : ''
                                                                     }`}
                                                                     onClick={() => handleProfileClick(bowler.profileId, bowler.name)}
                                                                 >
@@ -1026,15 +1026,15 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                                 </span>
                                                             </td>
                                                             <td className="text-center text-xs md:text-sm text-muted-foreground px-1 md:px-3 py-2 md:py-3">{bowler.overs}</td>
-                                                            <td className={`text-center text-xs md:text-sm px-1 md:px-3 py-2 md:py-3 ${Number(bowler.maidens) > 0 ? 'text-green-600 dark:text-green-400 font-medium' : 'text-muted-foreground'}`}>{bowler.maidens}</td>
+                                                            <td className={`text-center text-xs md:text-sm px-1 md:px-3 py-2 md:py-3 ${Number(bowler.maidens) > 0 ? 'stat-green font-medium' : 'text-muted-foreground'}`}>{bowler.maidens}</td>
                                                             <td className="text-center text-xs md:text-sm text-muted-foreground px-1 md:px-3 py-2 md:py-3">{bowler.runs}</td>
                                                             <td className={`text-center text-xs md:text-sm font-bold px-1 md:px-3 py-2 md:py-3 ${
-                                                                wkts >= 3 ? 'text-orange-600 dark:text-orange-400' :
-                                                                wkts >= 1 ? 'text-amber-600 dark:text-amber-400' : ''
+                                                                wkts >= 3 ? 'stat-orange' :
+                                                                wkts >= 1 ? 'stat-amber' : ''
                                                             }`}>{bowler.wickets}</td>
                                                             <td className={`text-center text-xs md:text-sm font-mono px-1 md:px-3 py-2 md:py-3 ${
-                                                                eco <= 4 ? 'text-green-600 dark:text-green-400' :
-                                                                eco >= 10 ? 'text-red-500 dark:text-red-400' :
+                                                                eco <= 4 ? 'stat-green' :
+                                                                eco >= 10 ? 'stat-red' :
                                                                 'text-muted-foreground'
                                                             }`}>{bowler.economy}</td>
                                                             <td className="text-center px-1 md:px-2 py-2 md:py-3">
@@ -1059,12 +1059,12 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
 
                                 {/* Key Stats - Vertical layout for full visibility */}
                                 {data && (data.batsmen.length !== 0 || data.bowlers.length !== 0) && (
-                                    <div className="glass-card overflow-hidden divide-y divide-zinc-200/50 dark:divide-zinc-800/50">
+                                    <div className="glass-card overflow-hidden divide-y divide-border/50">
                                         {data?.partnership && data.partnership !== '-' && (
                                             <div className="p-3 flex items-start gap-3">
                                                 <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0"></div>
                                                 <div className="min-w-0">
-                                                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Partnership</span>
+                                                    <span className="text-[10px] font-bold uppercase tracking-wider stat-blue">Partnership</span>
                                                     <p className="text-sm font-semibold text-foreground mt-0.5">{data.partnership}</p>
                                                 </div>
                                             </div>
@@ -1073,7 +1073,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                             <div className="p-3 flex items-start gap-3">
                                                 <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 shrink-0"></div>
                                                 <div className="min-w-0">
-                                                    <span className="text-[10px] font-bold uppercase tracking-wider text-red-600 dark:text-red-400">Last Wicket</span>
+                                                    <span className="text-[10px] font-bold uppercase tracking-wider stat-red">Last Wicket</span>
                                                     <p className="text-sm font-semibold text-foreground mt-0.5">{data.lastWicket}</p>
                                                 </div>
                                             </div>
@@ -1082,7 +1082,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                             <div className="p-3 flex items-start gap-3">
                                                 <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0"></div>
                                                 <div className="min-w-0">
-                                                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Recent Overs</span>
+                                                    <span className="text-[10px] font-bold uppercase tracking-wider stat-amber">Recent Overs</span>
                                                     <p className="text-sm font-mono font-semibold text-foreground mt-0.5">{data.recentOvers}</p>
                                                 </div>
                                             </div>
@@ -1092,7 +1092,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
 
                                 {/* Commentary - visible on mobile always, on desktop only when no scorecard */}
                                 <div className={`glass-card overflow-hidden ${data && (data.batsmen.length !== 0 || data.bowlers.length !== 0) ? 'xl:hidden' : ''}`}>
-                                    <div className="px-4 py-3 border-b border-zinc-200/50 dark:border-zinc-800/50 bg-gradient-to-r from-zinc-50 to-transparent dark:from-zinc-900/50">
+                                    <div className="px-4 py-3 border-b border-border/50 section-header-gradient">
                                         <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Commentary</h3>
                                     </div>
                                     <div className="p-3 pb-24">
@@ -1106,7 +1106,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                             <div ref={commentaryEndRef} />
                                         </div>
                                         {lastTimestamp !== null && lastTimestamp !== 0 && (
-                                            <div className="pt-3 mt-3 border-t border-zinc-200/50 dark:border-zinc-800/50">
+                                            <div className="pt-3 mt-3 border-t border-border/50">
                                                 <Button
                                                     onClick={loadMoreCommentary}
                                                     disabled={loadingMore}
@@ -1131,8 +1131,8 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                     <div className="sticky top-4">
                                         <div className="glass-card overflow-hidden">
                                             {/* Commentary Header with gradient accent */}
-                                            <div className="relative px-4 py-3 border-b border-zinc-200/50 dark:border-zinc-800/50">
-                                                <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-emerald-500/5 to-transparent dark:from-primary/10 dark:via-emerald-500/10"></div>
+                                            <div className="relative px-4 py-3 border-b border-border/50">
+                                                <div className="absolute inset-0 commentary-header-gradient"></div>
                                                 <div className="relative flex items-center justify-between">
                                                     <h3 className="text-xs font-bold uppercase tracking-widest text-primary">Live Commentary</h3>
                                                     <div className="flex items-center gap-1.5">
@@ -1152,7 +1152,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                     <div ref={commentaryEndRef} />
                                                 </div>
                                                 {lastTimestamp !== null && lastTimestamp !== 0 && (
-                                                    <div className="pt-3 mt-3 border-t border-zinc-200/50 dark:border-zinc-800/50">
+                                                    <div className="pt-3 mt-3 border-t border-border/50">
                                                         <Button
                                                             onClick={loadMoreCommentary}
                                                             disabled={loadingMore}
@@ -1182,7 +1182,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
 
             {/* Player Profile Dialog */}
             <Dialog open={!!selectedProfileId} onOpenChange={handleDialogOpenChange}>
-                <DialogContent className="max-w-[95vw] w-full max-h-[95vh] overflow-y-auto p-0 rounded-2xl">
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 rounded-2xl">
                     <DialogHeader className="sr-only">
                         <DialogTitle>Player Profile</DialogTitle>
                     </DialogHeader>
@@ -1202,7 +1202,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
             {/* Highlights Dialog */}
             <Dialog open={!!highlightsUrl} onOpenChange={handleHighlightsDialogClose}>
                 <DialogContent className="max-w-2xl w-full max-h-[85vh] overflow-y-auto p-0 rounded-2xl">
-                    <DialogHeader className="px-5 pt-5 pb-3 border-b border-zinc-200/50 dark:border-zinc-800/50">
+                    <DialogHeader className="px-5 pt-5 pb-3 border-b border-border/50">
                         <DialogTitle className="font-display text-lg">
                             {highlightsData ? (
                                 <span>{highlightsData.playerName} <span className="text-muted-foreground font-mono text-base">{highlightsData.playerScore}</span></span>
@@ -1253,12 +1253,12 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                     else if (isFour) ballClass += " bg-blue-600 text-white";
                                     else if (isWicket) ballClass += " bg-red-600 text-white";
                                     else if (isWide || isNoBall) ballClass += " bg-orange-500 text-white text-[10px]";
-                                    else if (isDot) ballClass += " bg-zinc-200 dark:bg-zinc-800 text-zinc-500";
+                                    else if (isDot) ballClass += " bg-muted text-muted-foreground";
                                     else if (/^\d$/.test(runDisplay)) ballClass += " bg-green-600 text-white";
-                                    else ballClass += " bg-zinc-200 dark:bg-zinc-800 text-zinc-500";
+                                    else ballClass += " bg-muted text-muted-foreground";
 
                                     return (
-                                        <div key={index} className="slide-in-left flex items-start gap-3 py-2.5 px-2 rounded-xl hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20 transition-colors">
+                                        <div key={index} className="slide-in-left flex items-start gap-3 py-2.5 px-2 rounded-xl hover:bg-muted/30 transition-colors">
                                             <div className="flex items-center gap-2 shrink-0">
                                                 <span className="font-mono font-bold text-xs text-muted-foreground w-8 text-right">
                                                     {item.over}

@@ -46,7 +46,7 @@ export default function ShareCardDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[360px] sm:max-w-[380px] p-0 gap-0 overflow-hidden bg-zinc-950 border-zinc-800">
+      <DialogContent className="max-w-[360px] sm:max-w-[380px] p-0 gap-0 overflow-hidden bg-card border-border">
         <DialogHeader className="px-4 pt-4 pb-3">
           <DialogTitle className="text-base font-display">Share Score Card</DialogTitle>
         </DialogHeader>
@@ -90,7 +90,7 @@ export default function ShareCardDialog({
         </div>
 
         {/* Actions */}
-        <div className="px-4 py-3 bg-zinc-900/50 border-t border-zinc-800 flex items-center justify-end gap-2">
+        <div className="px-4 py-3 bg-muted/50 border-t border-border flex items-center justify-end gap-2">
           <Button
             variant="outline"
             size="sm"

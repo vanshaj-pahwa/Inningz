@@ -97,7 +97,7 @@ export default function RecentHistory({ onPlayerClick, className }: RecentHistor
                 title={item.subtitle ? `${item.title} - ${item.subtitle}` : item.title}
                 className={cn(
                   'flex items-center gap-2 px-3 py-2 rounded-xl border transition-all',
-                  'bg-zinc-900/60 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800/80',
+                  'bg-card/60 border-border hover:border-border hover:bg-muted/80',
                   'min-w-[160px] max-w-[260px]'
                 )}
               >
@@ -125,7 +125,7 @@ export default function RecentHistory({ onPlayerClick, className }: RecentHistor
                 }}
                 className={cn(
                   'absolute -top-2 -right-2 p-1 rounded-full z-10',
-                  'bg-zinc-800 border border-zinc-700',
+                  'bg-muted border border-border',
                   'opacity-0 group-hover:opacity-100 transition-opacity',
                   'hover:bg-destructive hover:border-destructive'
                 )}

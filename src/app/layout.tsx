@@ -49,6 +49,7 @@ export default function RootLayout({
             attribute="class"
             defaultTheme="dark"
             enableSystem
+            themes={['light', 'dark', 'midnight', 'pitch', 'sunset', 'sepia', 'system']}
             disableTransitionOnChange
         >
           <MatchesProvider>

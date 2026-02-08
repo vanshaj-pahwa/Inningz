@@ -118,7 +118,7 @@ export default function RankingsPage() {
         <p className="text-sm text-muted-foreground mb-5">Current ICC player rankings</p>
 
         {/* Format Tabs (pill style) */}
-        <nav className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-900 p-1 rounded-xl w-fit mb-4">
+        <nav className="flex items-center gap-1 tab-container w-fit mb-4">
           {formats.map((f) => (
             <button
               key={f.value}
@@ -127,7 +127,7 @@ export default function RankingsPage() {
                 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
                 ${format === f.value
                   ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                 }
               `}
             >
@@ -137,7 +137,7 @@ export default function RankingsPage() {
         </nav>
 
         {/* Category Tabs (underline style, like series page) */}
-        <div className="flex gap-1 border-b border-zinc-200 dark:border-zinc-800 -mb-px">
+        <div className="flex gap-1 border-b border-border -mb-px">
           {categories.map((c) => (
             <button
               key={c.value}
@@ -163,15 +163,15 @@ export default function RankingsPage() {
             {Array.from({ length: 15 }).map((_, i) => (
               <div
                 key={i}
-                className="flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-xl bg-zinc-100/50 dark:bg-zinc-900/30 animate-pulse"
+                className="flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-xl bg-muted/30 animate-pulse"
               >
-                <div className="w-6 md:w-8 h-4 bg-zinc-200 dark:bg-zinc-800 rounded" />
-                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-zinc-200 dark:bg-zinc-800" />
+                <div className="w-6 md:w-8 h-4 bg-muted rounded" />
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-muted" />
                 <div className="flex-1 space-y-1.5">
-                  <div className="w-32 h-3.5 bg-zinc-200 dark:bg-zinc-800 rounded" />
-                  <div className="w-16 h-2.5 bg-zinc-200 dark:bg-zinc-800 rounded" />
+                  <div className="w-32 h-3.5 bg-muted rounded" />
+                  <div className="w-16 h-2.5 bg-muted rounded" />
                 </div>
-                <div className="w-12 h-4 bg-zinc-200 dark:bg-zinc-800 rounded" />
+                <div className="w-12 h-4 bg-muted rounded" />
               </div>
             ))}
           </div>
@@ -211,8 +211,8 @@ export default function RankingsPage() {
                 onClick={() => handlePlayerClick(entry)}
                 className={`
                   flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-xl transition-all
-                  ${entry.profileId ? 'cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-900/50' : ''}
-                  ${i < 3 ? 'bg-primary/5 dark:bg-primary/10' : i % 2 === 0 ? 'bg-zinc-50/50 dark:bg-zinc-900/20' : ''}
+                  ${entry.profileId ? 'cursor-pointer hover:bg-muted/50' : ''}
+                  ${i < 3 ? 'bg-primary/5 dark:bg-primary/10' : i % 2 === 0 ? 'bg-muted/20' : ''}
                 `}
               >
                 {/* Rank */}
@@ -221,7 +221,7 @@ export default function RankingsPage() {
                 </span>
 
                 {/* Player Image */}
-                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full overflow-hidden bg-zinc-200 dark:bg-zinc-800 flex-shrink-0">
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full overflow-hidden bg-muted flex-shrink-0">
                   {entry.imageUrl ? (
                     <Image
                       src={entry.imageUrl}

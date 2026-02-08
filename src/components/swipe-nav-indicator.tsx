@@ -40,7 +40,7 @@ export default function SwipeNavIndicator({ currentMatchId }: SwipeNavIndicatorP
     <>
       {/* Match position indicator */}
       <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40">
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-900/80 backdrop-blur-sm border border-zinc-700/50">
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card/80 backdrop-blur-sm border border-border">
           {liveMatches.map((match, idx) => (
             <button
               key={match.matchId}
@@ -49,7 +49,7 @@ export default function SwipeNavIndicator({ currentMatchId }: SwipeNavIndicatorP
                 'w-2 h-2 rounded-full transition-all duration-200',
                 idx === currentIndex
                   ? 'w-6 bg-primary'
-                  : 'bg-zinc-600 hover:bg-zinc-500'
+                  : 'bg-muted-foreground/50 hover:bg-muted-foreground/70'
               )}
               aria-label={`Go to ${match.title}`}
             />
@@ -85,7 +85,7 @@ export default function SwipeNavIndicator({ currentMatchId }: SwipeNavIndicatorP
         {prev && (
           <button
             onClick={() => router.push(`/match/${prev.matchId}`)}
-            className="pointer-events-auto flex items-center gap-1 px-2 py-1 rounded-lg bg-zinc-900/80 backdrop-blur-sm border border-zinc-700/50 text-xs text-zinc-400 hover:text-white transition-colors"
+            className="pointer-events-auto flex items-center gap-1 px-2 py-1 rounded-lg bg-card/80 backdrop-blur-sm border border-border text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
             <ChevronLeft className="w-3 h-3" />
             <span className="max-w-[80px] truncate">{prev.teams[0]?.name?.split(' ')[0]}</span>
@@ -95,7 +95,7 @@ export default function SwipeNavIndicator({ currentMatchId }: SwipeNavIndicatorP
         {next && (
           <button
             onClick={() => router.push(`/match/${next.matchId}`)}
-            className="pointer-events-auto flex items-center gap-1 px-2 py-1 rounded-lg bg-zinc-900/80 backdrop-blur-sm border border-zinc-700/50 text-xs text-zinc-400 hover:text-white transition-colors"
+            className="pointer-events-auto flex items-center gap-1 px-2 py-1 rounded-lg bg-card/80 backdrop-blur-sm border border-border text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
             <span className="max-w-[80px] truncate">{next.teams[0]?.name?.split(' ')[0]}</span>
             <ChevronRight className="w-3 h-3" />

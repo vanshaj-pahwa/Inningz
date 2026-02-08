@@ -28,13 +28,13 @@ export default function ShareButton({
         <button
           onClick={() => setDialogOpen(true)}
           className={cn(
-            'p-1.5 rounded-lg hover:bg-zinc-800 transition-colors',
+            'p-1.5 rounded-lg hover:bg-muted transition-colors',
             className
           )}
           aria-label="Share score"
           title="Share score"
         >
-          <Share2 className="w-4 h-4 text-zinc-400" />
+          <Share2 className="w-4 h-4 text-muted-foreground" />
         </button>
         <ShareCardDialog
           open={dialogOpen}
@@ -54,7 +54,7 @@ export default function ShareButton({
           size="icon"
           onClick={() => setDialogOpen(true)}
           className={cn(
-            'h-9 w-9 rounded-xl bg-zinc-800/50 hover:bg-zinc-700/50 border border-zinc-700/50',
+            'h-9 w-9 rounded-xl bg-muted/50 hover:bg-muted border border-border',
             className
           )}
           aria-label="Share score"

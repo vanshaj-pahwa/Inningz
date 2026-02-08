@@ -138,10 +138,10 @@ export default function WinProbability({ score, currentRunRate, requiredRunRate,
   const battingIsLeader = battingProb >= bowlingProb;
 
   return (
-    <div className="rounded-xl bg-zinc-900/80 border border-zinc-800 px-3 py-2.5">
+    <div className="rounded-xl bg-card/80 border border-border px-3 py-2.5">
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">
+        <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
           Win Probability
         </span>
       </div>
@@ -150,27 +150,27 @@ export default function WinProbability({ score, currentRunRate, requiredRunRate,
       <div className="flex items-center justify-between mb-2">
         {/* Team 1 (Batting) */}
         <div className="flex items-center gap-2">
-          <span className={`text-xs font-bold uppercase ${battingIsLeader ? 'text-emerald-400' : 'text-rose-400'}`}>
+          <span className={`text-xs font-bold uppercase ${battingIsLeader ? 'win-prob-leader' : 'win-prob-trailing'}`}>
             {battingTeam}
           </span>
-          <span className={`text-lg font-display font-black tabular-nums ${battingIsLeader ? 'text-emerald-400' : 'text-rose-400'}`}>
+          <span className={`text-lg font-display font-black tabular-nums ${battingIsLeader ? 'win-prob-leader' : 'win-prob-trailing'}`}>
             {battingProb}%
           </span>
         </div>
 
         {/* Team 2 (Bowling) */}
         <div className="flex items-center gap-2">
-          <span className={`text-lg font-display font-black tabular-nums ${!battingIsLeader ? 'text-emerald-400' : 'text-rose-400'}`}>
+          <span className={`text-lg font-display font-black tabular-nums ${!battingIsLeader ? 'win-prob-leader' : 'win-prob-trailing'}`}>
             {bowlingProb}%
           </span>
-          <span className={`text-xs font-bold uppercase ${!battingIsLeader ? 'text-emerald-400' : 'text-rose-400'}`}>
+          <span className={`text-xs font-bold uppercase ${!battingIsLeader ? 'win-prob-leader' : 'win-prob-trailing'}`}>
             {bowlingTeam}
           </span>
         </div>
       </div>
 
       {/* Probability bar */}
-      <div className="relative h-1.5 rounded-full overflow-hidden bg-zinc-800">
+      <div className="relative h-1.5 rounded-full overflow-hidden bg-muted">
         <div
           className={`absolute inset-y-0 left-0 transition-all duration-500 ${battingIsLeader ? 'bg-emerald-500' : 'bg-rose-500'}`}
           style={{ width: `${battingProb}%` }}
@@ -180,7 +180,7 @@ export default function WinProbability({ score, currentRunRate, requiredRunRate,
           style={{ width: `${bowlingProb}%` }}
         />
         <div
-          className="absolute top-0 bottom-0 w-0.5 bg-zinc-900 z-10"
+          className="absolute top-0 bottom-0 w-0.5 bg-background z-10"
           style={{ left: `${battingProb}%` }}
         />
       </div>
