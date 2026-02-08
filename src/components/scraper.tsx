@@ -1071,7 +1071,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                     <div className="px-4 py-3 border-b border-zinc-200/50 dark:border-zinc-800/50 bg-gradient-to-r from-zinc-50 to-transparent dark:from-zinc-900/50">
                                         <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Commentary</h3>
                                     </div>
-                                    <div className="p-3">
+                                    <div className="p-3 pb-24">
                                         <div className="space-y-0.5 max-h-[32rem] overflow-y-auto hide-scrollbar">
                                             {data?.commentary.map((comment, index) => (
                                                 <div key={index}>
