@@ -21,6 +21,7 @@ import WinProbability from './win-probability';
 import QuickScoreWidget from './quick-score-widget';
 import { useRecentHistoryContext } from '@/contexts/recent-history-context';
 import { useSwipe } from '@/hooks/use-swipe';
+import { ShareButton } from './share-cards';
 
 export interface ScrapeState {
     success: boolean;
@@ -767,15 +768,37 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                         {(!timeLeft || (data && data.batsmen.length > 0)) && (
                             <div ref={scoreHeroRef} className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-zinc-100 via-zinc-50 to-white dark:from-zinc-900 dark:via-zinc-950 dark:to-black border border-zinc-200 dark:border-zinc-800/50">
                                 {/* Atmospheric background layers */}
-                                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(34,197,94,0.08)_0%,_transparent_60%)]" />
-                                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_rgba(251,191,36,0.05)_0%,_transparent_60%)]" />
+                                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(6,182,212,0.12)_0%,_transparent_60%)]" />
+                                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_rgba(59,130,246,0.08)_0%,_transparent_60%)]" />
+
+                                {/* Share Button */}
+                                {data && (
+                                    <div className="absolute top-4 right-4 z-10">
+                                        <ShareButton
+                                            matchTitle={data.title}
+                                            cardData={{
+                                                title: data.title,
+                                                score: data.score,
+                                                status: data.status,
+                                                seriesName: data.seriesName,
+                                                currentRunRate: data.currentRunRate,
+                                                requiredRunRate: data.requiredRunRate,
+                                                previousInnings: data.previousInnings,
+                                                winProbability: data.winProbability?.team1?.name && data.winProbability?.team2?.name ? {
+                                                    team1: { name: data.winProbability.team1.name, probability: data.winProbability.team1.probability ?? 0 },
+                                                    team2: { name: data.winProbability.team2.name, probability: data.winProbability.team2.probability ?? 0 },
+                                                } : undefined,
+                                            }}
+                                        />
+                                    </div>
+                                )}
 
                                 {/* Last Event Badge */}
                                 {lastEvent && (
                                     <Badge
                                         key={lastEvent.key}
                                         variant={getEventBadgeVariant(lastEvent.variant)}
-                                        className={`absolute top-4 right-4 z-10 text-lg font-bold event-animation tabular-nums shadow-lg rounded-xl px-3 py-1 ${getEventBadgeClass(lastEvent.variant)}`}
+                                        className={`absolute top-4 right-14 z-10 text-lg font-bold event-animation tabular-nums shadow-lg rounded-xl px-3 py-1 ${getEventBadgeClass(lastEvent.variant)}`}
                                     >
                                         {lastEvent.text}
                                     </Badge>
@@ -818,9 +841,9 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                 )}
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                                                    <span className="text-xs font-mono font-semibold text-emerald-400 tracking-wide">
+                                                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                                                    <span className="text-xs font-mono font-semibold text-cyan-400 tracking-wide">
                                                         CRR {data?.currentRunRate}
                                                     </span>
                                                 </div>
@@ -838,7 +861,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                 </div>
 
                                 {/* Bottom accent line */}
-                                <div className="h-[2px] bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent" />
+                                <div className="h-[2px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent" />
                             </div>
                         )}
 
