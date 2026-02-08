@@ -75,7 +75,7 @@ function HomeContent() {
                                             transition-all duration-200 ease-out
                                             ${isActive
                                                 ? 'active-tab'
-                                                : 'text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10'
+                                                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                                             }
                                         `}
                                     >
@@ -90,7 +90,7 @@ function HomeContent() {
                         <div className="flex items-center gap-1.5">
                             <Link
                                 href="/rankings"
-                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                             >
                                 <Medal className="w-4 h-4" />
                                 <span className="hidden sm:inline">Rankings</span>
@@ -101,7 +101,7 @@ function HomeContent() {
 
                     {/* Mobile: iOS-style segmented control */}
                     <nav className="md:hidden pb-3">
-                        <div className="flex p-1 rounded-lg bg-neutral-100 dark:bg-neutral-800/80">
+                        <div className="flex p-1 rounded-lg bg-muted">
                             {tabs.map((tab) => {
                                 const Icon = tab.icon;
                                 const isActive = view === tab.value;

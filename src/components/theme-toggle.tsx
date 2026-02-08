@@ -148,10 +148,16 @@ const customThemes = ['midnight', 'pitch', 'sunset', 'sepia']
 export function ThemeToggle() {
   const { theme, setTheme, resolvedTheme } = useTheme()
   const [mounted, setMounted] = React.useState(false)
+  const [open, setOpen] = React.useState(false)
 
   React.useEffect(() => {
     setMounted(true)
   }, [])
+
+  const handleThemeChange = (newTheme: string) => {
+    setTheme(newTheme)
+    setOpen(false)
+  }
 
   // Get the actual theme being used (resolves 'system' to actual theme)
   const currentTheme = theme === 'system' ? resolvedTheme : theme
@@ -159,7 +165,7 @@ export function ThemeToggle() {
   const isLightTheme = mounted && (currentTheme === 'light' || currentTheme === 'sepia')
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="icon" className="relative">
           {/* Light theme icon */}
@@ -180,7 +186,7 @@ export function ThemeToggle() {
       <DropdownMenuContent align="end" className="w-56 p-2">
         {/* System option */}
         <button
-          onClick={() => setTheme("system")}
+          onClick={() => handleThemeChange("system")}
           className={`
             flex items-center gap-3 w-full px-3 py-2.5 rounded-xl transition-all mb-1
             ${theme === 'system'
@@ -209,7 +215,7 @@ export function ThemeToggle() {
               key={t.id}
               theme={t}
               isActive={currentTheme === t.id}
-              onClick={() => setTheme(t.id)}
+              onClick={() => handleThemeChange(t.id)}
             />
           ))}
         </div>
