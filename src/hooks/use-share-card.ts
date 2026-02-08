@@ -9,6 +9,8 @@ import {
   generateShareFilename,
 } from '@/lib/share-utils';
 
+type ActiveAction = 'download' | 'share' | null;
+
 interface UseShareCardReturn {
   isGenerating: boolean;
   isSharing: boolean;
@@ -20,15 +22,17 @@ interface UseShareCardReturn {
 }
 
 export function useShareCard(): UseShareCardReturn {
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isSharing, setIsSharing] = useState(false);
+  const [activeAction, setActiveAction] = useState<ActiveAction>(null);
   const [error, setError] = useState<string | null>(null);
 
   const supportsNativeShare = canShareFiles();
 
-  const generateImage = useCallback(
+  // Derived states for backward compatibility
+  const isGenerating = activeAction === 'download';
+  const isSharing = activeAction === 'share';
+
+  const generateImageInternal = useCallback(
     async (element: HTMLElement): Promise<Blob | null> => {
-      setIsGenerating(true);
       setError(null);
 
       try {
@@ -72,31 +76,46 @@ export function useShareCard(): UseShareCardReturn {
         setError(message);
         console.error('Image generation error:', err);
         return null;
-      } finally {
-        setIsGenerating(false);
       }
     },
     []
   );
 
+  const generateImage = useCallback(
+    async (element: HTMLElement): Promise<Blob | null> => {
+      setActiveAction('download');
+      try {
+        return await generateImageInternal(element);
+      } finally {
+        setActiveAction(null);
+      }
+    },
+    [generateImageInternal]
+  );
+
   const downloadCard = useCallback(
     async (element: HTMLElement, matchTitle: string, cardType: string = 'score') => {
-      const blob = await generateImage(element);
-      if (!blob) return;
+      setActiveAction('download');
+      try {
+        const blob = await generateImageInternal(element);
+        if (!blob) return;
 
-      const filename = generateShareFilename(matchTitle, cardType);
-      downloadBlob(blob, filename);
+        const filename = generateShareFilename(matchTitle, cardType);
+        downloadBlob(blob, filename);
+      } finally {
+        setActiveAction(null);
+      }
     },
-    [generateImage]
+    [generateImageInternal]
   );
 
   const shareCard = useCallback(
     async (element: HTMLElement, matchTitle: string, cardType: string = 'score') => {
-      setIsSharing(true);
+      setActiveAction('share');
       setError(null);
 
       try {
-        const blob = await generateImage(element);
+        const blob = await generateImageInternal(element);
         if (!blob) return;
 
         const filename = generateShareFilename(matchTitle, cardType);
@@ -121,7 +140,7 @@ export function useShareCard(): UseShareCardReturn {
         console.error('Share error:', err);
         // Fallback download
         try {
-          const blob = await generateImage(element);
+          const blob = await generateImageInternal(element);
           if (blob) {
             const filename = generateShareFilename(matchTitle, cardType);
             downloadBlob(blob, filename);
@@ -130,10 +149,10 @@ export function useShareCard(): UseShareCardReturn {
           // Silent fail
         }
       } finally {
-        setIsSharing(false);
+        setActiveAction(null);
       }
     },
-    [generateImage, supportsNativeShare]
+    [generateImageInternal, supportsNativeShare]
   );
 
   return {
