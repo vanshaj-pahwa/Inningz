@@ -35,12 +35,15 @@ const categoryTextColors: Record<SeriesFilter, string> = {
   all: '',
 };
 
+const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
 export default function SeriesScheduleComponent() {
   const [schedule, setSchedule] = useState<SeriesSchedule | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<SeriesFilter>('all');
   const [selectedYear, setSelectedYear] = useState<string>(String(new Date().getFullYear()));
+  const [selectedMonth, setSelectedMonth] = useState<string>('all');
 
   // Extract available years from schedule data
   const availableYears = useMemo(() => {
@@ -52,6 +55,22 @@ export default function SeriesScheduleComponent() {
     });
     return Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
   }, [schedule]);
+
+  // Extract available months from schedule data (filtered by selected year)
+  const availableMonths = useMemo(() => {
+    if (!schedule?.months) return [];
+    const months = new Set<string>();
+    schedule.months.forEach(m => {
+      const parts = m.name.split(' ');
+      const year = parts.pop();
+      const month = parts.join(' ');
+      if (selectedYear === 'all' || year === selectedYear) {
+        if (month) months.add(month);
+      }
+    });
+    // Sort months by their natural order
+    return Array.from(months).sort((a, b) => monthNames.indexOf(a) - monthNames.indexOf(b));
+  }, [schedule, selectedYear]);
 
   useEffect(() => {
     const fetchSchedule = async () => {
@@ -77,6 +96,9 @@ export default function SeriesScheduleComponent() {
           selectedYear={selectedYear}
           setSelectedYear={setSelectedYear}
           availableYears={availableYears}
+          selectedMonth={selectedMonth}
+          setSelectedMonth={setSelectedMonth}
+          availableMonths={availableMonths}
         />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(9)].map((_, i) => (
@@ -112,11 +134,15 @@ export default function SeriesScheduleComponent() {
     );
   }
 
-  // Filter by year and category
+  // Filter by year, month, and category
   const filteredMonths = schedule.months
     .filter(month => {
-      const year = month.name.split(' ').pop();
-      return selectedYear === 'all' || year === selectedYear;
+      const parts = month.name.split(' ');
+      const year = parts.pop();
+      const monthName = parts.join(' ');
+      const yearMatch = selectedYear === 'all' || year === selectedYear;
+      const monthMatch = selectedMonth === 'all' || monthName === selectedMonth;
+      return yearMatch && monthMatch;
     })
     .map(month => ({
       ...month,
@@ -134,6 +160,9 @@ export default function SeriesScheduleComponent() {
         selectedYear={selectedYear}
         setSelectedYear={setSelectedYear}
         availableYears={availableYears}
+        selectedMonth={selectedMonth}
+        setSelectedMonth={setSelectedMonth}
+        availableMonths={availableMonths}
       />
 
       {filteredMonths.length === 0 && (
@@ -212,15 +241,22 @@ function FilterBar({
   selectedYear,
   setSelectedYear,
   availableYears,
+  selectedMonth,
+  setSelectedMonth,
+  availableMonths,
 }: {
   activeFilter: SeriesFilter;
   setActiveFilter: (f: SeriesFilter) => void;
   selectedYear: string;
   setSelectedYear: (y: string) => void;
   availableYears: string[];
+  selectedMonth: string;
+  setSelectedMonth: (m: string) => void;
+  availableMonths: string[];
 }) {
   const activeLabel = filters.find(f => f.value === activeFilter)?.label ?? 'All';
   const yearLabel = selectedYear === 'all' ? 'All Years' : selectedYear;
+  const monthLabel = selectedMonth === 'all' ? 'All Months' : selectedMonth;
 
   return (
     <div className="flex items-center justify-between gap-4">
@@ -244,6 +280,29 @@ function FilterBar({
       </div>
 
       <div className="flex items-center gap-2 md:gap-4 ml-auto">
+        {/* Month dropdown */}
+        {availableMonths.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="rounded-xl gap-2">
+                <Calendar className="h-3.5 w-3.5" />
+                {monthLabel}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="rounded-xl max-h-64 overflow-y-auto">
+              <DropdownMenuRadioGroup value={selectedMonth} onValueChange={setSelectedMonth}>
+                <DropdownMenuRadioItem value="all" className="rounded-lg">
+                  All Months
+                </DropdownMenuRadioItem>
+                {availableMonths.map((month) => (
+                  <DropdownMenuRadioItem key={month} value={month} className="rounded-lg">
+                    {month}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
         {/* Year dropdown */}
         {availableYears.length > 0 && (
           <DropdownMenu>
@@ -254,7 +313,11 @@ function FilterBar({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="rounded-xl">
-              <DropdownMenuRadioGroup value={selectedYear} onValueChange={setSelectedYear}>
+              <DropdownMenuRadioGroup value={selectedYear} onValueChange={(y) => {
+                setSelectedYear(y);
+                // Reset month when year changes to avoid invalid combinations
+                setSelectedMonth('all');
+              }}>
                 <DropdownMenuRadioItem value="all" className="rounded-lg">
                   All Years
                 </DropdownMenuRadioItem>
