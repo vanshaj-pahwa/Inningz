@@ -73,9 +73,9 @@ const QuickScoreCard = forwardRef<HTMLDivElement, QuickScoreCardProps>(
         />
 
         {/* Content */}
-        <div style={{ position: 'relative', zIndex: 10, padding: 64, paddingTop: 80, paddingBottom: 100 }}>
+        <div style={{ position: 'relative', zIndex: 10, padding: 64, paddingTop: 64, paddingBottom: 120 }}>
           {/* Series Name & Live Badge */}
-          <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 20 }}>
             {status.toLowerCase().includes('live') && (
               <span style={{
                 display: 'inline-block',
@@ -111,18 +111,18 @@ const QuickScoreCard = forwardRef<HTMLDivElement, QuickScoreCardProps>(
             lineHeight: 1.3,
             color: '#fafafa',
             margin: 0,
-            marginBottom: 40,
+            marginBottom: 48,
             fontFamily: '"DM Serif Display", Georgia, serif',
           }}>
             {title}
           </h1>
 
           {/* Divider */}
-          <div style={{ height: 3, marginBottom: 40, background: 'linear-gradient(90deg, #06b6d4, transparent)', borderRadius: 2 }} />
+          <div style={{ height: 3, marginBottom: 48, background: 'linear-gradient(90deg, #06b6d4, transparent)', borderRadius: 2 }} />
 
           {/* Previous Innings */}
           {previousInnings && previousInnings.length > 0 && (
-            <div style={{ marginBottom: 36 }}>
+            <div style={{ marginBottom: 40 }}>
               {previousInnings.map((inning, index) => (
                 <p key={index} style={{ margin: 0, marginBottom: 10, fontSize: 0 }}>
                   <span style={{ fontSize: 32, fontWeight: 600, color: '#a1a1aa', verticalAlign: 'baseline' }}>
@@ -136,28 +136,28 @@ const QuickScoreCard = forwardRef<HTMLDivElement, QuickScoreCardProps>(
             </div>
           )}
 
-          {/* Current Team Name */}
-          {currentTeam && (
-            <p style={{ fontSize: 36, fontWeight: 600, marginBottom: 0, marginTop: 0, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              {currentTeam}
-            </p>
-          )}
-
-          {/* Score Line */}
-          <p style={{ margin: 0, marginBottom: 40, fontSize: 0 }}>
-            <span style={{ fontSize: 160, fontWeight: 700, color: '#f59e0b', fontFamily: '"DM Serif Display", Georgia, serif', lineHeight: 1, verticalAlign: 'baseline' }}>
-              {currentScore}
-            </span>
-            {overs && (
-              <span style={{ fontSize: 40, color: '#71717a', fontWeight: 500, marginLeft: 24, verticalAlign: 'baseline' }}>
-                ({overs} ov)
-              </span>
+          {/* Current Team & Score - Balanced spacing */}
+          <div style={{ marginBottom: 36 }}>
+            {currentTeam && (
+              <p style={{ fontSize: 38, fontWeight: 600, marginBottom: 8, marginTop: 0, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                {currentTeam}
+              </p>
             )}
-          </p>
+            <p style={{ margin: 0, fontSize: 0, lineHeight: 1 }}>
+              <span style={{ fontSize: 150, fontWeight: 700, color: '#f59e0b', fontFamily: '"DM Serif Display", Georgia, serif', lineHeight: 1, display: 'inline-block' }}>
+                {currentScore}
+              </span>
+              {overs && (
+                <span style={{ fontSize: 38, color: '#71717a', fontWeight: 500, marginLeft: 20, verticalAlign: 'middle' }}>
+                  ({overs} ov)
+                </span>
+              )}
+            </p>
+          </div>
 
           {/* Run Rates - Simple text */}
           {(currentRunRate || requiredRunRate) && (
-            <p style={{ margin: 0, marginBottom: 40, fontSize: 32, fontFamily: 'monospace', fontWeight: 700 }}>
+            <p style={{ margin: 0, marginBottom: 36, fontSize: 32, fontFamily: 'monospace', fontWeight: 700 }}>
               {currentRunRate && (
                 <span style={{ color: '#22d3ee', marginRight: 48 }}>
                   CRR: {currentRunRate}
@@ -203,7 +203,7 @@ const QuickScoreCard = forwardRef<HTMLDivElement, QuickScoreCardProps>(
             left: 0,
             right: 0,
             zIndex: 10,
-            padding: '28px 64px',
+            padding: '24px 64px',
             backgroundColor: '#050505',
             borderTop: '1px solid #27272a',
           }}

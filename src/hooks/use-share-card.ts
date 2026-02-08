@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import html2canvas from 'html2canvas';
+import { toPng } from 'html-to-image';
 import {
   canShareFiles,
   shareImageFile,
@@ -35,50 +35,38 @@ export function useShareCard(): UseShareCardReturn {
         // Wait for fonts to load
         await document.fonts.ready;
 
-        // Longer delay to ensure everything is rendered
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Small delay to ensure everything is rendered
+        await new Promise(resolve => setTimeout(resolve, 50));
 
-        const canvas = await html2canvas(element, {
-          scale: 1,
-          backgroundColor: '#09090b',
-          useCORS: true,
-          allowTaint: true,
-          logging: false,
+        // Use html-to-image for more accurate rendering
+        const dataUrl = await toPng(element, {
           width: 1080,
           height: 1080,
-          // Use onclone to ensure the cloned element is properly styled
-          onclone: (clonedDoc, clonedElement) => {
-            // Reset any transforms that might affect rendering
-            clonedElement.style.transform = 'none';
-            clonedElement.style.position = 'relative';
-            clonedElement.style.left = '0';
-            clonedElement.style.top = '0';
-
-            // Force all children to be visible
-            const allElements = clonedElement.querySelectorAll('*');
-            allElements.forEach((el) => {
-              const htmlEl = el as HTMLElement;
-              if (htmlEl.style) {
-                htmlEl.style.visibility = 'visible';
-                htmlEl.style.opacity = '1';
+          pixelRatio: 1,
+          backgroundColor: '#09090b',
+          style: {
+            transform: 'none',
+            position: 'relative',
+            left: '0',
+            top: '0',
+          },
+          // Skip elements that might cause issues
+          filter: (node) => {
+            // Skip script tags and hidden elements
+            if (node instanceof HTMLElement) {
+              const tagName = node.tagName?.toLowerCase();
+              if (tagName === 'script' || tagName === 'noscript') {
+                return false;
               }
-            });
+            }
+            return true;
           },
         });
 
-        return new Promise((resolve, reject) => {
-          canvas.toBlob(
-            (blob) => {
-              if (blob) {
-                resolve(blob);
-              } else {
-                reject(new Error('Failed to generate image'));
-              }
-            },
-            'image/png',
-            1.0
-          );
-        });
+        // Convert data URL to blob
+        const response = await fetch(dataUrl);
+        const blob = await response.blob();
+        return blob;
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to generate image';
         setError(message);
