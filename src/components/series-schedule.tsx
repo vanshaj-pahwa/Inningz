@@ -204,16 +204,19 @@ export default function SeriesScheduleComponent() {
 
 function SeriesCard({ series, index }: { series: CricketSeries; index: number }) {
   const { addFavorite, removeFavorite, isFavorite } = useDashboardPreferences();
-  const isFav = isFavorite(series.seriesId);
+  // Build the full series path for both linking and favorites
+  const seriesSlug = series.seriesUrl.replace(/^\/cricket-series\/\d+\//, '').replace(/\/matches$/, '');
+  const seriesPath = `${series.seriesId}/${seriesSlug}`;
+  const isFav = isFavorite(seriesPath);
 
   const handleToggleFavorite = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (isFav) {
-      removeFavorite(series.seriesId);
+      removeFavorite(seriesPath);
     } else {
       addFavorite({
-        id: series.seriesId,
+        id: seriesPath,
         type: 'series',
         name: series.name,
         subtitle: series.dateRange,
@@ -223,7 +226,7 @@ function SeriesCard({ series, index }: { series: CricketSeries; index: number })
 
   return (
     <Link
-      href={`/series/${series.seriesId}/${series.seriesUrl.replace(/^\/cricket-series\/\d+\//, '').replace(/\/matches$/, '')}`}
+      href={`/series/${seriesPath}`}
       className="stagger-in"
       style={{ '--stagger-index': index } as React.CSSProperties}
     >
