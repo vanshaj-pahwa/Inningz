@@ -23,6 +23,7 @@ import QuickScoreWidget from './quick-score-widget';
 import { useRecentHistoryContext } from '@/contexts/recent-history-context';
 import { useSwipe } from '@/hooks/use-swipe';
 import { ShareButton } from './share-cards';
+import { VirtualCommentaryList } from './virtual-commentary-list';
 
 type LastEventType = {
     text: string;
@@ -98,8 +99,6 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
     });
 
     const [loadingMore, setLoadingMore] = useState(false);
-    const commentaryEndRef = useRef<HTMLDivElement>(null);
-    const newCommentaryStartRef = useRef<HTMLDivElement>(null);
     const [newCommentaryStartIndex, setNewCommentaryStartIndex] = useState<number | null>(null);
     const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
     const [selectedPlayerName, setSelectedPlayerName] = useState<string | null>(null);
@@ -144,16 +143,21 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                 setNewCommentaryStartIndex(currentCommentaryLength);
 
                 setExtraCommentary(prev => [...prev, ...newCommentary]);
-
-                setTimeout(() => {
-                    newCommentaryStartRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }, 100);
             } else if (result.success && result.commentary && result.commentary.length === 0) {
+                // No more commentary available
+                lastTimestampRef.current = 0;
+                setLastTimestamp(0);
+            } else if (!result.success) {
+                // API error - stop trying to load more
+                console.error('[Client] Load more commentary failed:', result.error);
                 lastTimestampRef.current = 0;
                 setLastTimestamp(0);
             }
         } catch (e) {
             console.error('[Client] Failed to load more commentary:', e);
+            // Stop infinite loading on exception
+            lastTimestampRef.current = 0;
+            setLastTimestamp(0);
         } finally {
             setLoadingMore(false);
         }
@@ -1093,31 +1097,16 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                         <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Commentary</h3>
                                     </div>
                                     <div className="p-3 pb-24">
-                                        <div className="space-y-0.5 max-h-[32rem] overflow-y-auto hide-scrollbar">
-                                            {data?.commentary.map((comment, index) => (
-                                                <div key={index}>
-                                                    {index === newCommentaryStartIndex && <div ref={newCommentaryStartRef} />}
-                                                    {renderCommentaryItem(comment, index)}
-                                                </div>
-                                            ))}
-                                            <div ref={commentaryEndRef} />
-                                        </div>
-                                        {lastTimestamp !== null && lastTimestamp !== 0 && (
-                                            <div className="pt-3 mt-3 border-t border-border/50">
-                                                <Button
-                                                    onClick={loadMoreCommentary}
-                                                    disabled={loadingMore}
-                                                    variant="outline"
-                                                    className="w-full rounded-xl text-sm"
-                                                >
-                                                    {loadingMore ? (
-                                                        <><LoaderCircle className="w-4 h-4 animate-spin mr-2" />Loading...</>
-                                                    ) : (
-                                                        'Load More'
-                                                    )}
-                                                </Button>
-                                            </div>
-                                        )}
+                                        <VirtualCommentaryList
+                                            commentary={data?.commentary || []}
+                                            renderItem={renderCommentaryItem}
+                                            containerClassName="max-h-[32rem]"
+                                            onLoadMore={loadMoreCommentary}
+                                            loadingMore={loadingMore}
+                                            hasMore={lastTimestamp !== null && lastTimestamp !== 0}
+                                            newCommentaryStartIndex={newCommentaryStartIndex}
+                                            onNewCommentaryVisible={() => setNewCommentaryStartIndex(null)}
+                                        />
                                     </div>
                                 </div>
                             </div>
@@ -1142,31 +1131,16 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                             </div>
                                             {/* Commentary Feed */}
                                             <div className="p-3">
-                                                <div className="space-y-0.5 max-h-[calc(100vh-280px)] overflow-y-auto hide-scrollbar">
-                                                    {data?.commentary.map((comment, index) => (
-                                                        <div key={index}>
-                                                            {renderCommentaryItem(comment, index)}
-                                                        </div>
-                                                    ))}
-                                                    <div ref={commentaryEndRef} />
-                                                </div>
-                                                {lastTimestamp !== null && lastTimestamp !== 0 && (
-                                                    <div className="pt-3 mt-3 border-t border-border/50">
-                                                        <Button
-                                                            onClick={loadMoreCommentary}
-                                                            disabled={loadingMore}
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="w-full rounded-xl text-xs"
-                                                        >
-                                                            {loadingMore ? (
-                                                                <><LoaderCircle className="w-3 h-3 animate-spin mr-2" />Loading...</>
-                                                            ) : (
-                                                                'Load More Commentary'
-                                                            )}
-                                                        </Button>
-                                                    </div>
-                                                )}
+                                                <VirtualCommentaryList
+                                                    commentary={data?.commentary || []}
+                                                    renderItem={renderCommentaryItem}
+                                                    containerClassName="max-h-[calc(100vh-280px)]"
+                                                    onLoadMore={loadMoreCommentary}
+                                                    loadingMore={loadingMore}
+                                                    hasMore={lastTimestamp !== null && lastTimestamp !== 0}
+                                                    newCommentaryStartIndex={newCommentaryStartIndex}
+                                                    onNewCommentaryVisible={() => setNewCommentaryStartIndex(null)}
+                                                />
                                             </div>
                                         </div>
                                     </div>

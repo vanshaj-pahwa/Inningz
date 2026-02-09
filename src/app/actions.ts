@@ -96,7 +96,28 @@ export async function loadMoreCommentary(matchId: string, timestamp: number, inn
             return { success: false, error: `Failed to fetch commentary: ${response.statusText}` };
         }
 
-        const data = await response.json();
+        // Check if response body is empty (no more commentary available)
+        const text = await response.text();
+        if (!text || text.trim() === '') {
+            console.log('[loadMoreCommentary API] Empty response - no more commentary available');
+            return {
+                success: true,
+                commentary: [],
+                timestamp: 0, // Signal that there's no more data
+            };
+        }
+
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch {
+            console.log('[loadMoreCommentary API] Invalid JSON - treating as end of commentary');
+            return {
+                success: true,
+                commentary: [],
+                timestamp: 0, // Signal that there's no more data
+            };
+        }
 
         const commentary: Commentary[] = [];
 
