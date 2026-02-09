@@ -1,12 +1,13 @@
 
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { getScoreForMatchId, loadMoreCommentary as loadMoreCommentaryAction, getPlayerProfile, getPlayerHighlights } from '@/app/actions';
+import { loadMoreCommentary as loadMoreCommentaryAction, getPlayerProfile, getPlayerHighlights } from '@/app/actions';
 import type { ScrapeCricbuzzUrlOutput, Commentary, PlayerProfile, PlayerHighlights } from '@/app/actions';
+import { useLiveScore } from '@/lib/data-layer';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { LoaderCircle, User, ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from './ui/button';
@@ -22,13 +23,6 @@ import QuickScoreWidget from './quick-score-widget';
 import { useRecentHistoryContext } from '@/contexts/recent-history-context';
 import { useSwipe } from '@/hooks/use-swipe';
 import { ShareButton } from './share-cards';
-
-export interface ScrapeState {
-    success: boolean;
-    data?: ScrapeCricbuzzUrlOutput | null;
-    error?: string | null;
-    matchId?: string | null;
-}
 
 type LastEventType = {
     text: string;
@@ -49,13 +43,43 @@ function isLive(status: string): boolean {
 export default function ScoreDisplay({ matchId }: { matchId: string }) {
     const router = useRouter();
     const { addMatch, addPlayer } = useRecentHistoryContext();
-    const [scoreState, setScoreState] = useState<ScrapeState>({ success: false });
     const hasTrackedMatch = useRef(false);
     const [lastEvent, setLastEvent] = useState<LastEventType | null>(null);
     const previousData = useRef<ScrapeCricbuzzUrlOutput | null>(null);
     const [view, setView] = useState<View>('live');
     const views: View[] = ['live', 'scorecard', 'squads'];
     const currentViewIndex = views.indexOf(view);
+    const [extraCommentary, setExtraCommentary] = useState<Commentary[]>([]);
+    const lastTimestampRef = useRef<number | null>(null);
+    const [lastTimestamp, setLastTimestamp] = useState<number | null>(null);
+
+    // SSE-powered live score with polling fallback
+    const {
+        data: liveData,
+        loading: liveLoading,
+        error: liveError,
+        connectionStatus,
+        refresh
+    } = useLiveScore<ScrapeCricbuzzUrlOutput>(matchId, {
+        enabled: !!matchId,
+        onUpdate: (newData) => {
+            const scoreData = newData as ScrapeCricbuzzUrlOutput;
+            if (scoreData?.oldestCommentaryTimestamp && lastTimestampRef.current === null) {
+                lastTimestampRef.current = scoreData.oldestCommentaryTimestamp;
+                setLastTimestamp(scoreData.oldestCommentaryTimestamp);
+            }
+        }
+    });
+
+    // Merge live data with extra loaded commentary
+    const data = useMemo(() => {
+        if (!liveData) return null;
+        if (extraCommentary.length === 0) return liveData;
+        return {
+            ...liveData,
+            commentary: [...liveData.commentary, ...extraCommentary],
+        };
+    }, [liveData, extraCommentary]);
 
     // Swipe between tabs
     const { swiping, swipeDirection, swipeProgress } = useSwipe({
@@ -74,11 +98,8 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
     });
 
     const [loadingMore, setLoadingMore] = useState(false);
-    const [lastTimestamp, setLastTimestamp] = useState<number | null>(null);
-    const lastTimestampRef = useRef<number | null>(null);
     const commentaryEndRef = useRef<HTMLDivElement>(null);
     const newCommentaryStartRef = useRef<HTMLDivElement>(null);
-    const loadedExtraCommentaryRef = useRef<Commentary[]>([]);
     const [newCommentaryStartIndex, setNewCommentaryStartIndex] = useState<number | null>(null);
     const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
     const [selectedPlayerName, setSelectedPlayerName] = useState<string | null>(null);
@@ -90,36 +111,13 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
     const [timeLeft, setTimeLeft] = useState<{ hours: number; minutes: number; seconds: number } | null>(null);
     const scoreHeroRef = useRef<HTMLDivElement>(null);
 
-
-    const fetchScore = async () => {
-        if (!matchId) return;
-        const newState = await getScoreForMatchId(matchId);
-
-        if (newState.data?.commentary && loadedExtraCommentaryRef.current.length > 0) {
-            setScoreState({
-                ...newState,
-                data: {
-                    ...newState.data,
-                    commentary: [...newState.data.commentary, ...loadedExtraCommentaryRef.current],
-                },
-            });
-        } else {
-            setScoreState(newState);
-        }
-
-        if (newState.data?.oldestCommentaryTimestamp && lastTimestampRef.current === null) {
-            lastTimestampRef.current = newState.data.oldestCommentaryTimestamp;
-            setLastTimestamp(newState.data.oldestCommentaryTimestamp);
-        }
-    };
-
     const loadMoreCommentary = async () => {
         const currentTimestamp = lastTimestampRef.current;
         if (!matchId || !currentTimestamp || loadingMore || currentTimestamp === 0) return;
 
         setLoadingMore(true);
         try {
-            const inningsId = scoreState.data?.currentInningsId || 1;
+            const inningsId = data?.currentInningsId || 1;
             const result = await loadMoreCommentaryAction(matchId, currentTimestamp - 1, inningsId);
 
             if (result.success && result.commentary && result.commentary.length > 0) {
@@ -128,10 +126,10 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                     return c.text;
                 };
 
-                const currentCommentary = scoreState.data?.commentary || [];
+                const currentCommentary = data?.commentary || [];
                 const existingKeys = new Set([
                     ...currentCommentary.map(extractKey),
-                    ...loadedExtraCommentaryRef.current.map(extractKey)
+                    ...extraCommentary.map(extractKey)
                 ]);
                 const newCommentary = result.commentary.filter(c => !existingKeys.has(extractKey(c)));
 
@@ -142,21 +140,10 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
 
                 if (newCommentary.length === 0) return;
 
-                const currentCommentaryLength = scoreState.data?.commentary.length || 0;
+                const currentCommentaryLength = data?.commentary.length || 0;
                 setNewCommentaryStartIndex(currentCommentaryLength);
 
-                loadedExtraCommentaryRef.current = [...loadedExtraCommentaryRef.current, ...newCommentary];
-
-                setScoreState(prev => {
-                    if (!prev.data) return prev;
-                    return {
-                        ...prev,
-                        data: {
-                            ...prev.data,
-                            commentary: [...prev.data.commentary, ...newCommentary],
-                        },
-                    };
-                });
+                setExtraCommentary(prev => [...prev, ...newCommentary]);
 
                 setTimeout(() => {
                     newCommentaryStartRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -172,16 +159,9 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
         }
     };
 
-    useEffect(() => {
-        fetchScore();
-        const interval = setInterval(fetchScore, 10000);
-        return () => clearInterval(interval);
-    }, [matchId]);
-
     // Track match in recent history
     useEffect(() => {
-        if (scoreState.success && scoreState.data && !hasTrackedMatch.current) {
-            const data = scoreState.data;
+        if (data && !hasTrackedMatch.current) {
             // Use the match title (e.g., "Scotland vs West Indies, 3rd T20I")
             let matchTitle = data.title || 'Match';
             // Keep only team names part before the comma
@@ -192,7 +172,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
             addMatch(matchId, matchTitle, data.seriesName || undefined);
             hasTrackedMatch.current = true;
         }
-    }, [scoreState.success, scoreState.data, matchId, addMatch]);
+    }, [data, matchId, addMatch]);
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -206,10 +186,10 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
     }, [selectedProfileId, selectedPlayerName]);
 
     useEffect(() => {
-        if (!scoreState.data?.matchStartTimestamp) return;
+        if (!data?.matchStartTimestamp) return;
         const updateCountdown = () => {
             const now = Date.now();
-            const diff = scoreState.data!.matchStartTimestamp! - now;
+            const diff = data!.matchStartTimestamp! - now;
             if (diff <= 0) { setTimeLeft(null); return; }
             setTimeLeft({
                 hours: Math.floor(diff / (1000 * 60 * 60)),
@@ -220,7 +200,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
         updateCountdown();
         const interval = setInterval(updateCountdown, 1000);
         return () => clearInterval(interval);
-    }, [scoreState.data?.matchStartTimestamp]);
+    }, [data?.matchStartTimestamp]);
 
     const parseScore = (score: string): { runs: number, wickets: number } | null => {
         if (!score || !score.includes('/')) return null;
@@ -242,12 +222,12 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
     }
 
     useEffect(() => {
-        if (scoreState.data && previousData.current) {
-            const currentScore = parseScore(scoreState.data.score);
+        if (liveData && previousData.current) {
+            const currentScore = parseScore(liveData.score);
             const prevScore = parseScore(previousData.current.score);
-            const currentOvers = parseOvers(scoreState.data.score);
+            const currentOvers = parseOvers(liveData.score);
             const prevOvers = parseOvers(previousData.current.score);
-            const isLive = !scoreState.data.status.toLowerCase().includes('complete') && !scoreState.data.status.toLowerCase().includes('won');
+            const isLive = !liveData.status.toLowerCase().includes('complete') && !liveData.status.toLowerCase().includes('won');
 
             let eventToShow: Omit<LastEventType, 'key'> | null = null;
             if (currentScore && prevScore && isLive) {
@@ -263,24 +243,22 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
             }
             if (eventToShow) setLastEvent({ ...eventToShow, key: Date.now() });
         }
-        if (scoreState.data) previousData.current = scoreState.data;
-    }, [scoreState.data]);
+        if (liveData) previousData.current = liveData;
+    }, [liveData]);
 
 
-    if (scoreState.error) {
+    if (liveError) {
         return (
             <div className="max-w-4xl mx-auto px-4">
                 <Alert variant="destructive" className="mt-8 rounded-2xl">
                     <AlertTitle>Error</AlertTitle>
-                    <AlertDescription>{scoreState.error}</AlertDescription>
+                    <AlertDescription>{liveError}</AlertDescription>
                 </Alert>
             </div>
         )
     }
 
-    const { data } = scoreState;
-
-    if (!data && !scoreState.error) {
+    if (!data && liveLoading) {
         return (
             <div className="w-full flex items-center justify-center p-8 mt-16">
                 <LoaderCircle className="w-8 h-8 animate-spin text-primary" />
@@ -409,11 +387,30 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
             if (isOverSummary) {
                 // Parse the over summary text and clean HTML
                 const cleanText = (text: string) => text.replace(/<br\s*\/?>/gi, '').replace(/<[^>]*>/g, '').trim();
-                // Handle both "*" and "--" bullet formats
-                const lines = comment.text.split(/(?:\*|--)\s*/).filter(line => line.trim());
+
+                // Check if it has bullet markers (* or --)
+                const hasBullets = /(?:\*|--)\s*/.test(comment.text);
+
+                let lines: string[];
+                if (hasBullets) {
+                    // Handle bullet formats (* or --)
+                    lines = comment.text.split(/(?:\*|--)\s*/).filter(line => line.trim());
+                } else {
+                    // Handle plain line format (separated by <br> or newlines)
+                    lines = comment.text.split(/<br\s*\/?>/gi).map(l => l.trim()).filter(Boolean);
+                    // If no <br> found, try splitting by newlines
+                    if (lines.length <= 1) {
+                        lines = comment.text.split(/\n/).map(l => l.trim()).filter(Boolean);
+                    }
+                }
+
                 const headerMatch = lines[0]?.match(/Over Summary\s*\(([^)]+)\)/i);
                 const header = headerMatch ? headerMatch[1] : null;
-                const summaryItems = lines.slice(headerMatch ? 1 : 0).map(line => cleanText(line)).filter(Boolean);
+                // Remove the header line and any remaining "Over Summary" text from items
+                const summaryItems = lines
+                    .slice(headerMatch ? 1 : 0)
+                    .map(line => cleanText(line))
+                    .filter(line => line && !line.toLowerCase().startsWith('over summary'));
 
                 return (
                     <div key={index} className="slide-in-left my-3">
@@ -1134,11 +1131,13 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                             <div className="relative px-4 py-3 border-b border-border/50">
                                                 <div className="absolute inset-0 commentary-header-gradient"></div>
                                                 <div className="relative flex items-center justify-between">
-                                                    <h3 className="text-xs font-bold uppercase tracking-widest text-primary">Live Commentary</h3>
-                                                    <div className="flex items-center gap-1.5">
-                                                        <div className="w-1.5 h-1.5 rounded-full bg-red-500 live-pulse"></div>
-                                                        <span className="text-[10px] font-medium text-muted-foreground">LIVE</span>
-                                                    </div>
+                                                    <h3 className="text-xs font-bold uppercase tracking-widest text-primary">Commentary</h3>
+                                                    {data?.status && isLive(data.status) && (
+                                                        <div className="flex items-center gap-1.5">
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-red-500 live-pulse"></div>
+                                                            <span className="text-[10px] font-medium text-muted-foreground">LIVE</span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                             {/* Commentary Feed */}

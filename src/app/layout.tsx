@@ -4,6 +4,7 @@ import './globals.css';
 import { cn } from '@/lib/utils';
 import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/components/theme-provider';
+import { DataLayerProvider } from '@/contexts/data-layer-context';
 import { MatchesProvider } from '@/contexts/matches-context';
 import { RecentHistoryProvider } from '@/contexts/recent-history-context';
 import { DashboardPreferencesProvider } from '@/contexts/dashboard-preferences-context';
@@ -53,13 +54,15 @@ export default function RootLayout({
             themes={['light', 'dark', 'midnight', 'pitch', 'sunset', 'sepia', 'system']}
             disableTransitionOnChange
         >
-          <MatchesProvider>
-            <RecentHistoryProvider>
-              <DashboardPreferencesProvider>
-                {children}
-              </DashboardPreferencesProvider>
-            </RecentHistoryProvider>
-          </MatchesProvider>
+          <DataLayerProvider>
+            <MatchesProvider>
+              <RecentHistoryProvider>
+                <DashboardPreferencesProvider>
+                  {children}
+                </DashboardPreferencesProvider>
+              </RecentHistoryProvider>
+            </MatchesProvider>
+          </DataLayerProvider>
           <Toaster />
         </ThemeProvider>
       </body>
