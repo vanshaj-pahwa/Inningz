@@ -7,7 +7,8 @@ import type { SeriesSchedule, CricketSeries } from '@/app/actions';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Trophy, Calendar, ChevronDown, Filter } from "lucide-react";
+import { Trophy, Calendar, ChevronDown, Filter, Star } from "lucide-react";
+import { useDashboardPreferences } from '@/contexts/dashboard-preferences-context';
 
 type SeriesFilter = 'all' | 'international' | 'league' | 'domestic' | 'women';
 
@@ -202,6 +203,24 @@ export default function SeriesScheduleComponent() {
 }
 
 function SeriesCard({ series, index }: { series: CricketSeries; index: number }) {
+  const { addFavorite, removeFavorite, isFavorite } = useDashboardPreferences();
+  const isFav = isFavorite(series.seriesId);
+
+  const handleToggleFavorite = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isFav) {
+      removeFavorite(series.seriesId);
+    } else {
+      addFavorite({
+        id: series.seriesId,
+        type: 'series',
+        name: series.name,
+        subtitle: series.dateRange,
+      });
+    }
+  };
+
   return (
     <Link
       href={`/series/${series.seriesId}/${series.seriesUrl.replace(/^\/cricket-series\/\d+\//, '').replace(/\/matches$/, '')}`}
@@ -209,7 +228,7 @@ function SeriesCard({ series, index }: { series: CricketSeries; index: number })
       style={{ '--stagger-index': index } as React.CSSProperties}
     >
       <div className="glass-card card-hover p-5 h-full">
-        {/* Category badge */}
+        {/* Category badge + Favorite toggle */}
         <div className="flex items-center justify-between mb-3">
           <span className="flex items-center gap-1.5 text-xs font-medium">
             <span className={`w-1.5 h-1.5 rounded-full ${categoryColors[series.category]}`} />
@@ -217,6 +236,19 @@ function SeriesCard({ series, index }: { series: CricketSeries; index: number })
               {series.category.charAt(0).toUpperCase() + series.category.slice(1)}
             </span>
           </span>
+          <button
+            onClick={handleToggleFavorite}
+            className="p-1.5 -m-1 rounded-lg transition-all hover:bg-muted/50"
+            title={isFav ? 'Remove from favorites' : 'Add to favorites'}
+          >
+            <Star
+              className={`w-4 h-4 transition-colors ${
+                isFav
+                  ? 'text-amber-400 fill-amber-400'
+                  : 'text-muted-foreground hover:text-amber-400'
+              }`}
+            />
+          </button>
         </div>
 
         {/* Series Name */}

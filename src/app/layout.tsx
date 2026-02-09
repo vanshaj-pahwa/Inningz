@@ -6,6 +6,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/components/theme-provider';
 import { MatchesProvider } from '@/contexts/matches-context';
 import { RecentHistoryProvider } from '@/contexts/recent-history-context';
+import { DashboardPreferencesProvider } from '@/contexts/dashboard-preferences-context';
 
 const dmSerifDisplay = DM_Serif_Display({
     subsets: ['latin'],
@@ -54,7 +55,9 @@ export default function RootLayout({
         >
           <MatchesProvider>
             <RecentHistoryProvider>
-              {children}
+              <DashboardPreferencesProvider>
+                {children}
+              </DashboardPreferencesProvider>
             </RecentHistoryProvider>
           </MatchesProvider>
           <Toaster />

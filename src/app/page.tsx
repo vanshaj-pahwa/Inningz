@@ -10,13 +10,15 @@ import UpcomingMatches from "@/components/upcoming-matches";
 import SeriesSchedule from "@/components/series-schedule";
 import RecentHistory from "@/components/recent-history";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Flame, History, Calendar, Trophy, Medal } from "lucide-react";
+import { Flame, History, Calendar, Trophy, Medal, Home as HomeIcon } from "lucide-react";
+import HomeDashboard from "@/components/home-dashboard";
 
-type View = 'live' | 'recent' | 'upcoming' | 'series';
+type View = 'home' | 'live' | 'recent' | 'upcoming' | 'series';
 
-const validViews: View[] = ['live', 'recent', 'upcoming', 'series'];
+const validViews: View[] = ['home', 'live', 'recent', 'upcoming', 'series'];
 
 const tabs: { value: View; label: string; icon: typeof Flame }[] = [
+    { value: 'home', label: 'Home', icon: HomeIcon },
     { value: 'live', label: 'Live', icon: Flame },
     { value: 'recent', label: 'Recent', icon: History },
     { value: 'upcoming', label: 'Upcoming', icon: Calendar },
@@ -35,13 +37,13 @@ function HomeContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const tabParam = searchParams.get('tab') as View | null;
-    const initialView: View = tabParam && validViews.includes(tabParam) ? tabParam : 'live';
+    const initialView: View = tabParam && validViews.includes(tabParam) ? tabParam : 'home';
     const [view, setView] = useState<View>(initialView);
 
     const switchView = useCallback((newView: View) => {
         setView(newView);
         const params = new URLSearchParams(searchParams.toString());
-        if (newView === 'live') {
+        if (newView === 'home') {
             params.delete('tab');
         } else {
             params.set('tab', newView);
@@ -128,30 +130,35 @@ function HomeContent() {
                 </div>
             </header>
 
-            {/* Page Title */}
-            <div className="max-w-7xl mx-auto px-4 md:px-6 pt-8 pb-4">
-                <h2 className="text-3xl md:text-4xl font-display tracking-tight">
-                    {view === 'live' ? 'Live Matches' :
-                        view === 'recent' ? 'Recent Matches' :
-                            view === 'upcoming' ? 'Upcoming Matches' :
-                                'Series Schedule'}
-                </h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                    {view === 'live' ? 'Currently playing matches' :
-                        view === 'recent' ? 'Recently completed matches' :
-                            view === 'upcoming' ? 'Upcoming fixtures' :
-                                'All cricket series'}
-                </p>
-            </div>
+            {/* Page Title - hidden on Home tab */}
+            {view !== 'home' && (
+                <div className="max-w-7xl mx-auto px-4 md:px-6 pt-8 pb-4">
+                    <h2 className="text-3xl md:text-4xl font-display tracking-tight">
+                        {view === 'live' ? 'Live Matches' :
+                            view === 'recent' ? 'Recent Matches' :
+                                view === 'upcoming' ? 'Upcoming Matches' :
+                                    'Series Schedule'}
+                    </h2>
+                    <p className="text-sm text-muted-foreground mt-1">
+                        {view === 'live' ? 'Currently playing matches' :
+                            view === 'recent' ? 'Recently completed matches' :
+                                view === 'upcoming' ? 'Upcoming fixtures' :
+                                    'All cricket series'}
+                    </p>
+                </div>
+            )}
 
-            {/* Recent History */}
-            <div className="max-w-7xl mx-auto px-4 md:px-6 pb-4">
-                <RecentHistory />
-            </div>
+            {/* Recent History - only shown on non-home tabs */}
+            {view !== 'home' && (
+                <div className="max-w-7xl mx-auto px-4 md:px-6 pb-4">
+                    <RecentHistory />
+                </div>
+            )}
 
             {/* Content */}
             <main className="max-w-7xl mx-auto px-4 md:px-6 pb-12">
                 <div className="min-h-[70vh]">
+                    {view === 'home' && <HomeDashboard />}
                     {view === 'live' && <LiveMatches />}
                     {view === 'recent' && <RecentMatches />}
                     {view === 'upcoming' && <UpcomingMatches />}
