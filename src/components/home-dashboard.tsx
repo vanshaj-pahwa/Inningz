@@ -63,7 +63,7 @@ export default function HomeDashboard() {
               Live Now
             </h3>
           </div>
-          <div className="grid gap-2 md:gap-3 overflow-hidden">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-4 overflow-hidden">
             {liveMatches.map((match) => (
               <LiveMatchCard key={match.matchId} match={match} isLive={isLive(match.status)} />
             ))}
@@ -95,7 +95,7 @@ export default function HomeDashboard() {
               Upcoming
             </h3>
           </div>
-          <div className="grid gap-2 md:gap-3 overflow-hidden">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-4 overflow-hidden">
             {upcomingMatches.map((match) => (
               <UpcomingMatchCard key={match.matchId} match={match} />
             ))}
