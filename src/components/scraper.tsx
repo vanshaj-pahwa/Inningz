@@ -24,6 +24,7 @@ import { useRecentHistoryContext } from '@/contexts/recent-history-context';
 import { useSwipe } from '@/hooks/use-swipe';
 import { ShareButton } from './share-cards';
 import { VirtualCommentaryList } from './virtual-commentary-list';
+import PointsTableDisplay from './points-table';
 
 type LastEventType = {
     text: string;
@@ -31,7 +32,7 @@ type LastEventType = {
     variant: 'default' | 'destructive' | 'four' | 'six';
 };
 
-type View = 'live' | 'scorecard' | 'squads';
+type View = 'live' | 'scorecard' | 'squads' | 'table';
 
 function isLive(status: string): boolean {
     const s = status.toLowerCase();
@@ -48,8 +49,6 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
     const [lastEvent, setLastEvent] = useState<LastEventType | null>(null);
     const previousData = useRef<ScrapeCricbuzzUrlOutput | null>(null);
     const [view, setView] = useState<View>('live');
-    const views: View[] = ['live', 'scorecard', 'squads'];
-    const currentViewIndex = views.indexOf(view);
     const [extraCommentary, setExtraCommentary] = useState<Commentary[]>([]);
     const lastTimestampRef = useRef<number | null>(null);
     const [lastTimestamp, setLastTimestamp] = useState<number | null>(null);
@@ -81,6 +80,16 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
             commentary: [...liveData.commentary, ...extraCommentary],
         };
     }, [liveData, extraCommentary]);
+
+    // Dynamic views based on data availability
+    const views: View[] = useMemo(() => {
+        const baseViews: View[] = ['live', 'scorecard', 'squads'];
+        if (data?.hasPointsTable && data?.seriesId) {
+            baseViews.push('table');
+        }
+        return baseViews;
+    }, [data?.hasPointsTable, data?.seriesId]);
+    const currentViewIndex = views.indexOf(view);
 
     // Swipe between tabs
     const { swiping, swipeDirection, swipeProgress } = useSwipe({
@@ -692,7 +701,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                     {/* Desktop: tabs + theme toggle inline with title */}
                     <div className="hidden md:flex items-center gap-3 shrink-0">
                         <div className="flex items-center gap-1 tab-container">
-                            {(['live', 'scorecard', 'squads'] as View[]).map((v) => (
+                            {views.map((v) => (
                                 <button
                                     key={v}
                                     onClick={() => setView(v)}
@@ -719,7 +728,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                 {/* Mobile: tabs row */}
                 <div className="flex md:hidden items-center gap-3">
                     <div className="flex items-center gap-0.5 tab-container flex-1">
-                        {(['live', 'scorecard', 'squads'] as View[]).map((v) => (
+                        {views.map((v) => (
                             <button
                                 key={v}
                                 onClick={() => setView(v)}
@@ -1151,6 +1160,9 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                 )}
                 {view === 'scorecard' && <FullScorecard matchId={matchId} />}
                 {view === 'squads' && <MatchSquadsDisplay matchId={matchId} />}
+                {view === 'table' && data?.seriesId && (
+                    <PointsTableDisplay seriesId={data.seriesId} />
+                )}
             </div>
 
             {/* Player Profile Dialog */}

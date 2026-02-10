@@ -86,6 +86,7 @@ const ScrapeCricbuzzUrlOutputSchema = z.object({
       probability: z.number(),
     }),
   }).optional(),
+  hasPointsTable: z.boolean().optional(),
 });
 
 const LiveMatchSchema = z.object({
@@ -2346,6 +2347,25 @@ export async function getScoreForMatchId(
     console.log('[getScoreForMatchId] Win probability extracted:', winProbability);
   }
 
+  // Check if series has points table by querying the points table page
+  let hasPointsTable = false;
+  if (matchHeader?.seriesId) {
+    try {
+      const pointsTableUrl = `https://www.cricbuzz.com/cricket-series/${matchHeader.seriesId}/series/points-table`;
+      const ptResponse = await fetch(pointsTableUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        },
+      });
+      if (ptResponse.ok) {
+        const html = await ptResponse.text();
+        hasPointsTable = html.includes('pointsTableData');
+      }
+    } catch (e) {
+      console.error('[getScoreForMatchId] Failed to check points table availability:', e);
+    }
+  }
+
   const result = {
     title,
     status,
@@ -2370,6 +2390,7 @@ export async function getScoreForMatchId(
     playerOfTheMatch: extractAwardPlayer(matchHeader?.playersOfTheMatch),
     playerOfTheSeries: extractAwardPlayer(matchHeader?.playersOfTheSeries),
     winProbability,
+    hasPointsTable,
   };
 
   const validation = ScrapeCricbuzzUrlOutputSchema.safeParse(result);
