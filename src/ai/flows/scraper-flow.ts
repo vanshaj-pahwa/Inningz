@@ -419,6 +419,7 @@ export type PointsTableTeam = {
   teamFullName: string;
   teamName: string;
   teamId: number;
+  teamImageId?: number;
   matchesPlayed: number;
   matchesWon: number;
   matchesLost: number;
@@ -3565,6 +3566,7 @@ export async function scrapeSeriesPointsTable(seriesId: string): Promise<PointsT
               teamFullName: t.teamFullName || '',
               teamName: t.teamName || '',
               teamId: t.teamId || 0,
+              teamImageId: t.teamImageId || t.imageId || undefined,
               matchesPlayed: t.matchesPlayed || 0,
               matchesWon: t.matchesWon || 0,
               matchesLost: t.matchesLost || 0,

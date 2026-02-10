@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { getSeriesPointsTable } from '@/app/actions';
 import type { PointsTableData, PointsTableGroup, PointsTableTeam } from '@/app/actions';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -168,6 +169,16 @@ function TeamRow({
         </td>
         <td className="py-3 px-4">
           <div className="flex items-center gap-2">
+            {team.teamImageId && (
+              <Image
+                src={`https://static.cricbuzz.com/a/img/v1/72x52/i1/c${team.teamImageId}/${team.teamName.toLowerCase()}.jpg`}
+                alt={team.teamName}
+                width={72}
+                height={52}
+                className="object-contain shrink-0 w-[28px] h-[20px]"
+                unoptimized
+              />
+            )}
             <span className="font-semibold text-foreground whitespace-nowrap">
               {team.teamName}
             </span>
