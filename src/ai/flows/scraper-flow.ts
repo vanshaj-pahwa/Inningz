@@ -101,6 +101,7 @@ const LiveMatchSchema = z.object({
   seriesName: z.string().optional(),
   seriesUrl: z.string().optional(),
   venue: z.string().optional(),
+  startDate: z.number().optional(),
   winProbability: z.object({
     team1: z.object({
       name: z.string(),
@@ -2407,7 +2408,14 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
     });
 
     if (apiResponse.ok) {
-      const data = await apiResponse.json();
+      const text = await apiResponse.text();
+
+      // Check if response is JSON
+      if (!text.startsWith('{') && !text.startsWith('[')) {
+        throw new Error('Not JSON response');
+      }
+
+      const data = JSON.parse(text);
 
       const matches: LiveMatch[] = [];
 
@@ -2415,6 +2423,17 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
       if (data.matchDetails && Array.isArray(data.matchDetails)) {
         for (const dateGroup of data.matchDetails) {
           if (dateGroup.matchDetailsMap && dateGroup.matchDetailsMap.match) {
+            // Get the date from the group key (format: "Feb 07, 2026" or timestamp)
+            const groupDateKey = dateGroup.matchDetailsMap.key;
+            let groupStartDate: number | undefined;
+            if (groupDateKey) {
+              // Try parsing as a date string first
+              const parsedDate = Date.parse(groupDateKey);
+              if (!isNaN(parsedDate)) {
+                groupStartDate = parsedDate;
+              }
+            }
+
             for (const match of dateGroup.matchDetailsMap.match) {
               const matchInfo = match.matchInfo;
               if (!matchInfo) continue;
@@ -2457,6 +2476,7 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
                 teams,
                 status: matchInfo.status || 'Status not available',
                 venue,
+                startDate: matchInfo.startDate || matchInfo.matchStartTimestamp || groupStartDate,
               });
             }
           }
@@ -2503,6 +2523,16 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
 
         for (const dateGroup of matchDetails) {
           if (dateGroup.matchDetailsMap && dateGroup.matchDetailsMap.match) {
+            // Get the date from the group key
+            const groupDateKey = dateGroup.matchDetailsMap.key;
+            let groupStartDate: number | undefined;
+            if (groupDateKey) {
+              const parsedDate = Date.parse(groupDateKey);
+              if (!isNaN(parsedDate)) {
+                groupStartDate = parsedDate;
+              }
+            }
+
             for (const match of dateGroup.matchDetailsMap.match) {
               const matchInfo = match.matchInfo;
               if (!matchInfo) continue;
@@ -2545,6 +2575,7 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
                 teams,
                 status: matchInfo.status || 'Status not available',
                 venue,
+                startDate: matchInfo.startDate || matchInfo.matchStartTimestamp || groupStartDate,
               });
             }
           }
@@ -2586,6 +2617,16 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
             const matches: LiveMatch[] = [];
             for (const dateGroup of matchDetails) {
               if (dateGroup.matchDetailsMap?.match) {
+                // Get the date from the group key
+                const groupDateKey = dateGroup.matchDetailsMap.key;
+                let groupStartDate: number | undefined;
+                if (groupDateKey) {
+                  const parsedDate = Date.parse(groupDateKey);
+                  if (!isNaN(parsedDate)) {
+                    groupStartDate = parsedDate;
+                  }
+                }
+
                 for (const match of dateGroup.matchDetailsMap.match) {
                   const matchInfo = match.matchInfo;
                   if (!matchInfo) continue;
@@ -2609,6 +2650,12 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
                   const venue = matchInfo.venueInfo
                     ? `${matchInfo.venueInfo.ground}, ${matchInfo.venueInfo.city}`
                     : undefined;
+
+                  // Convert startDate string to number if needed
+                  const startDateValue = matchInfo.startDate
+                    ? (typeof matchInfo.startDate === 'string' ? parseInt(matchInfo.startDate, 10) : matchInfo.startDate)
+                    : (matchInfo.matchStartTimestamp || groupStartDate);
+
                   matches.push({
                     title: `${matchInfo.team1?.teamName || ''} vs ${matchInfo.team2?.teamName || ''}, ${matchInfo.matchDesc}`,
                     url: `/live-cricket-scores/${matchInfo.matchId}`,
@@ -2616,6 +2663,7 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
                     teams,
                     status: matchInfo.status || 'Status not available',
                     venue,
+                    startDate: startDateValue,
                   });
                 }
               }
@@ -2641,6 +2689,16 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
 
       for (const dateGroup of matchDetails) {
         if (dateGroup.matchDetailsMap && dateGroup.matchDetailsMap.match) {
+          // Get the date from the group key
+          const groupDateKey = dateGroup.matchDetailsMap.key;
+          let groupStartDate: number | undefined;
+          if (groupDateKey) {
+            const parsedDate = Date.parse(groupDateKey);
+            if (!isNaN(parsedDate)) {
+              groupStartDate = parsedDate;
+            }
+          }
+
           for (const match of dateGroup.matchDetailsMap.match) {
             const matchInfo = match.matchInfo;
             if (!matchInfo) continue;
@@ -2683,6 +2741,7 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
               teams,
               status: matchInfo.status || 'Status not available',
               venue,
+              startDate: matchInfo.startDate || matchInfo.matchStartTimestamp || groupStartDate,
             });
           }
         }

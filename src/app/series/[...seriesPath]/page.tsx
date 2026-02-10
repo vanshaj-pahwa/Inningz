@@ -28,6 +28,7 @@ export default function SeriesPage() {
   const [error, setError] = useState<string | null>(null);
   const [hasPointsTable, setHasPointsTable] = useState<boolean | null>(null);
   const [teamFilter, setTeamFilter] = useState<string>('all');
+  const [dateFilter, setDateFilter] = useState<string>('all');
   const [hasTrackedSeries, setHasTrackedSeries] = useState(false);
 
   useEffect(() => {
@@ -90,9 +91,66 @@ export default function SeriesPage() {
     new Set(matches.flatMap(m => m.teams.map(t => t.name)).filter(Boolean))
   ).sort();
 
-  const filteredMatches = teamFilter === 'all'
-    ? matches
-    : matches.filter(m => m.teams.some(t => t.name === teamFilter));
+  // Helper to get date key from match
+  const getMatchDateKey = (match: LiveMatch): { dateKey: string; timestamp: number } => {
+    if (match.startDate) {
+      const timestampMs = match.startDate < 10000000000 ? match.startDate * 1000 : match.startDate;
+      const date = new Date(timestampMs);
+      if (!isNaN(date.getTime())) {
+        return {
+          dateKey: date.toLocaleDateString('en-US', {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+          }).toUpperCase().replace(',', ''),
+          timestamp: timestampMs
+        };
+      }
+    }
+    return { dateKey: 'DATE TBD', timestamp: Number.MAX_SAFE_INTEGER };
+  };
+
+  // Extract unique dates for filter (sorted chronologically)
+  const availableDates = Array.from(
+    new Map(
+      matches.map(m => {
+        const { dateKey, timestamp } = getMatchDateKey(m);
+        return [dateKey, { dateKey, timestamp }];
+      })
+    ).values()
+  ).sort((a, b) => a.timestamp - b.timestamp).map(d => d.dateKey);
+
+  // Filter matches by team and date
+  const filteredMatches = matches.filter(m => {
+    const teamMatch = teamFilter === 'all' || m.teams.some(t => t.name === teamFilter);
+    const dateMatch = dateFilter === 'all' || getMatchDateKey(m).dateKey === dateFilter;
+    return teamMatch && dateMatch;
+  });
+
+  // Group matches by date
+  const groupMatchesByDate = (matchList: LiveMatch[]) => {
+    const groups: { date: string; timestamp: number; matches: LiveMatch[] }[] = [];
+    const dateMap = new Map<string, { timestamp: number; matches: LiveMatch[] }>();
+
+    matchList.forEach(match => {
+      const { dateKey, timestamp } = getMatchDateKey(match);
+
+      if (!dateMap.has(dateKey)) {
+        dateMap.set(dateKey, { timestamp, matches: [] });
+      }
+      dateMap.get(dateKey)!.matches.push(match);
+    });
+
+    // Convert map to array and sort by date
+    dateMap.forEach((value, key) => {
+      groups.push({ date: key, timestamp: value.timestamp, matches: value.matches });
+    });
+
+    return groups.sort((a, b) => a.timestamp - b.timestamp);
+  };
+
+  const groupedMatches = groupMatchesByDate(filteredMatches);
 
   const tabs: { value: SeriesView; label: string; shortLabel: string; icon: typeof Calendar; hidden?: boolean }[] = [
     { value: 'matches', label: 'Matches', shortLabel: 'Matches', icon: Calendar },
@@ -162,29 +220,57 @@ export default function SeriesPage() {
               </div>
             )}
 
-            {!loading && !error && matches.length > 0 && teamNames.length > 2 && (
-              <div className="flex justify-end mb-4">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="rounded-xl gap-2">
-                      <Filter className="h-3.5 w-3.5" />
-                      {teamFilter === 'all' ? 'All Teams' : teamFilter}
-                      <ChevronDown className="h-3.5 w-3.5 opacity-50" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="rounded-xl max-h-72 overflow-y-auto">
-                    <DropdownMenuRadioGroup value={teamFilter} onValueChange={setTeamFilter}>
-                      <DropdownMenuRadioItem value="all" className="rounded-lg">
-                        All Teams
-                      </DropdownMenuRadioItem>
-                      {teamNames.map((name) => (
-                        <DropdownMenuRadioItem key={name} value={name} className="rounded-lg">
-                          {name}
+            {!loading && !error && matches.length > 0 && (
+              <div className="flex justify-end gap-2 mb-4">
+                {/* Date Filter */}
+                {availableDates.length > 1 && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="rounded-xl gap-2">
+                        <Calendar className="h-3.5 w-3.5" />
+                        {dateFilter === 'all' ? 'All Dates' : dateFilter}
+                        <ChevronDown className="h-3.5 w-3.5 opacity-50" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="rounded-xl max-h-72 overflow-y-auto">
+                      <DropdownMenuRadioGroup value={dateFilter} onValueChange={setDateFilter}>
+                        <DropdownMenuRadioItem value="all" className="rounded-lg">
+                          All Dates
                         </DropdownMenuRadioItem>
-                      ))}
-                    </DropdownMenuRadioGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                        {availableDates.map((date) => (
+                          <DropdownMenuRadioItem key={date} value={date} className="rounded-lg">
+                            {date}
+                          </DropdownMenuRadioItem>
+                        ))}
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+
+                {/* Team Filter */}
+                {teamNames.length > 2 && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="rounded-xl gap-2">
+                        <Filter className="h-3.5 w-3.5" />
+                        {teamFilter === 'all' ? 'All Teams' : teamFilter}
+                        <ChevronDown className="h-3.5 w-3.5 opacity-50" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="rounded-xl max-h-72 overflow-y-auto">
+                      <DropdownMenuRadioGroup value={teamFilter} onValueChange={setTeamFilter}>
+                        <DropdownMenuRadioItem value="all" className="rounded-lg">
+                          All Teams
+                        </DropdownMenuRadioItem>
+                        {teamNames.map((name) => (
+                          <DropdownMenuRadioItem key={name} value={name} className="rounded-lg">
+                            {name}
+                          </DropdownMenuRadioItem>
+                        ))}
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               </div>
             )}
 
@@ -201,71 +287,89 @@ export default function SeriesPage() {
             )}
 
             {!loading && !error && matches.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredMatches.map((match, index) => {
-                  const matchIsLive = isLive(match.status);
-                  const matchIsComplete = isComplete(match.status);
+              <div className="space-y-8">
+                {groupedMatches.map((group, groupIndex) => (
+                  <div key={group.date}>
+                    {/* Date Header */}
+                    <div className="flex items-center gap-3 mb-5">
+                      <div className="h-px flex-1 bg-gradient-to-r from-primary/30 to-transparent" />
+                      <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground px-1">
+                        <Calendar className="w-3.5 h-3.5" />
+                        {group.date}
+                      </h3>
+                      <div className="h-px flex-1 bg-gradient-to-l from-primary/30 to-transparent" />
+                    </div>
 
-                  return (
-                    <Link
-                      key={match.matchId}
-                      href={`/match/${match.matchId}`}
-                      className="stagger-in"
-                      style={{ '--stagger-index': index } as React.CSSProperties}
-                    >
-                      <div className={`
-                        glass-card card-hover p-5 h-full
-                        ${matchIsLive ? 'ring-1 ring-red-500/20' : ''}
-                      `}>
-                        <div className="flex items-center justify-between mb-4">
-                          <span className="text-xs font-medium text-muted-foreground truncate">
-                            {match.title}
-                          </span>
-                          {matchIsLive && (
-                            <span className="flex items-center gap-1.5 text-xs font-bold text-red-500 shrink-0">
-                              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                              LIVE
-                            </span>
-                          )}
-                        </div>
+                    {/* Matches Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {group.matches.map((match, index) => {
+                        const matchIsLive = isLive(match.status);
+                        const matchIsComplete = isComplete(match.status);
+                        const globalIndex = groupIndex * 10 + index;
 
-                        <div className="space-y-3">
-                          {match.teams.map((team, idx) => (
-                            <div key={idx} className="flex items-center justify-between gap-3">
-                              <span className="text-sm font-semibold truncate text-foreground">
-                                {team.name}
-                              </span>
-                              {team.score && (
-                                <span className="font-display text-lg tabular-nums flex-shrink-0 text-foreground">
-                                  {team.score}
+                        return (
+                          <Link
+                            key={match.matchId}
+                            href={`/match/${match.matchId}`}
+                            className="stagger-in"
+                            style={{ '--stagger-index': globalIndex } as React.CSSProperties}
+                          >
+                            <div className={`
+                              glass-card card-hover p-5 h-full
+                              ${matchIsLive ? 'ring-1 ring-red-500/20' : ''}
+                            `}>
+                              <div className="flex items-center justify-between mb-4">
+                                <span className="text-xs font-medium text-muted-foreground truncate">
+                                  {match.title}
                                 </span>
+                                {matchIsLive && (
+                                  <span className="flex items-center gap-1.5 text-xs font-bold text-red-500 shrink-0">
+                                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                                    LIVE
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="space-y-3">
+                                {match.teams.map((team, idx) => (
+                                  <div key={idx} className="flex items-center justify-between gap-3">
+                                    <span className="text-sm font-semibold truncate text-foreground">
+                                      {team.name}
+                                    </span>
+                                    {team.score && (
+                                      <span className="font-display text-lg tabular-nums flex-shrink-0 text-foreground">
+                                        {team.score}
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+
+                              {match.status && match.status.toLowerCase() !== 'status not available' && (
+                                <div className="mt-4 pt-3 border-t border-border/50">
+                                  <p className={`text-xs font-medium leading-relaxed ${matchIsLive
+                                    ? 'text-red-400'
+                                    : matchIsComplete
+                                      ? 'text-amber-400'
+                                      : 'text-muted-foreground'
+                                    }`}>
+                                    {match.status}
+                                  </p>
+                                </div>
+                              )}
+
+                              {match.venue && (
+                                <p className="text-xs text-muted-foreground mt-2 truncate">
+                                  {match.venue}
+                                </p>
                               )}
                             </div>
-                          ))}
-                        </div>
-
-                        {match.status && match.status.toLowerCase() !== 'status not available' && (
-                          <div className="mt-4 pt-3 border-t border-border/50">
-                            <p className={`text-xs font-medium leading-relaxed ${matchIsLive
-                              ? 'text-red-400'
-                              : matchIsComplete
-                                ? 'text-amber-400'
-                                : 'text-muted-foreground'
-                              }`}>
-                              {match.status}
-                            </p>
-                          </div>
-                        )}
-
-                        {match.venue && (
-                          <p className="text-xs text-muted-foreground mt-2 truncate">
-                            {match.venue}
-                          </p>
-                        )}
-                      </div>
-                    </Link>
-                  );
-                })}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </>
