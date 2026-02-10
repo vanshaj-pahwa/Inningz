@@ -1453,6 +1453,35 @@ function getMatchTypeFromNgShow(ngShow: string | undefined): LiveMatch['matchTyp
   return undefined;
 }
 
+// Helper to determine matchType from series name
+function getMatchTypeFromSeries(seriesName: string, title: string): 'International' | 'League' | 'Domestic' | 'Women' {
+  const combined = `${seriesName} ${title}`.toLowerCase();
+
+  // Check for women's cricket first
+  if (combined.includes('women') || combined.includes('wpl') || combined.includes('wbbl')) {
+    return 'Women';
+  }
+
+  // Check for franchise leagues
+  if (combined.includes('ipl') || combined.includes('bbl') || combined.includes('psl') ||
+      combined.includes('cpl') || combined.includes('bpl') || combined.includes('sa20') ||
+      combined.includes('t20 league') || combined.includes('premier league') ||
+      combined.includes('super league') || combined.includes('hundred')) {
+    return 'League';
+  }
+
+  // Check for international cricket (ICC events, bilateral series between countries)
+  if (combined.includes('world cup') || combined.includes('icc') ||
+      combined.includes('test') || combined.includes('odi') || combined.includes('t20i') ||
+      combined.includes('asia cup') || combined.includes('champions trophy') ||
+      combined.includes('tour of') || combined.includes('tri-series') ||
+      combined.includes('tri series') || combined.includes('bilateral')) {
+    return 'International';
+  }
+
+  // Default to domestic
+  return 'Domestic';
+}
 
 export async function scrapeUpcomingMatches(): Promise<LiveMatch[]> {
   const response = await fetch('https://www.cricbuzz.com/cricket-match/live-scores/upcoming-matches', {
@@ -1562,6 +1591,7 @@ export async function scrapeUpcomingMatches(): Promise<LiveMatch[]> {
           matchId,
           teams,
           status: status || 'Status not available',
+          matchType: getMatchTypeFromSeries(seriesName, title),
           seriesName,
           seriesUrl,
           venue: venue || undefined,
@@ -1656,6 +1686,7 @@ export async function scrapeRecentMatches(): Promise<LiveMatch[]> {
           matchId,
           teams,
           status: status || 'Status not available',
+          matchType: getMatchTypeFromSeries(seriesName, title),
           seriesName,
           seriesUrl,
           venue,
@@ -1666,7 +1697,6 @@ export async function scrapeRecentMatches(): Promise<LiveMatch[]> {
 
   return recentMatches;
 }
-
 export async function scrapeLiveMatches(): Promise<LiveMatch[]> {
   const response = await fetch('https://www.cricbuzz.com/cricket-match/live-scores', {
     headers: {
@@ -1682,8 +1712,6 @@ export async function scrapeLiveMatches(): Promise<LiveMatch[]> {
   const liveMatches: LiveMatch[] = [];
 
   // New structure: matches are organized by series
-  // Structure from HTML: <div class="flex flex-col gap-2"> contains multiple series
-  // Each series: <div> with <div><a series-link/></div> then <div class="flex flex-col gap-px"> with matches
   const processedMatchIds = new Set<string>();
 
   // Find the main container that has all series
@@ -1798,6 +1826,7 @@ export async function scrapeLiveMatches(): Promise<LiveMatch[]> {
           matchId,
           teams,
           status: status || 'Status not available',
+          matchType: getMatchTypeFromSeries(seriesName, title),
           seriesName: seriesName || undefined,
           seriesUrl: seriesUrl || undefined,
           venue: venue || undefined,
@@ -1806,52 +1835,6 @@ export async function scrapeLiveMatches(): Promise<LiveMatch[]> {
       }
     });
   });
-
-  // Fallback: if no matches found with new structure, try old structure
-  if (liveMatches.length === 0) {
-    $('div.cb-mtch-lst.cb-col.cb-col-100.cb-tms-itm').each((index, element) => {
-      const matchContainer = $(element);
-      const linkElement = matchContainer.find('a.cb-lv-scrs-well');
-
-      if (linkElement.length) {
-        const href = linkElement.attr('href');
-        if (!href) return;
-
-        const matchId = extractMatchId(href);
-        if (!matchId || liveMatches.some(m => m.matchId === matchId)) return;
-
-        const title = matchContainer.find('h3.cb-lv-scr-mtch-hdr a').attr('title') || 'Untitled Match';
-
-        const teams: { name: string, score?: string }[] = [];
-
-        linkElement.find('.cb-hmscg-bat-txt, .cb-hmscg-bwl-txt').each((i, teamEl) => {
-          const teamName = $(teamEl).find('.cb-hmscg-tm-nm').text().trim();
-          const teamScore = $(teamEl).find('div').last().text().trim();
-          if (teamName) {
-            teams.push({ name: teamName, score: teamScore || undefined });
-          }
-        });
-
-        let status = linkElement.find('.cb-text-live').text().trim();
-        if (!status) {
-          status = linkElement.find('.cb-text-preview').text().trim();
-        }
-        if (!status) {
-          status = linkElement.find('.cb-text-complete').text().trim();
-        }
-
-        if (teams.length > 0) {
-          liveMatches.push({
-            title,
-            url: href,
-            matchId,
-            teams,
-            status: status || 'Status not available',
-          });
-        }
-      }
-    });
-  }
 
   return liveMatches;
 }
@@ -2440,6 +2423,7 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
       const data = JSON.parse(text);
 
       const matches: LiveMatch[] = [];
+      const seriesName = data.seriesName || data.name || '';
 
       // The API returns matchDetails array with date groups
       if (data.matchDetails && Array.isArray(data.matchDetails)) {
@@ -2491,12 +2475,15 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
               const venue = matchInfo.venueInfo ?
                 `${matchInfo.venueInfo.ground}, ${matchInfo.venueInfo.city}` : undefined;
 
+              const title = `${matchInfo.team1?.teamName || ''} vs ${matchInfo.team2?.teamName || ''}, ${matchInfo.matchDesc}`;
               matches.push({
-                title: `${matchInfo.team1?.teamName || ''} vs ${matchInfo.team2?.teamName || ''}, ${matchInfo.matchDesc}`,
+                title,
                 url: `/live-cricket-scores/${matchInfo.matchId}`,
                 matchId: matchInfo.matchId.toString(),
                 teams,
                 status: matchInfo.status || 'Status not available',
+                matchType: getMatchTypeFromSeries(seriesName, title),
+                seriesName: seriesName || undefined,
                 venue,
                 startDate: matchInfo.startDate || matchInfo.matchStartTimestamp || groupStartDate,
               });
@@ -2539,6 +2526,7 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
       // Navigate through the Next.js data structure
       const pageProps = nextData?.props?.pageProps;
       const matchDetails = pageProps?.matchDetails;
+      const seriesName = pageProps?.seriesName || pageProps?.name || '';
 
       if (matchDetails && Array.isArray(matchDetails)) {
         const matches: LiveMatch[] = [];
@@ -2590,12 +2578,15 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
               const venue = matchInfo.venueInfo ?
                 `${matchInfo.venueInfo.ground}, ${matchInfo.venueInfo.city}` : undefined;
 
+              const title = `${matchInfo.team1?.teamName || ''} vs ${matchInfo.team2?.teamName || ''}, ${matchInfo.matchDesc}`;
               matches.push({
-                title: `${matchInfo.team1?.teamName || ''} vs ${matchInfo.team2?.teamName || ''}, ${matchInfo.matchDesc}`,
+                title,
                 url: `/live-cricket-scores/${matchInfo.matchId}`,
                 matchId: matchInfo.matchId.toString(),
                 teams,
                 status: matchInfo.status || 'Status not available',
+                matchType: getMatchTypeFromSeries(seriesName, title),
+                seriesName: seriesName || undefined,
                 venue,
                 startDate: matchInfo.startDate || matchInfo.matchStartTimestamp || groupStartDate,
               });

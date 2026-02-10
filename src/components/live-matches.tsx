@@ -46,6 +46,11 @@ export default function LiveMatches() {
   const [activeFilter, setActiveFilter] = useState<MatchFilter>('all');
 
   const getMatchCategory = (match: LiveMatch): MatchFilter => {
+    // Use scraped matchType if available
+    if (match.matchType) {
+      return match.matchType.toLowerCase() as MatchFilter;
+    }
+    // Fallback to hardcoded logic if matchType not scraped
     const title = match.title.toLowerCase();
     const seriesName = (match.seriesName || '').toLowerCase();
     const combined = `${title} ${seriesName}`;
@@ -53,7 +58,7 @@ export default function LiveMatches() {
     if (combined.includes('ipl') || combined.includes('bbl') || combined.includes('psl') ||
       combined.includes('cpl') || combined.includes('league') || combined.includes('t20 league')) return 'league';
     if (combined.includes('test') || combined.includes('odi') || combined.includes('t20i') ||
-      combined.includes('international')) return 'international';
+      combined.includes('international') || combined.includes('world cup') || combined.includes('icc')) return 'international';
     return 'domestic';
   };
 
