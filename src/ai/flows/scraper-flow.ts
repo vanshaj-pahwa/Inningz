@@ -489,7 +489,7 @@ export async function getPlayerProfile(profileId: string, playerName?: string): 
     info: {
       name: name,
       country: '',
-      imageUrl: `https://static.cricbuzz.com/a/img/v1/152x152/i1/c${profileId}/player.jpg`,
+      imageUrl: `https://static.cricbuzz.com/a/img/v1/225x225/i1/c${profileId}/player.jpg`,
       personal: {
         born: '--',
         birthPlace: '--',
@@ -749,7 +749,7 @@ export async function getPlayerProfile(profileId: string, playerName?: string): 
 
   // If still no image, construct from profile ID
   if (!imageUrl && profileId) {
-    imageUrl = `https://static.cricbuzz.com/a/img/v1/152x152/i1/c${profileId}/player.jpg`;
+    imageUrl = `https://static.cricbuzz.com/a/img/v1/225x225/i1/c${profileId}/player.jpg`;
   }
 
   // Extract personal information from the new structure
@@ -1998,7 +1998,7 @@ function extractAwardPlayer(players: any): z.infer<typeof AwardPlayerSchema> | u
   return {
     name: p.fullName || p.name,
     profileId: p.id ? String(p.id) : undefined,
-    imageUrl: p.faceImageId ? `https://static.cricbuzz.com/a/img/v1/152x152/i1/c${p.faceImageId}/player.jpg` : undefined,
+    imageUrl: p.faceImageId ? `https://static.cricbuzz.com/a/img/v1/225x225/i1/c${p.faceImageId}/player.jpg` : undefined,
   };
 }
 
@@ -2963,14 +2963,29 @@ export async function getMatchSquads(matchId: string): Promise<MatchSquads> {
     { teamName: teamData[1].name, teamShortName: teamData[1].name, teamFlagUrl: teamData[1].flagUrl, playingXI: [], bench: [] },
   ];
 
+  // Helper to upgrade player image quality to 225x225
+  const upgradePlayerImage = (url: string | undefined): string | undefined => {
+    if (!url) return undefined;
+    // Upgrade static.cricbuzz.com URLs (e.g., 50x50 -> 225x225)
+    if (url.includes('static.cricbuzz.com')) {
+      return url.replace(/\/\d+x\d+\//, '/225x225/');
+    }
+    // Convert img1.cricbuzz.com faceImages to higher res static URL
+    const faceMatch = url.match(/c-img\/faceImages\/(\d+)/);
+    if (faceMatch) {
+      return `https://static.cricbuzz.com/a/img/v1/225x225/i1/c${faceMatch[1]}/player.jpg`;
+    }
+    return url;
+  };
+
   // Process Playing XI section
   const playingXISections = $('h1:contains("playing XI"), h1:contains("Playing XI")');
   console.log('[Squad Parser] Found Playing XI sections:', playingXISections.length);
-  
+
   playingXISections.each((_, sectionHeader) => {
     const $section = $(sectionHeader).parent();
     const $squadGrid = $section.find('.w-full.flex');
-    
+
     // Helper to parse a player anchor element
     const parsePlayer = ($player: ReturnType<typeof $>) => {
       const href = $player.attr('href') || '';
@@ -2979,7 +2994,7 @@ export async function getMatchSquads(matchId: string): Promise<MatchSquads> {
       const name = $nameSpans.filter((_, s) => $(s).text().trim().length > 1).first().text().trim();
       const captainWK = $nameSpans.filter((_, s) => /\(/.test($(s).text())).first().text().trim();
       const role = $player.find('div.text-cbTxtSec.text-xs').text().trim();
-      const imageUrl = $player.find('img').attr('src') || $player.find('img').attr('srcset')?.split(' ')[0];
+      const rawImageUrl = $player.find('img').attr('src') || $player.find('img').attr('srcset')?.split(' ')[0];
       const isIn = $player.find('.cbPlayerIn').length > 0;
       const isOut = $player.find('.cbPlayerOut').length > 0;
 
@@ -2988,7 +3003,7 @@ export async function getMatchSquads(matchId: string): Promise<MatchSquads> {
         name,
         role: role || 'Player',
         profileId,
-        imageUrl,
+        imageUrl: upgradePlayerImage(rawImageUrl),
         isCaptain: captainWK.includes('C'),
         isWicketKeeper: captainWK.includes('WK'),
         ...(isIn ? { isIn: true } : {}),
@@ -3015,7 +3030,7 @@ export async function getMatchSquads(matchId: string): Promise<MatchSquads> {
     const profileId = href.match(/\/profiles\/(\d+)\//)?.[1];
     const name = $player.find('.flex.flex-row span').filter((_, s) => $(s).text().trim().length > 1).first().text().trim();
     const role = $player.find('div.text-cbTxtSec.text-xs').text().trim();
-    const imageUrl = $player.find('img').attr('src') || $player.find('img').attr('srcset')?.split(' ')[0];
+    const rawImageUrl = $player.find('img').attr('src') || $player.find('img').attr('srcset')?.split(' ')[0];
     const isIn = $player.find('.cbPlayerIn').length > 0;
     const isOut = $player.find('.cbPlayerOut').length > 0;
 
@@ -3024,7 +3039,7 @@ export async function getMatchSquads(matchId: string): Promise<MatchSquads> {
       name,
       role: role || 'Player',
       profileId,
-      imageUrl,
+      imageUrl: upgradePlayerImage(rawImageUrl),
       ...(isIn ? { isIn: true } : {}),
       ...(isOut ? { isOut: true } : {}),
     };
@@ -3815,7 +3830,7 @@ export async function scrapeICCRankings(
         country,
         rating,
         profileId,
-        imageUrl: `https://static.cricbuzz.com/a/img/v1/i1/c${faceImageId}/${slug}.jpg`,
+        imageUrl: `https://static.cricbuzz.com/a/img/v1/225x225/i1/c${faceImageId}/${slug}.jpg`,
       });
     }
 

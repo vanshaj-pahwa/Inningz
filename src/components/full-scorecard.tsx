@@ -509,7 +509,7 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                                                 className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 transition-colors flex-1 min-w-[200px]"
                                             >
                                                 {scorecard.matchInfo.playerOfTheMatch.imageUrl && (
-                                                    <Image src={scorecard.matchInfo.playerOfTheMatch.imageUrl} alt={scorecard.matchInfo.playerOfTheMatch.name} width={40} height={40} className="w-10 h-10 rounded-full object-cover" />
+                                                    <Image src={scorecard.matchInfo.playerOfTheMatch.imageUrl} alt={scorecard.matchInfo.playerOfTheMatch.name} width={225} height={225} className="w-10 h-10 rounded-full object-cover" unoptimized />
                                                 )}
                                                 <div className="text-left">
                                                     <p className="text-[10px] uppercase tracking-wider text-amber-600 dark:text-amber-400 font-semibold">Player of the Match</p>
@@ -528,7 +528,7 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                                                 className="flex items-center gap-3 px-4 py-3 rounded-xl bg-purple-500/10 border border-purple-500/20 hover:bg-purple-500/20 transition-colors flex-1 min-w-[200px]"
                                             >
                                                 {scorecard.matchInfo.playerOfTheSeries.imageUrl && (
-                                                    <Image src={scorecard.matchInfo.playerOfTheSeries.imageUrl} alt={scorecard.matchInfo.playerOfTheSeries.name} width={40} height={40} className="w-10 h-10 rounded-full object-cover" />
+                                                    <Image src={scorecard.matchInfo.playerOfTheSeries.imageUrl} alt={scorecard.matchInfo.playerOfTheSeries.name} width={225} height={225} className="w-10 h-10 rounded-full object-cover" unoptimized />
                                                 )}
                                                 <div className="text-left">
                                                     <p className="text-[10px] uppercase tracking-wider text-purple-600 dark:text-purple-400 font-semibold">Player of the Series</p>

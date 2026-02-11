@@ -890,7 +890,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                         className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20 transition-colors flex-1 min-w-[200px]"
                                     >
                                         {data.playerOfTheMatch.imageUrl && (
-                                            <Image src={data.playerOfTheMatch.imageUrl} alt={data.playerOfTheMatch.name} width={40} height={40} className="w-10 h-10 rounded-full object-cover" />
+                                            <Image src={data.playerOfTheMatch.imageUrl} alt={data.playerOfTheMatch.name} width={225} height={225} className="w-10 h-10 rounded-full object-cover" unoptimized />
                                         )}
                                         <div className="text-left">
                                             <p className="text-[10px] uppercase tracking-wider stat-amber font-semibold">Player of the Match</p>
@@ -909,7 +909,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                         className="flex items-center gap-3 px-4 py-3 rounded-xl bg-purple-500/10 border border-purple-500/20 hover:bg-purple-500/20 transition-colors flex-1 min-w-[200px]"
                                     >
                                         {data.playerOfTheSeries.imageUrl && (
-                                            <Image src={data.playerOfTheSeries.imageUrl} alt={data.playerOfTheSeries.name} width={40} height={40} className="w-10 h-10 rounded-full object-cover" />
+                                            <Image src={data.playerOfTheSeries.imageUrl} alt={data.playerOfTheSeries.name} width={225} height={225} className="w-10 h-10 rounded-full object-cover" unoptimized />
                                         )}
                                         <div className="text-left">
                                             <p className="text-[10px] uppercase tracking-wider stat-purple font-semibold">Player of the Series</p>

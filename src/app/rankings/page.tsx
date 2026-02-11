@@ -226,8 +226,8 @@ export default function RankingsPage() {
                     <Image
                       src={entry.imageUrl}
                       alt={entry.playerName}
-                      width={40}
-                      height={40}
+                      width={225}
+                      height={225}
                       className="w-full h-full object-cover"
                       unoptimized
                     />

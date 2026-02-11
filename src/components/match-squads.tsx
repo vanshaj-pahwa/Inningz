@@ -105,9 +105,10 @@ export default function MatchSquadsDisplay({ matchId }: { matchId: string }) {
                                 <Image
                                     src={player.imageUrl}
                                     alt={player.name}
-                                    width={48}
-                                    height={48}
+                                    width={225}
+                                    height={225}
                                     className="w-full h-full object-cover"
+                                    unoptimized
                                 />
                             ) : (
                                 <span className="text-lg md:text-xl font-bold text-zinc-500">
@@ -141,9 +142,10 @@ export default function MatchSquadsDisplay({ matchId }: { matchId: string }) {
                                 <Image
                                     src={player.imageUrl}
                                     alt={player.name}
-                                    width={48}
-                                    height={48}
+                                    width={225}
+                                    height={225}
                                     className="w-full h-full object-cover"
+                                    unoptimized
                                 />
                             ) : (
                                 <span className="text-lg md:text-xl font-bold text-zinc-500">
@@ -163,13 +165,14 @@ export default function MatchSquadsDisplay({ matchId }: { matchId: string }) {
             <div className="flex justify-between bg-muted p-2 md:p-4 rounded-2xl">
                 <div className="flex items-center gap-2">
                     {squads.team1.teamFlagUrl && (
-                        <div className="rounded overflow-hidden w-6 h-4 md:w-7 md:h-5 flex-shrink-0">
+                        <div className="rounded overflow-hidden w-8 h-6 md:w-10 md:h-7 flex-shrink-0">
                             <Image
                                 src={squads.team1.teamFlagUrl}
                                 alt={squads.team1.teamShortName}
-                                width={27}
-                                height={20}
+                                width={72}
+                                height={52}
                                 className="w-full h-full object-cover"
+                                unoptimized
                             />
                         </div>
                     )}
@@ -178,13 +181,14 @@ export default function MatchSquadsDisplay({ matchId }: { matchId: string }) {
                 <div className="flex items-center gap-2">
                     <h1 className="font-display text-sm md:text-base">{squads.team2.teamShortName}</h1>
                     {squads.team2.teamFlagUrl && (
-                        <div className="rounded overflow-hidden w-6 h-4 md:w-7 md:h-5 flex-shrink-0">
+                        <div className="rounded overflow-hidden w-8 h-6 md:w-10 md:h-7 flex-shrink-0">
                             <Image
                                 src={squads.team2.teamFlagUrl}
                                 alt={squads.team2.teamShortName}
-                                width={27}
-                                height={20}
+                                width={72}
+                                height={52}
                                 className="w-full h-full object-cover"
+                                unoptimized
                             />
                         </div>
                     )}

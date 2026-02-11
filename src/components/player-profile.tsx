@@ -25,9 +25,10 @@ export default function PlayerProfileDisplay({ profile }: { profile: PlayerProfi
                                 <Image
                                     src={info.imageUrl}
                                     alt={info.name}
-                                    width={100}
-                                    height={100}
+                                    width={225}
+                                    height={225}
                                     className="w-[72px] h-[72px] md:w-[100px] md:h-[100px] rounded-full border-[3px] md:border-4 border-white/90 shadow-lg bg-white"
+                                    unoptimized
                                 />
                             </div>
                         )}
