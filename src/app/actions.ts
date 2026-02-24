@@ -44,6 +44,14 @@ import {
     type AwardPlayer as AwardPlayerType,
 } from '@/ai/flows/scraper-flow';
 
+import {
+    fetchStreamMatchList as fetchStreamMatchListFlow,
+    fetchStreamDetail as fetchStreamDetailFlow,
+    type StreamMatch as StreamMatchType,
+    type StreamDetail as StreamDetailType,
+    type StreamSource as StreamSourceType,
+} from '@/lib/stream-fetcher';
+
 export type ScrapeCricbuzzUrlOutput = ScrapeFlowOutput;
 export type Commentary = CommentaryType;
 export type LiveMatch = LiveMatchType;
@@ -68,6 +76,9 @@ export type RankingsData = RankingsDataType;
 export type RankingEntry = RankingEntryType;
 export type AwardPlayer = AwardPlayerType;
 export type { MatchStats };
+export type StreamMatch = StreamMatchType;
+export type StreamDetail = StreamDetailType;
+export type StreamSource = StreamSourceType;
 
 interface ScrapeState {
     success: boolean;
@@ -445,6 +456,40 @@ export async function getICCRankings(
 ): Promise<{ success: boolean; data?: RankingsDataType; error?: string }> {
     try {
         const data = await scrapeICCRankingsFlow(format, category);
+        return { success: true, data };
+    } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : 'An unexpected error occurred.';
+        return { success: false, error: errorMessage };
+    }
+}
+
+export async function getStreamMatchList(): Promise<{
+    success: boolean;
+    matches?: StreamMatchType[];
+    error?: string;
+}> {
+    try {
+        const matches = await fetchStreamMatchListFlow();
+        return { success: true, matches };
+    } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : 'An unexpected error occurred.';
+        return { success: false, error: errorMessage };
+    }
+}
+
+export async function getStreamForMatch(streamMatchId: string): Promise<{
+    success: boolean;
+    data?: StreamDetailType;
+    error?: string;
+}> {
+    if (!streamMatchId) {
+        return { success: false, error: 'Invalid stream match ID' };
+    }
+    try {
+        const data = await fetchStreamDetailFlow(streamMatchId);
+        if (!data) {
+            return { success: false, error: 'No stream available for this match' };
+        }
         return { success: true, data };
     } catch (e) {
         const errorMessage = e instanceof Error ? e.message : 'An unexpected error occurred.';

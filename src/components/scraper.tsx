@@ -25,6 +25,7 @@ import { useSwipe } from '@/hooks/use-swipe';
 import { ShareButton } from './share-cards';
 import { VirtualCommentaryList } from './virtual-commentary-list';
 import PointsTableDisplay from './points-table';
+import LiveStreamTab from './live-stream-tab';
 
 type LastEventType = {
     text: string;
@@ -32,7 +33,7 @@ type LastEventType = {
     variant: 'default' | 'destructive' | 'four' | 'six';
 };
 
-type View = 'live' | 'scorecard' | 'squads' | 'table';
+type View = 'live' | 'scorecard' | 'squads' | 'table' | 'watch';
 
 function isLive(status: string): boolean {
     const s = status.toLowerCase();
@@ -87,9 +88,27 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
         if (data?.hasPointsTable && data?.seriesId) {
             baseViews.push('table');
         }
+        // Add watch tab when match is live
+        if (data?.status && isLive(data.status)) {
+            baseViews.push('watch');
+        }
         return baseViews;
-    }, [data?.hasPointsTable, data?.seriesId]);
+    }, [data?.hasPointsTable, data?.seriesId, data?.status]);
     const currentViewIndex = views.indexOf(view);
+
+    // Memoize stream data to prevent re-fetching on every live score update
+    const streamTitle = useMemo(() => data?.title || '', [data?.title]);
+    const streamTeams = useMemo(() => {
+        const teams: { name: string }[] = [];
+        if (data?.previousInnings) {
+            data.previousInnings.forEach(i => teams.push({ name: i.teamName }));
+        }
+        if (data?.score && data.score !== 'N/A') {
+            teams.push({ name: data.score.split(' ')[0] });
+        }
+        return teams;
+        // Only recompute when title changes (not on every score update)
+    }, [data?.title]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Swipe between tabs
     const { swiping, swipeDirection, swipeProgress } = useSwipe({
@@ -1162,6 +1181,12 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                 {view === 'squads' && <MatchSquadsDisplay matchId={matchId} />}
                 {view === 'table' && data?.seriesId && (
                     <PointsTableDisplay seriesId={data.seriesId} />
+                )}
+                {view === 'watch' && data && (
+                    <LiveStreamTab
+                        matchTitle={streamTitle}
+                        teams={streamTeams}
+                    />
                 )}
             </div>
 
