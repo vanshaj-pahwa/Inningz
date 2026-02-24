@@ -2273,7 +2273,7 @@ export async function getScoreForMatchId(
       // Try multiple flag URL patterns
       let teamFlagUrl: string | undefined;
       if (team?.imageId) {
-        teamFlagUrl = `https://static.cricbuzz.com/a/img/v1/25x18/i1/c${team.imageId}/${team.shortName.toLowerCase()}.jpg`;
+        teamFlagUrl = `https://static.cricbuzz.com/a/img/v1/72x52/i1/c${team.imageId}/${team.shortName.toLowerCase()}.jpg`;
       }
       
       return {
@@ -2939,8 +2939,12 @@ export async function getMatchSquads(matchId: string): Promise<MatchSquads> {
     $header.find('> div.flex').each((_, teamDiv) => {
       const $teamDiv = $(teamDiv);
       const name = $teamDiv.find('h1.font-bold').text().trim();
-      const flagUrl = $teamDiv.find('img').attr('src') || $teamDiv.find('img').attr('srcset')?.split(' ')[0];
-      
+      let flagUrl = $teamDiv.find('img').attr('src') || $teamDiv.find('img').attr('srcset')?.split(' ')[0];
+      // Upgrade flag to 72x52 for crisp display
+      if (flagUrl && flagUrl.includes('static.cricbuzz.com')) {
+        flagUrl = flagUrl.replace(/\/\d+x\d+\//, '/72x52/');
+      }
+
       if (name && name.length > 0 && name.length < 20) {
         teamData.push({ name, flagUrl });
       }
