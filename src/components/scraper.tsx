@@ -33,7 +33,7 @@ type LastEventType = {
     variant: 'default' | 'destructive' | 'four' | 'six';
 };
 
-type View = 'live' | 'scorecard' | 'squads' | 'table' | 'watch';
+type View = 'live' | 'scorecard' | 'squads' | 'table';
 
 function isLive(status: string): boolean {
     const s = status.toLowerCase();
@@ -88,12 +88,8 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
         if (data?.hasPointsTable && data?.seriesId) {
             baseViews.push('table');
         }
-        // Add watch tab when match is live
-        if (data?.status && isLive(data.status)) {
-            baseViews.push('watch');
-        }
         return baseViews;
-    }, [data?.hasPointsTable, data?.seriesId, data?.status]);
+    }, [data?.hasPointsTable, data?.seriesId]);
     const currentViewIndex = views.indexOf(view);
 
     // Memoize stream data to prevent re-fetching on every live score update
@@ -386,10 +382,10 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                             {/* Players */}
                             <div className="p-3 flex flex-wrap gap-1.5">
                                 {players.map((player, idx) => {
-                                    const isCaptain = player.includes('(c)');
-                                    const isWicketkeeper = player.includes('(w)');
-                                    const isBoth = player.includes('(c)') && player.includes('(w)');
-                                    const cleanName = player.replace(/\([cw]+\)/gi, '').trim();
+                                    const isBoth = player.includes('(w/c)') || (player.includes('(c)') && player.includes('(w)'));
+                                    const isCaptain = isBoth || player.includes('(c)');
+                                    const isWicketkeeper = isBoth || player.includes('(w)');
+                                    const cleanName = player.replace(/\(w\/c\)|\([cw]+\)/gi, '').trim();
 
                                     return (
                                         <span
@@ -401,7 +397,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                             }`}
                                         >
                                             {cleanName}
-                                            {isBoth && <span className="text-[9px] text-primary">(c)(w)</span>}
+                                            {isBoth && <span className="text-[9px] text-primary">(w/c)</span>}
                                             {isCaptain && !isBoth && <span className="text-[9px] text-amber-400">(c)</span>}
                                             {isWicketkeeper && !isBoth && <span className="text-[9px] text-blue-400">(w)</span>}
                                         </span>
@@ -1086,6 +1082,14 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                     </div>
                                 )}
 
+                                {/* Live Stream - inside left column, below scorecard */}
+                                {data?.status && isLive(data.status) && data.batsmen.length > 0 && (
+                                    <LiveStreamTab
+                                        matchTitle={streamTitle}
+                                        teams={streamTeams}
+                                    />
+                                )}
+
                                 {/* Key Stats - Vertical layout for full visibility */}
                                 {data && (data.batsmen.length !== 0 || data.bowlers.length !== 0) && (
                                     <div className="glass-card overflow-hidden divide-y divide-border/50">
@@ -1162,7 +1166,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                 <VirtualCommentaryList
                                                     commentary={data?.commentary || []}
                                                     renderItem={renderCommentaryItem}
-                                                    containerClassName="max-h-[calc(100vh-280px)]"
+                                                    containerClassName="max-h-[calc(100vh-200px)]"
                                                     onLoadMore={loadMoreCommentary}
                                                     loadingMore={loadingMore}
                                                     hasMore={lastTimestamp !== null && lastTimestamp !== 0}
@@ -1181,12 +1185,6 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                 {view === 'squads' && <MatchSquadsDisplay matchId={matchId} />}
                 {view === 'table' && data?.seriesId && (
                     <PointsTableDisplay seriesId={data.seriesId} />
-                )}
-                {view === 'watch' && data && (
-                    <LiveStreamTab
-                        matchTitle={streamTitle}
-                        teams={streamTeams}
-                    />
                 )}
             </div>
 

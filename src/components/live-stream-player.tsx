@@ -18,9 +18,41 @@ export default function LiveStreamPlayer({ streamUrl, title }: LiveStreamPlayerP
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [isMuted, setIsMuted] = useState(true);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [isPortraitFullscreen, setIsPortraitFullscreen] = useState(false);
     const [showControls, setShowControls] = useState(true);
     const controlsTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [retryCount, setRetryCount] = useState(0);
+
+    // Track fullscreen and orientation changes
+    useEffect(() => {
+        const checkPortrait = () => {
+            if (document.fullscreenElement) {
+                setIsPortraitFullscreen(window.innerHeight > window.innerWidth);
+            } else {
+                setIsPortraitFullscreen(false);
+            }
+        };
+
+        const handleFullscreenChange = () => {
+            const fs = !!document.fullscreenElement;
+            setIsFullscreen(fs);
+            if (fs) {
+                checkPortrait();
+            } else {
+                setIsPortraitFullscreen(false);
+            }
+        };
+
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        window.addEventListener('resize', checkPortrait);
+        window.addEventListener('orientationchange', checkPortrait);
+
+        return () => {
+            document.removeEventListener('fullscreenchange', handleFullscreenChange);
+            window.removeEventListener('resize', checkPortrait);
+            window.removeEventListener('orientationchange', checkPortrait);
+        };
+    }, []);
 
     const hideControlsLater = useCallback(() => {
         if (controlsTimeout.current) clearTimeout(controlsTimeout.current);
@@ -136,18 +168,40 @@ export default function LiveStreamPlayer({ streamUrl, title }: LiveStreamPlayerP
         const container = containerRef.current;
         if (!container) return;
         if (document.fullscreenElement) {
+            try { (screen.orientation as any).unlock(); } catch {}
+            setIsPortraitFullscreen(false);
             await document.exitFullscreen();
-            setIsFullscreen(false);
         } else {
             await container.requestFullscreen();
-            setIsFullscreen(true);
+            // Try native orientation lock first
+            try {
+                await (screen.orientation as any).lock('landscape');
+            } catch {
+                // Native lock not supported — JS rotation fallback kicks in
+                if (window.innerHeight > window.innerWidth) {
+                    setIsPortraitFullscreen(true);
+                }
+            }
         }
     };
+
+    const portraitFullscreenStyle: React.CSSProperties | undefined = isPortraitFullscreen
+        ? {
+            width: '100vh',
+            height: '100vw',
+            transform: 'rotate(90deg)',
+            transformOrigin: 'top left',
+            position: 'fixed',
+            top: 0,
+            left: '100vw',
+        }
+        : undefined;
 
     return (
         <div
             ref={containerRef}
             className="relative w-full aspect-video bg-black rounded-xl overflow-hidden group"
+            style={portraitFullscreenStyle}
             onMouseMove={handleMouseMove}
             onMouseLeave={() => status === 'playing' && setShowControls(false)}
         >
