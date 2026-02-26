@@ -121,11 +121,12 @@ export function useShareCard(): UseShareCardReturn {
         const filename = generateShareFilename(matchTitle, cardType);
 
         if (supportsNativeShare) {
+          const matchUrl = typeof window !== 'undefined' ? window.location.href : '';
           const shared = await shareImageFile(
             blob,
             filename,
             matchTitle,
-            `Live cricket score from Inningz`
+            `${matchTitle}\n${matchUrl}`
           );
 
           if (!shared) {
