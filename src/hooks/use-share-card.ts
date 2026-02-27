@@ -42,10 +42,14 @@ export function useShareCard(): UseShareCardReturn {
         // Small delay to ensure everything is rendered
         await new Promise(resolve => setTimeout(resolve, 50));
 
+        // Read actual element dimensions (supports auto-height cards)
+        const captureWidth = element.offsetWidth || 1080;
+        const captureHeight = element.offsetHeight || 1080;
+
         // Use html-to-image for more accurate rendering
         const dataUrl = await toPng(element, {
-          width: 1080,
-          height: 1080,
+          width: captureWidth,
+          height: captureHeight,
           pixelRatio: 1,
           backgroundColor: '#09090b',
           style: {

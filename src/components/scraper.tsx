@@ -9,7 +9,7 @@ import { loadMoreCommentary as loadMoreCommentaryAction, getPlayerProfile, getPl
 import type { ScrapeCricbuzzUrlOutput, Commentary, PlayerProfile, PlayerHighlights } from '@/app/actions';
 import { useLiveScore } from '@/lib/data-layer';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { LoaderCircle, User, ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
+import { LoaderCircle, User, ArrowLeft, ChevronLeft, ChevronRight, Share2 } from "lucide-react";
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { cn } from '@/lib/utils';
@@ -22,7 +22,7 @@ import WinProbability from './win-probability';
 import QuickScoreWidget from './quick-score-widget';
 import { useRecentHistoryContext } from '@/contexts/recent-history-context';
 import { useSwipe } from '@/hooks/use-swipe';
-import { ShareButton } from './share-cards';
+import { ShareButton, StatShareDialog } from './share-cards';
 import { VirtualCommentaryList } from './virtual-commentary-list';
 import PointsTableDisplay from './points-table';
 import LiveStreamTab from './live-stream-tab';
@@ -53,6 +53,8 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
     const [extraCommentary, setExtraCommentary] = useState<Commentary[]>([]);
     const lastTimestampRef = useRef<number | null>(null);
     const [lastTimestamp, setLastTimestamp] = useState<number | null>(null);
+    const [statShareOpen, setStatShareOpen] = useState(false);
+    const [statShareData, setStatShareData] = useState<{ headline?: string; text: string; snippetType?: string } | null>(null);
 
     // SSE-powered live score with polling fallback
     const {
@@ -156,12 +158,21 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                 ]);
                 const newCommentary = result.commentary.filter(c => !existingKeys.has(extractKey(c)));
 
-                if (result.timestamp && result.timestamp < (lastTimestampRef.current || Infinity)) {
-                    lastTimestampRef.current = result.timestamp;
-                    setLastTimestamp(result.timestamp);
+                const timestampMoved = result.timestamp && result.timestamp < (lastTimestampRef.current || Infinity);
+                if (timestampMoved) {
+                    lastTimestampRef.current = result.timestamp!;
+                    setLastTimestamp(result.timestamp!);
                 }
 
-                if (newCommentary.length === 0) return;
+                if (newCommentary.length === 0) {
+                    if (!timestampMoved) {
+                        // Timestamp stuck + all duplicates — no more data
+                        lastTimestampRef.current = 0;
+                        setLastTimestamp(0);
+                    }
+                    // Timestamp moved but all dupes — let auto-load retry with new timestamp
+                    return;
+                }
 
                 const currentCommentaryLength = data?.commentary.length || 0;
                 setNewCommentaryStartIndex(currentCommentaryLength);
@@ -346,9 +357,45 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                 bgClass = 'bg-purple-500/5 border-purple-500/20';
             }
 
+            const hasStatKeyword = /\bstat\b/i.test(comment.text) || /\bstat\b/i.test(comment.headline || '');
+
             return (
-                <div key={index} className={`slide-in-left py-3 px-4 my-2 rounded-xl border ${bgClass}`}>
-                    <p className={`text-xs font-semibold mb-1 ${accentColor}`}>{comment.headline}</p>
+                <div key={index} className={`slide-in-left py-3 px-4 my-2 rounded-xl border ${bgClass}${hasStatKeyword ? ' relative group' : ''}`}>
+                    {hasStatKeyword && (
+                        <button
+                            onClick={() => {
+                                setStatShareData({
+                                    headline: comment.headline,
+                                    text: comment.text,
+                                    snippetType: comment.snippetType,
+                                });
+                                setStatShareOpen(true);
+                            }}
+                            className="absolute top-2.5 right-2.5 p-1.5 rounded-lg bg-muted/60 hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity md:block hidden"
+                            aria-label="Share stat"
+                        >
+                            <Share2 className="w-3 h-3 text-muted-foreground" />
+                        </button>
+                    )}
+                    <div className="flex items-start justify-between gap-2">
+                        <p className={`text-xs font-semibold mb-1 ${accentColor}`}>{comment.headline}</p>
+                        {hasStatKeyword && (
+                            <button
+                                onClick={() => {
+                                    setStatShareData({
+                                        headline: comment.headline,
+                                        text: comment.text,
+                                        snippetType: comment.snippetType,
+                                    });
+                                    setStatShareOpen(true);
+                                }}
+                                className="shrink-0 p-1 rounded-md hover:bg-muted/60 transition-colors md:hidden"
+                                aria-label="Share stat"
+                            >
+                                <Share2 className="w-3 h-3 text-muted-foreground" />
+                            </button>
+                        )}
+                    </div>
                     {comment.text && (
                         <p className="text-xs text-muted-foreground leading-relaxed" dangerouslySetInnerHTML={{ __html: highlightThatsOut(comment.text) }} />
                     )}
@@ -464,6 +511,38 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                     </div>
                                 ))}
                             </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            const hasStatText = /\bstat\b/i.test(comment.text);
+
+            if (hasStatText) {
+                return (
+                    <div key={index} className="slide-in-left py-3 px-4 my-2 commentary-item relative group">
+                        <button
+                            onClick={() => {
+                                setStatShareData({ text: comment.text, snippetType: 'stat' });
+                                setStatShareOpen(true);
+                            }}
+                            className="absolute top-2.5 right-2.5 p-1.5 rounded-lg bg-muted/60 hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity md:block hidden"
+                            aria-label="Share stat"
+                        >
+                            <Share2 className="w-3 h-3 text-muted-foreground" />
+                        </button>
+                        <div className="flex items-start justify-between gap-2">
+                            <p className={`text-xs text-muted-foreground flex-1 ${isShortText ? 'text-center font-medium' : ''}`} dangerouslySetInnerHTML={{ __html: highlightThatsOut(comment.text) }} />
+                            <button
+                                onClick={() => {
+                                    setStatShareData({ text: comment.text, snippetType: 'stat' });
+                                    setStatShareOpen(true);
+                                }}
+                                className="shrink-0 p-1 rounded-md hover:bg-muted/60 transition-colors md:hidden"
+                                aria-label="Share stat"
+                            >
+                                <Share2 className="w-3 h-3 text-muted-foreground" />
+                            </button>
                         </div>
                     </div>
                 );
@@ -1288,6 +1367,23 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                     )}
                 </DialogContent>
             </Dialog>
+
+            {/* Stat Share Dialog */}
+            {statShareData && data && (
+                <StatShareDialog
+                    open={statShareOpen}
+                    onOpenChange={setStatShareOpen}
+                    matchTitle={data.title}
+                    cardData={{
+                        matchTitle: data.title,
+                        seriesName: data.seriesName,
+                        score: data.score,
+                        headline: statShareData.headline,
+                        text: statShareData.text,
+                        snippetType: statShareData.snippetType,
+                    }}
+                />
+            )}
 
             {/* Quick Score Widget - shows when scrolling */}
             {data && view === 'live' && (
