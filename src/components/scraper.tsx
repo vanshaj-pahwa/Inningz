@@ -158,21 +158,12 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                 ]);
                 const newCommentary = result.commentary.filter(c => !existingKeys.has(extractKey(c)));
 
-                const timestampMoved = result.timestamp && result.timestamp < (lastTimestampRef.current || Infinity);
-                if (timestampMoved) {
-                    lastTimestampRef.current = result.timestamp!;
-                    setLastTimestamp(result.timestamp!);
+                if (result.timestamp && result.timestamp < (lastTimestampRef.current || Infinity)) {
+                    lastTimestampRef.current = result.timestamp;
+                    setLastTimestamp(result.timestamp);
                 }
 
-                if (newCommentary.length === 0) {
-                    if (!timestampMoved) {
-                        // Timestamp stuck + all duplicates — no more data
-                        lastTimestampRef.current = 0;
-                        setLastTimestamp(0);
-                    }
-                    // Timestamp moved but all dupes — let auto-load retry with new timestamp
-                    return;
-                }
+                if (newCommentary.length === 0) return;
 
                 const currentCommentaryLength = data?.commentary.length || 0;
                 setNewCommentaryStartIndex(currentCommentaryLength);

@@ -85,24 +85,6 @@ export function VirtualCommentaryList({
         };
     }, [hasMore, loadingMore, onLoadMore]);
 
-    // Auto-load more if content doesn't fill the container (no scrollbar = scroll event never fires)
-    useEffect(() => {
-        if (!hasMore || loadingMore || loadMoreTriggeredRef.current || !onLoadMore) return;
-
-        const scrollElement = parentRef.current;
-        if (!scrollElement) return;
-
-        const timer = setTimeout(() => {
-            const { scrollHeight, clientHeight } = scrollElement;
-            if (scrollHeight <= clientHeight + LOAD_MORE_THRESHOLD) {
-                loadMoreTriggeredRef.current = true;
-                onLoadMore();
-            }
-        }, 200);
-
-        return () => clearTimeout(timer);
-    }, [hasMore, loadingMore, onLoadMore, commentary.length]);
-
     const items = virtualizer.getVirtualItems();
 
     return (
