@@ -568,8 +568,29 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                         {(() => {
                             const summaryStr = comment.overSummary || '';
                             const runsMatch = summaryStr.match(/\((\d+)\s*runs?\)/i);
-                            const overRuns = runsMatch ? parseInt(runsMatch[1], 10) : comment.overRuns;
+                            let overRuns = runsMatch ? parseInt(runsMatch[1], 10) : comment.overRuns;
                             const ballsStr = summaryStr.replace(/\(\d+\s*runs?\)/i, '').trim();
+
+                            // Calculate total runs from ball values if not provided by API
+                            if (overRuns === undefined || overRuns === null) {
+                                let calculatedRuns = 0;
+                                let hasValidBalls = false;
+                                for (const ball of ballsStr.split(/\s+/)) {
+                                    const b = ball.trim();
+                                    if (!b || b.includes('(') || b.includes(')') || b.toLowerCase() === 'runs' || b.toLowerCase() === 'run') continue;
+                                    hasValidBalls = true;
+                                    if (b === 'W' || b.includes('W')) continue; // wicket = 0 runs
+                                    if (b === '.' || b === '0') continue;
+                                    const num = parseInt(b, 10);
+                                    if (!isNaN(num)) calculatedRuns += num;
+                                    // extras like wd, nb, lb contribute 1 run each as minimum
+                                    else if (b.toLowerCase().includes('wd') || b.toLowerCase().includes('wide')) calculatedRuns += 1;
+                                    else if (b.toLowerCase().includes('nb') || b.toLowerCase().includes('noball')) calculatedRuns += 1;
+                                    else if (b.toLowerCase().includes('lb') || b.toLowerCase().includes('legbye')) calculatedRuns += 1;
+                                    else if (b.toLowerCase().includes('b') && b.length <= 2) calculatedRuns += 1;
+                                }
+                                if (hasValidBalls) overRuns = calculatedRuns;
+                            }
 
                             return (
                                 <>
