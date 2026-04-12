@@ -1,4 +1,4 @@
-import type {Metadata} from 'next';
+import type {Metadata, Viewport} from 'next';
 import { DM_Serif_Display, DM_Sans, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { cn } from '@/lib/utils';
@@ -8,6 +8,7 @@ import { DataLayerProvider } from '@/contexts/data-layer-context';
 import { MatchesProvider } from '@/contexts/matches-context';
 import { RecentHistoryProvider } from '@/contexts/recent-history-context';
 import { DashboardPreferencesProvider } from '@/contexts/dashboard-preferences-context';
+import AppShell from '@/components/app-shell';
 
 const dmSerifDisplay = DM_Serif_Display({
     subsets: ['latin'],
@@ -29,7 +30,22 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: 'Inningz',
-  description: 'Live Cricket Scores',
+  description: 'Live Cricket Scores & Analytics',
+  manifest: '/manifest.json',
+  themeColor: '#0A0E20',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Inningz',
+  },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({
@@ -58,7 +74,9 @@ export default function RootLayout({
             <MatchesProvider>
               <RecentHistoryProvider>
                 <DashboardPreferencesProvider>
-                  {children}
+                  <AppShell>
+                    {children}
+                  </AppShell>
                 </DashboardPreferencesProvider>
               </RecentHistoryProvider>
             </MatchesProvider>
