@@ -97,7 +97,10 @@ export default function WinProbabilityChart({ data }: WinProbabilityChartProps) 
               tickLine={false}
               width={35}
             />
-            <Tooltip content={<WinProbTooltip team1={data.team1Name} team2={data.team2Name} />} />
+            <Tooltip
+              content={<WinProbTooltip team1={data.team1Name} team2={data.team2Name} />}
+              allowEscapeViewBox={{ x: false, y: false }}
+            />
             {(filter === 'both' || filter === 'team1') && (
               <Line
                 type="monotone"
