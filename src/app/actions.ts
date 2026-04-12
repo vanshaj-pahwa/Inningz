@@ -17,6 +17,9 @@ import {
     scrapeSeriesStats as scrapeSeriesStatsFlow,
     scrapeSeriesPointsTable as scrapeSeriesPointsTableFlow,
     getOverByOverData as getOverByOverDataFlow,
+    fetchPartnershipData as fetchPartnershipDataFlow,
+    fetchBallMapData as fetchBallMapDataFlow,
+    scrapeWinProbHistory as scrapeWinProbHistoryFlow,
     type ScrapeCricbuzzUrlOutput as ScrapeFlowOutput,
     type Commentary as CommentaryType,
     type LiveMatch as LiveMatchType,
@@ -38,6 +41,14 @@ import {
     type PointsTableMatch as PointsTableMatchType,
     type OverData as OverDataType,
     type InningsOverData as InningsOverDataType,
+    type PartnershipEntry as PartnershipEntryType,
+    type PartnershipInnings as PartnershipInningsType,
+    type BallMapBall as BallMapBallType,
+    type BallMapBatter as BallMapBatterType,
+    type BallMapBowler as BallMapBowlerType,
+    type BallMapData as BallMapDataType,
+    type WinProbPoint as WinProbPointType,
+    type WinProbHistory as WinProbHistoryType,
     scrapeICCRankings as scrapeICCRankingsFlow,
     type RankingsData as RankingsDataType,
     type RankingEntry as RankingEntryType,
@@ -75,6 +86,14 @@ export type InningsOverData = InningsOverDataType;
 export type RankingsData = RankingsDataType;
 export type RankingEntry = RankingEntryType;
 export type AwardPlayer = AwardPlayerType;
+export type PartnershipEntry = PartnershipEntryType;
+export type PartnershipInnings = PartnershipInningsType;
+export type BallMapBall = BallMapBallType;
+export type BallMapBatter = BallMapBatterType;
+export type BallMapBowler = BallMapBowlerType;
+export type BallMapData = BallMapDataType;
+export type WinProbPoint = WinProbPointType;
+export type WinProbHistory = WinProbHistoryType;
 export type { MatchStats };
 export type StreamMatch = StreamMatchType;
 export type StreamDetail = StreamDetailType;
@@ -443,6 +462,41 @@ export async function getInningsOverData(matchId: string, inningsId: number): Pr
     }
     try {
         const data = await getOverByOverDataFlow(matchId, inningsId);
+        return { success: true, data };
+    } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : 'An unexpected error occurred.';
+        return { success: false, error: errorMessage };
+    }
+}
+
+export async function getPartnershipData(matchId: string): Promise<{ success: boolean; data?: PartnershipInningsType[]; error?: string }> {
+    if (!matchId) return { success: false, error: 'Invalid Match ID' };
+    try {
+        const data = await fetchPartnershipDataFlow(matchId);
+        return { success: true, data };
+    } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : 'An unexpected error occurred.';
+        return { success: false, error: errorMessage };
+    }
+}
+
+export async function getBallMapData(matchId: string, inningsId: number): Promise<{ success: boolean; data?: BallMapDataType; error?: string }> {
+    if (!matchId) return { success: false, error: 'Invalid Match ID' };
+    try {
+        const data = await fetchBallMapDataFlow(matchId, inningsId);
+        if (!data) return { success: false, error: 'No ball map data available' };
+        return { success: true, data };
+    } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : 'An unexpected error occurred.';
+        return { success: false, error: errorMessage };
+    }
+}
+
+export async function getWinProbHistory(matchId: string): Promise<{ success: boolean; data?: WinProbHistoryType; error?: string }> {
+    if (!matchId) return { success: false, error: 'Invalid Match ID' };
+    try {
+        const data = await scrapeWinProbHistoryFlow(matchId);
+        if (!data) return { success: false, error: 'No win probability data available' };
         return { success: true, data };
     } catch (e) {
         const errorMessage = e instanceof Error ? e.message : 'An unexpected error occurred.';

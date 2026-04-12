@@ -26,6 +26,7 @@ import { ShareButton, StatShareDialog } from './share-cards';
 import { VirtualCommentaryList } from './virtual-commentary-list';
 import PointsTableDisplay from './points-table';
 import LiveStreamTab from './live-stream-tab';
+import MatchGraphs from './match-graphs';
 
 type LastEventType = {
     text: string;
@@ -33,7 +34,7 @@ type LastEventType = {
     variant: 'default' | 'destructive' | 'four' | 'six';
 };
 
-type View = 'live' | 'scorecard' | 'squads' | 'table';
+type View = 'live' | 'scorecard' | 'squads' | 'graphs' | 'table';
 
 function isLive(status: string): boolean {
     const s = status.toLowerCase();
@@ -86,7 +87,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
 
     // Dynamic views based on data availability
     const views: View[] = useMemo(() => {
-        const baseViews: View[] = ['live', 'scorecard', 'squads'];
+        const baseViews: View[] = ['live', 'scorecard', 'squads', 'graphs'];
         if (data?.hasPointsTable && data?.seriesId) {
             baseViews.push('table');
         }
@@ -1274,6 +1275,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                 )}
                 {view === 'scorecard' && <FullScorecard matchId={matchId} />}
                 {view === 'squads' && <MatchSquadsDisplay matchId={matchId} />}
+                {view === 'graphs' && <MatchGraphs matchId={matchId} />}
                 {view === 'table' && data?.seriesId && (
                     <PointsTableDisplay seriesId={data.seriesId} />
                 )}

@@ -460,6 +460,81 @@ export type InningsOverData = {
   overs: OverData[];
 };
 
+export type PartnershipEntry = {
+  bat1Name: string;
+  bat2Name: string;
+  bat1Runs: number;
+  bat2Runs: number;
+  bat1Balls: number;
+  bat2Balls: number;
+  bat1ImageId: number;
+  bat2ImageId: number;
+  totalRuns: number;
+  totalBalls: number;
+};
+
+export type PartnershipInnings = {
+  inningsId: number;
+  teamName: string;
+  teamShortName: string;
+  partnerships: PartnershipEntry[];
+};
+
+export type BallMapBall = {
+  overNum: number;
+  ballLabel: string;
+  runs: number;
+  event: string;
+  batsmanId: number;
+  bowlerId: number;
+};
+
+export type BallMapBatter = {
+  batId: number;
+  batName: string;
+  runs: number;
+  balls: number;
+  fours: number;
+  sixes: number;
+  strikeRate: number;
+};
+
+export type BallMapBowler = {
+  bowlerId: number;
+  bowlName: string;
+  overs: number;
+  runs: number;
+  wickets: number;
+  economy: number;
+};
+
+export type BallMapData = {
+  inningsId: number;
+  balls: BallMapBall[];
+  batters: BallMapBatter[];
+  bowlers: BallMapBowler[];
+  scoreDetails: {
+    runs: number;
+    wickets: number;
+    overs: number;
+  };
+};
+
+export type WinProbPoint = {
+  over: number;
+  innings: number;
+  team1Name: string;
+  team1Prob: number;
+  team2Name: string;
+  team2Prob: number;
+};
+
+export type WinProbHistory = {
+  team1Name: string;
+  team2Name: string;
+  points: WinProbPoint[];
+};
+
 function extractMatchId(url: string): string | null {
   if (!url) return null;
   const match = url.match(/\/live-cricket-scores\/(\d+)/);
@@ -3695,7 +3770,7 @@ export async function getOverByOverData(matchId: string, inningsId: number): Pro
             }
           }
           overMap.set(overNum, {
-            runs: sep.runs || 0,
+            runs: sep.runs || sep.overRuns || 0,
             score,
             wickets: wkts,
             summary: sep.o_summary || sep.overSummary || '',
@@ -3743,6 +3818,165 @@ export async function getOverByOverData(matchId: string, inningsId: number): Pro
   }
 
   return { inningsId, teamName, overs };
+}
+
+export async function fetchPartnershipData(matchId: string): Promise<PartnershipInnings[]> {
+  const url = `https://www.cricbuzz.com/api/mcenter/partnership-graph/${matchId}`;
+  const response = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    },
+  });
+  if (!response.ok) return [];
+  const data = await response.json();
+  if (!Array.isArray(data)) return [];
+
+  return data.map((innings: any) => ({
+    inningsId: innings.inningsID || innings.inningsId,
+    teamName: innings.batTeamName || '',
+    teamShortName: innings.batTeamShortName || '',
+    partnerships: (innings.partnershipDataDTO || []).map((p: any) => ({
+      bat1Name: p.bat1Name || '',
+      bat2Name: p.bat2Name || '',
+      bat1Runs: p.bat1Runs || 0,
+      bat2Runs: p.bat2Runs || 0,
+      bat1Balls: p.bat1balls || 0,
+      bat2Balls: p.bat2balls || 0,
+      bat1ImageId: p.bat1ImageID || 0,
+      bat2ImageId: p.bat2ImageID || 0,
+      totalRuns: p.totalRuns || 0,
+      totalBalls: p.totalBalls || 0,
+    })),
+  }));
+}
+
+export async function fetchBallMapData(matchId: string, inningsId: number): Promise<BallMapData | null> {
+  const url = `https://www.cricbuzz.com/api/mcenter/balls-map/${matchId}/${inningsId}`;
+  const response = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    },
+  });
+  if (!response.ok) return null;
+  const data = await response.json();
+  if (!data) return null;
+
+  const balls: BallMapBall[] = (data.balls || []).map((b: any) => ({
+    overNum: b.overNum,
+    ballLabel: b.ballLabel || '',
+    runs: b.totalRuns || 0,
+    event: b.event || '',
+    batsmanId: b.batsmanStrikerId || 0,
+    bowlerId: b.bowlerStrikerId || 0,
+  }));
+
+  // Sort balls by overNum ascending (API returns descending)
+  balls.sort((a, b) => a.overNum - b.overNum);
+
+  const batters: BallMapBatter[] = (data.batters || []).map((b: any) => ({
+    batId: b.batId,
+    batName: b.batName || '',
+    runs: b.runs || 0,
+    balls: b.balls || 0,
+    fours: b.fours || 0,
+    sixes: b.sixes || 0,
+    strikeRate: b.strikeRate || 0,
+  }));
+
+  const bowlers: BallMapBowler[] = (data.bowlers || []).map((b: any) => ({
+    bowlerId: b.bowlerId,
+    bowlName: b.bowlName || '',
+    overs: b.overs || 0,
+    runs: b.runs || 0,
+    wickets: b.wickets || 0,
+    economy: b.economy || 0,
+  }));
+
+  return {
+    inningsId,
+    balls,
+    batters,
+    bowlers,
+    scoreDetails: {
+      runs: data.scoreDetails?.runs || 0,
+      wickets: data.scoreDetails?.wickets || 0,
+      overs: data.scoreDetails?.overs || 0,
+    },
+  };
+}
+
+export async function scrapeWinProbHistory(matchId: string): Promise<WinProbHistory | null> {
+  // The Cricbuzz graphs page embeds win probability data in Next.js RSC flight payload
+  // as winProbabilityChartData and winProbabilityChartLegends in the HTML source
+  const url = `https://www.cricbuzz.com/live-cricket-graphs/${matchId}`;
+  let html: string;
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      },
+    });
+    if (!response.ok) return null;
+    html = await response.text();
+  } catch {
+    return null;
+  }
+
+  // Extract team names from winProbabilityChartLegends
+  // Pattern: "teamSName\":\"CSK\"" in the legends section
+  let team1Name = '';
+  let team2Name = '';
+  const legendsMatch = html.match(/winProbabilityChartLegends[\\]*":\{([\s\S]*?)(?:winProbabilityHorizontalChartData|runsChartData|$)/);
+  if (legendsMatch) {
+    const legendStr = legendsMatch[1];
+    // Find team1 and team2 short names
+    const team1Match = legendStr.match(/team1[\\]*":\{[^}]*teamSName[\\]*":[\\]*"([^"\\]+)/);
+    const team2Match = legendStr.match(/team2[\\]*":\{[^}]*teamSName[\\]*":[\\]*"([^"\\]+)/);
+    if (team1Match) team1Name = team1Match[1];
+    if (team2Match) team2Name = team2Match[1];
+  }
+
+  // Extract win probability data points from winProbabilityChartData
+  // Data is in RSC flight format with escaped quotes: \"over\":1,\"team1\":47,\"team2\":53
+  const points: WinProbPoint[] = [];
+
+  // Match individual data points: {\"over\":N,\"team1\":N,\"team2\":N,...\"innings\":N,...}
+  const pointRegex = /\{[\\]*"over[\\]*":\s*(\d+),[\\]*"team1[\\]*":\s*(\d+),[\\]*"team2[\\]*":\s*(\d+)[^}]*?[\\]*"innings[\\]*":\s*(\d+)/g;
+
+  for (const match of html.matchAll(pointRegex)) {
+    const over = parseInt(match[1], 10);
+    const t1Prob = parseInt(match[2], 10);
+    const t2Prob = parseInt(match[3], 10);
+    const innings = parseInt(match[4], 10);
+
+    points.push({
+      over,
+      innings,
+      team1Name: team1Name || 'Team 1',
+      team1Prob: t1Prob,
+      team2Name: team2Name || 'Team 2',
+      team2Prob: t2Prob,
+    });
+  }
+
+  if (points.length === 0) return null;
+
+  // Deduplicate: the same data appears in both chart and horizontal chart sections
+  const seen = new Map<string, WinProbPoint>();
+  for (const p of points) {
+    const key = `${p.innings}-${p.over}`;
+    if (!seen.has(key)) {
+      seen.set(key, p);
+    }
+  }
+
+  const uniquePoints = Array.from(seen.values());
+  uniquePoints.sort((a, b) => {
+    if (a.innings !== b.innings) return a.innings - b.innings;
+    return a.over - b.over;
+  });
+
+  return { team1Name, team2Name, points: uniquePoints };
 }
 
 
