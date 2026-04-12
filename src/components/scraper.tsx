@@ -748,25 +748,46 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                         })()}
                         {/* Batsmen & Bowler */}
                         {(comment.overBatsmen?.length || comment.overBowler) && (
-                            <div className="flex mt-3 pt-3 border-t border-dashed border-border/30">
-                                {comment.overBatsmen && comment.overBatsmen.length > 0 && (
-                                    <div className="flex-1 space-y-1">
-                                        {comment.overBatsmen.map((bat, i) => (
-                                            <div key={i} className="flex items-center justify-between text-sm">
-                                                <span className="text-foreground/80">{bat.name}</span>
-                                                <span className="text-foreground tabular-nums font-semibold">{bat.score}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                                {comment.overBowler && (
-                                    <div className="flex-1 border-l border-dashed border-border/30 pl-4 ml-4">
-                                        <div className="flex items-center justify-between text-sm">
-                                            <span className="text-foreground/80">{comment.overBowler.name}</span>
-                                            <span className="text-foreground tabular-nums font-semibold">{comment.overBowler.figures}</span>
+                            <div className="mt-3 pt-3 border-t border-dashed border-border/30">
+                                {/* Mobile: stacked */}
+                                <div className="flex flex-col gap-1.5 md:hidden">
+                                    {comment.overBatsmen?.map((bat, i) => (
+                                        <div key={i} className="flex items-center justify-between text-xs">
+                                            <span className="text-foreground/80 truncate">{bat.name}</span>
+                                            <span className="text-foreground tabular-nums font-semibold shrink-0 ml-2">{bat.score}</span>
                                         </div>
-                                    </div>
-                                )}
+                                    ))}
+                                    {comment.overBowler && (
+                                        <>
+                                            <div className="border-t border-border/40 my-0.5" />
+                                            <div className="flex items-center justify-between text-xs">
+                                                <span className="text-foreground/80 truncate">{comment.overBowler.name}</span>
+                                                <span className="text-foreground tabular-nums font-semibold shrink-0 ml-2">{comment.overBowler.figures}</span>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                                {/* Desktop: side by side */}
+                                <div className="hidden md:flex">
+                                    {comment.overBatsmen && comment.overBatsmen.length > 0 && (
+                                        <div className="flex-1 space-y-1">
+                                            {comment.overBatsmen.map((bat, i) => (
+                                                <div key={i} className="flex items-center justify-between text-sm">
+                                                    <span className="text-foreground/80">{bat.name}</span>
+                                                    <span className="text-foreground tabular-nums font-semibold">{bat.score}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {comment.overBowler && (
+                                        <div className="flex-1 border-l border-dashed border-border/30 pl-4 ml-4">
+                                            <div className="flex items-center justify-between text-sm">
+                                                <span className="text-foreground/80">{comment.overBowler.name}</span>
+                                                <span className="text-foreground tabular-nums font-semibold">{comment.overBowler.figures}</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         )}
 
@@ -1563,23 +1584,17 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
 
                             {/* Batsmen & Bowler */}
                             {(overSheetData.overBatsmen?.length || overSheetData.overBowler) && (
-                                <div className="flex border-t border-border/20 pt-4 mb-4">
-                                    {overSheetData.overBatsmen && overSheetData.overBatsmen.length > 0 && (
-                                        <div className="flex-1 space-y-2">
-                                            {overSheetData.overBatsmen.map((bat, i) => (
-                                                <div key={i} className="flex items-center justify-between">
-                                                    <span className="text-sm text-foreground">{bat.name}</span>
-                                                    <span className="text-sm font-semibold text-foreground tabular-nums">{bat.score}</span>
-                                                </div>
-                                            ))}
+                                <div className="border-t border-border/20 pt-4 mb-4 space-y-2">
+                                    {overSheetData.overBatsmen?.map((bat, i) => (
+                                        <div key={i} className="flex items-center justify-between">
+                                            <span className="text-sm text-foreground truncate">{bat.name}</span>
+                                            <span className="text-sm font-semibold text-foreground tabular-nums shrink-0 ml-3">{bat.score}</span>
                                         </div>
-                                    )}
+                                    ))}
                                     {overSheetData.overBowler && (
-                                        <div className="flex-1 border-l border-dashed border-border/30 pl-4 ml-4">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-sm text-foreground">{overSheetData.overBowler.name}</span>
-                                                <span className="text-sm font-semibold text-foreground tabular-nums">{overSheetData.overBowler.figures}</span>
-                                            </div>
+                                        <div className="flex items-center justify-between pt-2 mt-2 border-t border-border/40">
+                                            <span className="text-sm text-foreground truncate">{overSheetData.overBowler.name}</span>
+                                            <span className="text-sm font-semibold text-foreground tabular-nums shrink-0 ml-3">{overSheetData.overBowler.figures}</span>
                                         </div>
                                     )}
                                 </div>
