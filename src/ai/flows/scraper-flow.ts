@@ -2678,30 +2678,26 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
     }
   }
 
-  // Try to extract match data from React Server Components (RSC) payload
-  // RSC data is in self.__next_f.push([1,"..."]) calls with escaped JSON
-  const rscPushRegex = /self\.__next_f\.push\(\[1,"((?:[^"\\]|\\.)*)"\]\)/g;
-  let rscContent = '';
-  let rscMatch;
-  while ((rscMatch = rscPushRegex.exec(html)) !== null) {
-    rscContent += rscMatch[1].replace(/\\"/g, '"').replace(/\\n/g, '\n').replace(/\\\\/g, '\\');
-  }
-  if (rscContent) {
-    const mdIdx = rscContent.indexOf('"matchDetails"');
-    if (mdIdx > -1) {
-      // Find the JSON array after "matchDetails":
-      const arrStart = rscContent.indexOf('[', mdIdx);
-      if (arrStart > -1) {
-        let depth = 0;
-        let end = -1;
-        for (let i = arrStart; i < rscContent.length && i < arrStart + 50000; i++) {
-          if (rscContent[i] === '[') depth++;
-          if (rscContent[i] === ']') depth--;
-          if (depth === 0) { end = i + 1; break; }
-        }
-        if (end > -1) {
-          try {
-            const matchDetails = JSON.parse(rscContent.substring(arrStart, end));
+  // Extract match data from RSC payload embedded in HTML
+  // The data appears as escaped JSON: \"matchDetails\":[{\"matchDetailsMap\":{...}]
+  // We unescape the quotes and parse the JSON array directly
+  const mdMarker = '"matchDetails\\":[';
+  const mdIdx = html.indexOf(mdMarker);
+  if (mdIdx > -1) {
+    const arrStart = mdIdx + mdMarker.length - 1; // position of '['
+    // Find the matching closing bracket for the array
+    let depth = 0;
+    let end = -1;
+    for (let i = arrStart; i < html.length && i < arrStart + 200000; i++) {
+      if (html[i] === '[') depth++;
+      if (html[i] === ']') depth--;
+      if (depth === 0) { end = i + 1; break; }
+    }
+    if (end > -1) {
+      try {
+        // Unescape the JSON: \" -> " and \\\\ -> \\
+        const rawJson = html.substring(arrStart, end).replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+        const matchDetails = JSON.parse(rawJson);
             const matches: LiveMatch[] = [];
             for (const dateGroup of matchDetails) {
               if (dateGroup.matchDetailsMap?.match) {
@@ -2764,8 +2760,6 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
           }
         }
       }
-    }
-  }
 
   // Try to extract JSON data from inline script tags (older pattern)
   let jsonMatch = html.match(/"matchDetails":\s*(\[[\s\S]*?\])\s*,\s*"landingPosition"/);

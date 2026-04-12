@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { getSeriesMatches } from '@/app/actions';
@@ -30,6 +30,8 @@ export default function SeriesPage() {
   const [teamFilter, setTeamFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('all');
   const [hasTrackedSeries, setHasTrackedSeries] = useState(false);
+  const todayRef = useRef<HTMLDivElement>(null);
+  const hasScrolled = useRef(false);
 
   useEffect(() => {
     if (!seriesId) return;
@@ -75,14 +77,19 @@ export default function SeriesPage() {
     );
   }
 
-  const isLive = (status: string) => {
+  const isComplete = (status: string) => {
     const s = status.toLowerCase();
-    return s.includes('live') || s.includes('need') || s.includes('session') ||
-      s.includes('innings') || s.includes('lead') || s.includes('rain') ||
-      s.includes('weather') || s.includes('delay') || s.includes('stops play');
+    return s.includes('won') || s.includes('no result') || s.includes('drawn') ||
+      s.includes('tied') || s.includes('complete') || s.includes('abandoned');
   };
 
-  const isComplete = (status: string) => status.toLowerCase().includes('won');
+  const isLive = (status: string) => {
+    if (isComplete(status)) return false;
+    const s = status.toLowerCase();
+    return s.includes('live') || s.includes('need') || s.includes('session') ||
+      s.includes('innings') || s.includes('lead') || s.includes('delay') ||
+      s.includes('stops play');
+  };
 
   const seriesName = matches.length > 0 ? (matches[0].seriesName || 'Series Matches') : 'Series Matches';
 
@@ -151,6 +158,38 @@ export default function SeriesPage() {
   };
 
   const groupedMatches = groupMatchesByDate(filteredMatches);
+
+  // Find the best date group to scroll to: today, or nearest future date
+  const todayGroupIndex = (() => {
+    if (groupedMatches.length === 0) return -1;
+    const today = new Date();
+    const todayStr = today.toLocaleDateString('en-US', {
+      weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
+    }).toUpperCase().replace(',', '');
+    // Match by formatted date string (same format as group.date)
+    for (let i = 0; i < groupedMatches.length; i++) {
+      if (groupedMatches[i].date === todayStr) return i;
+    }
+    // No exact match - find nearest future date
+    const now = Date.now();
+    for (let i = 0; i < groupedMatches.length; i++) {
+      if (groupedMatches[i].timestamp > now) return i;
+    }
+    return groupedMatches.length - 1;
+  })();
+
+  // Auto-scroll to today's date group after matches load
+  useEffect(() => {
+    if (!loading && matches.length > 0 && !hasScrolled.current && view === 'matches' && todayRef.current) {
+      hasScrolled.current = true;
+      setTimeout(() => {
+        const el = todayRef.current;
+        if (!el) return;
+        const y = el.getBoundingClientRect().top + window.scrollY - 120; // offset for sticky header
+        window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+      }, 300);
+    }
+  }, [loading, matches.length, view]);
 
   const tabs: { value: SeriesView; label: string; shortLabel: string; icon: typeof Calendar; hidden?: boolean }[] = [
     { value: 'matches', label: 'Matches', shortLabel: 'Matches', icon: Calendar },
@@ -289,7 +328,7 @@ export default function SeriesPage() {
             {!loading && !error && matches.length > 0 && (
               <div className="space-y-8">
                 {groupedMatches.map((group, groupIndex) => (
-                  <div key={group.date}>
+                  <div key={group.date} ref={groupIndex === todayGroupIndex ? todayRef : undefined}>
                     {/* Date Header */}
                     <div className="flex items-center gap-3 mb-5">
                       <div className="h-px flex-1 bg-gradient-to-r from-primary/30 to-transparent" />
