@@ -6,7 +6,11 @@ import type { SeriesStatsType, SeriesStatCategory } from '@/app/actions';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { BarChart3, ChevronDown } from "lucide-react";
+import { BarChart3, ChevronDown, LoaderCircle } from "lucide-react";
+import { getPlayerProfile } from '@/app/actions';
+import type { PlayerProfile } from '@/app/actions';
+import PlayerProfileDisplay from './player-profile';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 
 interface SeriesStatsProps {
   seriesId: string;
@@ -19,6 +23,19 @@ export default function SeriesStatsDisplay({ seriesId }: SeriesStatsProps) {
   const [loading, setLoading] = useState(true);
   const [statsLoading, setStatsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+  const [selectedPlayerName, setSelectedPlayerName] = useState<string | null>(null);
+  const [selectedProfile, setSelectedProfile] = useState<PlayerProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+
+  useEffect(() => {
+    if (!selectedProfileId) return;
+    setProfileLoading(true);
+    getPlayerProfile(selectedProfileId, selectedPlayerName || undefined).then(result => {
+      if (result.success && result.data) setSelectedProfile(result.data);
+      setProfileLoading(false);
+    });
+  }, [selectedProfileId, selectedPlayerName]);
 
   // Load stat types on mount
   useEffect(() => {
@@ -86,10 +103,10 @@ export default function SeriesStatsDisplay({ seriesId }: SeriesStatsProps) {
       <div className="flex items-center gap-3 flex-wrap">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="rounded-xl gap-2">
-              <BarChart3 className="h-4 w-4" />
+            <Button variant="outline" size="sm" className="rounded-xl gap-1.5 h-7 sm:h-8 text-[11px] sm:text-xs px-2.5">
+              <BarChart3 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
               {selectedStatLabel}
-              <ChevronDown className="h-3.5 w-3.5 opacity-50" />
+              <ChevronDown className="h-2.5 w-2.5 sm:h-3 sm:w-3 opacity-50" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-56">
@@ -129,19 +146,18 @@ export default function SeriesStatsDisplay({ seriesId }: SeriesStatsProps) {
           ))}
         </div>
       ) : statData && statData.entries.length > 0 ? (
-        <div className="glass-card rounded-2xl overflow-hidden">
-          {/* Table header */}
+        <div className="glass-card rounded-3xl overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-xs sm:text-sm" style={{ minWidth: 0 }}>
               <thead>
                 <tr className="border-b border-border/50">
-                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground text-xs uppercase tracking-wider w-8">#</th>
-                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+                  <th className="text-center py-2 px-1.5 sm:px-4 font-semibold text-muted-foreground text-[9px] sm:text-xs uppercase tracking-wider w-5 sm:w-8 border-r border-border/20">#</th>
+                  <th className="text-center py-2 px-1 sm:px-4 font-semibold text-muted-foreground text-[9px] sm:text-xs uppercase tracking-wider border-r border-border/20">
                     {statData.headers[0] || 'Player'}
                   </th>
-                  {statData.headers.slice(1).map((header) => (
-                    <th key={header} className="text-right py-3 px-4 font-semibold text-muted-foreground text-xs uppercase tracking-wider whitespace-nowrap">
-                      {header}
+                  {statData.headers.slice(1).map((header, i) => (
+                    <th key={header} className={`text-center py-2 px-2 sm:px-4 font-semibold text-muted-foreground text-[9px] sm:text-xs uppercase tracking-wider whitespace-nowrap ${i < statData.headers.length - 2 ? 'border-r border-border/20' : ''}`}>
+                      {shortenHeader(header)}
                     </th>
                   ))}
                 </tr>
@@ -152,24 +168,28 @@ export default function SeriesStatsDisplay({ seriesId }: SeriesStatsProps) {
                   return (
                     <tr
                       key={`${entry.playerId}-${index}`}
-                      className="border-b border-border/30 last:border-0 hover:bg-muted/30 transition-colors"
+                      className="border-b border-border/30 last:border-0 hover:bg-muted/30 transition-colors cursor-pointer"
+                      onClick={() => {
+                        setSelectedProfileId(entry.playerId);
+                        setSelectedPlayerName(entry.playerName);
+                        setSelectedProfile(null);
+                      }}
                     >
-                      <td className="py-3 px-4">
-                        <span className={`font-mono text-xs ${isTop3 ? 'text-amber-400 font-bold' : 'text-muted-foreground'}`}>
+                      <td className="py-2 px-1.5 sm:px-4 text-center border-r border-border/20">
+                        <span className={`font-mono text-[10px] sm:text-xs ${isTop3 ? 'text-amber-400 font-bold' : 'text-muted-foreground'}`}>
                           {index + 1}
                         </span>
                       </td>
-                      <td className="py-3 px-4">
-                        <span className="font-semibold text-foreground">
+                      <td className="py-2 px-2 sm:px-4 max-w-[90px] sm:max-w-none text-center border-r border-border/20">
+                        <span className="font-semibold text-foreground text-[11px] sm:text-sm truncate block">
                           {entry.playerName}
                         </span>
                       </td>
-                      {statData.headers.slice(1).map((header) => {
-                        // Highlight the main value column (varies by stat type)
+                      {statData.headers.slice(1).map((header, i) => {
                         const isMainValue = isMainStatColumn(selectedStat, header);
                         return (
-                          <td key={header} className="text-right py-3 px-4 whitespace-nowrap">
-                            <span className={`font-mono tabular-nums ${isMainValue ? 'font-display text-base text-amber-400 score-glow' : 'text-muted-foreground'}`}>
+                          <td key={header} className={`text-center py-2 px-2 sm:px-4 whitespace-nowrap ${i < statData.headers.length - 2 ? 'border-r border-border/20' : ''}`}>
+                            <span className={`font-mono tabular-nums ${isMainValue ? 'font-display text-xs sm:text-base text-amber-400 score-glow' : 'text-muted-foreground text-[10px] sm:text-sm'}`}>
                               {entry.values[header] || '-'}
                             </span>
                           </td>
@@ -193,8 +213,51 @@ export default function SeriesStatsDisplay({ seriesId }: SeriesStatsProps) {
           </p>
         </div>
       )}
+
+      {/* Player Profile Dialog */}
+      <Dialog open={!!selectedProfileId} onOpenChange={(open) => {
+        if (!open) {
+          setSelectedProfileId(null);
+          setSelectedPlayerName(null);
+          setSelectedProfile(null);
+        }
+      }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 rounded-2xl">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Player Profile</DialogTitle>
+          </DialogHeader>
+          {profileLoading && (
+            <div className="flex justify-center items-center p-12">
+              <LoaderCircle className="w-8 h-8 animate-spin text-primary" />
+              <p className="ml-4 text-muted-foreground">Loading player profile...</p>
+            </div>
+          )}
+          {selectedProfile && (
+            <PlayerProfileDisplay profile={selectedProfile} />
+          )}
+          {!profileLoading && !selectedProfile && selectedProfileId && (
+            <div className="p-8 text-center text-muted-foreground">
+              Failed to load player profile
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
+}
+
+function shortenHeader(header: string): string {
+  const map: Record<string, string> = {
+    'MATCHES': 'M',
+    'INNS': 'I',
+    'INNINGS': 'I',
+    'RUNS': 'R',
+    'WKTS': 'W',
+    'WICKETS': 'W',
+    'OVERS': 'O',
+    'BALLS': 'B',
+  };
+  return map[header.toUpperCase()] || header;
 }
 
 function isMainStatColumn(statsType: string, header: string): boolean {

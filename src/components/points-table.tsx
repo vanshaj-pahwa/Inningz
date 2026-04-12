@@ -90,6 +90,16 @@ function GroupTable({ group, showGroupName }: { group: PointsTableGroup; showGro
 
   const totalCols = 11;
 
+  // Determine playoff qualification cutoff
+  // If any team has 'Q' status, draw line after the last qualified team
+  // Otherwise for 8+ team leagues (IPL-like), default to top 4
+  const qualifyCutoff = (() => {
+    const lastQIdx = group.teams.map((t, i) => t.teamQualifyStatus === 'Q' ? i : -1).filter(i => i >= 0).pop();
+    if (lastQIdx !== undefined && lastQIdx >= 0) return lastQIdx;
+    if (group.teams.length >= 8) return 3; // top 4 (0-indexed: after index 3)
+    return -1;
+  })();
+
   return (
     <div className="space-y-3">
       {showGroupName && group.groupName && (
@@ -99,32 +109,40 @@ function GroupTable({ group, showGroupName }: { group: PointsTableGroup; showGro
       )}
       <div className="glass-card rounded-2xl overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-xs sm:text-sm">
             <thead>
               <tr className="border-b border-border/50">
-                <th className="text-left py-3 px-4 font-semibold text-muted-foreground text-xs uppercase tracking-wider w-8">#</th>
-                <th className="text-left py-3 px-4 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Team</th>
-                <th className="text-center py-3 px-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">M</th>
-                <th className="text-center py-3 px-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">W</th>
-                <th className="text-center py-3 px-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">L</th>
-                <th className="text-center py-3 px-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">T</th>
-                <th className="text-center py-3 px-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">NR</th>
-                <th className="text-center py-3 px-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Pts</th>
-                <th className="text-right py-3 px-4 font-semibold text-muted-foreground text-xs uppercase tracking-wider">NRR</th>
-                <th className="text-center py-3 px-4 font-semibold text-muted-foreground text-xs uppercase tracking-wider hidden sm:table-cell">Form</th>
-                <th className="w-10"></th>
+                <th className="text-left py-2.5 px-2 sm:px-4 font-semibold text-muted-foreground text-[10px] sm:text-xs uppercase tracking-wider w-6 sm:w-8">#</th>
+                <th className="text-left py-2.5 px-2 sm:px-4 font-semibold text-muted-foreground text-[10px] sm:text-xs uppercase tracking-wider">Team</th>
+                <th className="text-center py-2.5 px-1.5 sm:px-3 font-semibold text-muted-foreground text-[10px] sm:text-xs uppercase tracking-wider">M</th>
+                <th className="text-center py-2.5 px-1.5 sm:px-3 font-semibold text-muted-foreground text-[10px] sm:text-xs uppercase tracking-wider">W</th>
+                <th className="text-center py-2.5 px-1.5 sm:px-3 font-semibold text-muted-foreground text-[10px] sm:text-xs uppercase tracking-wider">L</th>
+                <th className="text-center py-2.5 px-1.5 sm:px-3 font-semibold text-muted-foreground text-[10px] sm:text-xs uppercase tracking-wider ">T</th>
+                <th className="text-center py-2.5 px-1.5 sm:px-3 font-semibold text-muted-foreground text-[10px] sm:text-xs uppercase tracking-wider ">NR</th>
+                <th className="text-center py-2.5 px-1.5 sm:px-3 font-semibold text-muted-foreground text-[10px] sm:text-xs uppercase tracking-wider">Pts</th>
+                <th className="text-right py-2.5 px-2 sm:px-4 font-semibold text-muted-foreground text-[10px] sm:text-xs uppercase tracking-wider">NRR</th>
+                <th className="text-center py-2.5 px-2 sm:px-4 font-semibold text-muted-foreground text-[10px] sm:text-xs uppercase tracking-wider hidden sm:table-cell">Form</th>
+                <th className="w-6 sm:w-10"></th>
               </tr>
             </thead>
             <tbody>
               {group.teams.map((team, idx) => (
-                <TeamRow
-                  key={team.teamId}
-                  team={team}
-                  rank={idx + 1}
-                  isExpanded={expandedTeam === team.teamId}
-                  onToggle={() => toggleTeam(team.teamId)}
-                  totalCols={totalCols}
-                />
+                <>
+                  <TeamRow
+                    key={team.teamId}
+                    team={team}
+                    rank={idx + 1}
+                    isExpanded={expandedTeam === team.teamId}
+                    onToggle={() => toggleTeam(team.teamId)}
+                    totalCols={totalCols}
+                    qualifyCutoff={qualifyCutoff}
+                  />
+                  {idx === qualifyCutoff && (
+                    <tr key={`cutoff-${idx}`}>
+                      <td colSpan={totalCols} className="p-0 h-0.5 bg-primary/20" />
+                    </tr>
+                  )}
+                </>
               ))}
             </tbody>
           </table>
@@ -146,6 +164,7 @@ function TeamRow({
   isExpanded: boolean;
   onToggle: () => void;
   totalCols: number;
+  qualifyCutoff: number;
 }) {
   const router = useRouter();
   const isQualified = team.teamQualifyStatus === 'Q';
@@ -162,53 +181,55 @@ function TeamRow({
           ${isExpanded ? 'bg-muted/20' : ''}
         `}
       >
-        <td className="py-3 px-4">
-          <span className={`font-mono text-xs ${rank <= 3 ? 'text-amber-400 font-bold' : 'text-muted-foreground'}`}>
+        <td className="py-2.5 px-2 sm:px-4">
+          <span className={`font-mono text-[10px] sm:text-xs ${
+            rank <= 4 ? 'text-amber-400 font-bold' : 'text-muted-foreground'
+          }`}>
             {rank}
           </span>
         </td>
-        <td className="py-3 px-4">
-          <div className="flex items-center gap-2">
+        <td className="py-2.5 px-2 sm:px-4">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             {team.teamImageId && (
               <Image
                 src={`https://static.cricbuzz.com/a/img/v1/72x52/i1/c${team.teamImageId}/${team.teamName.toLowerCase()}.jpg`}
                 alt={team.teamName}
                 width={72}
                 height={52}
-                className="object-contain shrink-0 w-[28px] h-[20px]"
+                className="object-contain shrink-0 w-5 h-4 sm:w-[28px] sm:h-[20px]"
                 unoptimized
               />
             )}
-            <span className="font-semibold text-foreground whitespace-nowrap">
+            <span className="font-semibold text-foreground whitespace-nowrap text-xs sm:text-sm">
               {team.teamName}
             </span>
             {isQualified && (
-              <span className="text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded">Q</span>
+              <span className="text-[8px] sm:text-[10px] font-bold text-primary bg-primary/10 px-1 sm:px-1.5 py-0.5 rounded">Q</span>
             )}
           </div>
         </td>
-        <td className="text-center py-3 px-3 text-muted-foreground font-mono tabular-nums">{team.matchesPlayed}</td>
-        <td className="text-center py-3 px-3 text-green-400 font-mono tabular-nums font-medium">{team.matchesWon}</td>
-        <td className="text-center py-3 px-3 text-red-400 font-mono tabular-nums font-medium">{team.matchesLost}</td>
-        <td className="text-center py-3 px-3 text-muted-foreground font-mono tabular-nums">{team.matchesTied}</td>
-        <td className="text-center py-3 px-3 text-muted-foreground font-mono tabular-nums">{team.noRes}</td>
-        <td className="text-center py-3 px-3">
-          <span className="font-display text-base text-amber-400 score-glow tabular-nums">{team.points}</span>
+        <td className="text-center py-2.5 px-1.5 sm:px-3 text-muted-foreground font-mono tabular-nums">{team.matchesPlayed}</td>
+        <td className="text-center py-2.5 px-1.5 sm:px-3 text-green-400 font-mono tabular-nums font-medium">{team.matchesWon}</td>
+        <td className="text-center py-2.5 px-1.5 sm:px-3 text-red-400 font-mono tabular-nums font-medium">{team.matchesLost}</td>
+        <td className="text-center py-2.5 px-1.5 sm:px-3 text-muted-foreground font-mono tabular-nums ">{team.matchesTied}</td>
+        <td className="text-center py-2.5 px-1.5 sm:px-3 text-muted-foreground font-mono tabular-nums ">{team.noRes}</td>
+        <td className="text-center py-2.5 px-1.5 sm:px-3">
+          <span className="font-display text-sm sm:text-base text-amber-400 score-glow tabular-nums">{team.points}</span>
         </td>
-        <td className="text-right py-3 px-4">
-          <span className={`font-mono tabular-nums text-xs ${
+        <td className="text-right py-2.5 px-2 sm:px-4">
+          <span className={`font-mono tabular-nums text-[10px] sm:text-xs ${
             team.nrr.startsWith('+') ? 'text-green-400' : team.nrr.startsWith('-') ? 'text-red-400' : 'text-muted-foreground'
           }`}>
             {team.nrr}
           </span>
         </td>
-        <td className="text-center py-3 px-4 hidden sm:table-cell">
-          <div className="flex items-center justify-center gap-1">
+        <td className="text-center py-2.5 px-2 sm:px-4 hidden sm:table-cell">
+          <div className="flex items-center justify-center gap-0.5 sm:gap-1">
             {team.form.slice(-5).map((result, i) => (
               <span
                 key={i}
                 className={`
-                  w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center
+                  w-4 h-4 sm:w-5 sm:h-5 rounded-full text-[9px] sm:text-[10px] font-bold flex items-center justify-center
                   ${result === 'W' ? 'bg-green-500/20 text-green-400' :
                     result === 'L' ? 'bg-red-500/20 text-red-400' :
                     'bg-zinc-500/20 text-zinc-400'}
@@ -219,9 +240,9 @@ function TeamRow({
             ))}
           </div>
         </td>
-        <td className="py-3 px-2 text-center">
+        <td className="py-2.5 px-1 sm:px-2 text-center">
           {hasMatches && (
-            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 inline-block ${isExpanded ? 'rotate-180' : ''}`} />
+            <ChevronDown className={`h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground transition-transform duration-200 inline-block ${isExpanded ? 'rotate-180' : ''}`} />
           )}
         </td>
       </tr>

@@ -2101,12 +2101,16 @@ export async function getScoreForMatchId(
 
   for (const apiUrl of apiEndpoints) {
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
       const response = await fetch(apiUrl, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
           'Accept': 'application/json',
         },
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
 
       if (!response.ok) {
         continue;
@@ -2121,8 +2125,12 @@ export async function getScoreForMatchId(
 
       data = await response.json();
       break;
-    } catch (e) {
-      console.error('[getScoreForMatchId] Error with endpoint:', apiUrl, e);
+    } catch (e: any) {
+      if (e?.name === 'AbortError') {
+        console.warn(`[getScoreForMatchId] Timeout for endpoint: ${apiUrl}`);
+      } else {
+        console.error('[getScoreForMatchId] Error with endpoint:', apiUrl, e?.cause?.code || e?.message || e);
+      }
     }
   }
 

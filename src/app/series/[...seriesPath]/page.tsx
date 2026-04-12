@@ -32,19 +32,38 @@ export default function SeriesPage() {
   const [hasTrackedSeries, setHasTrackedSeries] = useState(false);
   const [topRunScorer, setTopRunScorer] = useState<{ name: string; value: string } | null>(null);
   const [topWicketTaker, setTopWicketTaker] = useState<{ name: string; value: string } | null>(null);
-  const [headerHeight, setHeaderHeight] = useState(0);
   const headerRef = useRef<HTMLElement>(null);
   const todayRef = useRef<HTMLDivElement>(null);
   const hasScrolled = useRef(false);
 
+  // Auto-scroll to today's date group — wait until the ref element has actual height (cards rendered)
   useEffect(() => {
-    const el = headerRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(() => setHeaderHeight(el.offsetHeight));
-    ro.observe(el);
-    setHeaderHeight(el.offsetHeight);
-    return () => ro.disconnect();
-  }, []);
+    if (loading || matches.length === 0 || hasScrolled.current || view !== 'matches') return;
+
+    const check = () => {
+      const el = todayRef.current;
+      if (!el || el.offsetHeight < 50) return false; // cards not rendered yet
+      hasScrolled.current = true;
+      const targetY = Math.max(0, el.getBoundingClientRect().top + window.scrollY - (headerRef.current?.offsetHeight || 120));
+      const startY = window.scrollY;
+      const distance = targetY - startY;
+      if (Math.abs(distance) < 10) return true;
+      const duration = Math.min(5000, Math.max(2500, Math.abs(distance) * 2));
+      const startTime = performance.now();
+      const ease = (t: number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      const step = (now: number) => {
+        const progress = Math.min((now - startTime) / duration, 1);
+        window.scrollTo(0, startY + distance * ease(progress));
+        if (progress < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+      return true;
+    };
+
+    // Wait 5s for all cards to fully render, then scroll
+    const timer = setTimeout(() => check(), 5000);
+    return () => clearTimeout(timer);
+  }, [loading, matches.length, view]);
 
   useEffect(() => {
     if (!seriesId) return;
@@ -189,52 +208,21 @@ export default function SeriesPage() {
 
   const groupedMatches = groupMatchesByDate(filteredMatches);
 
-  // Find the best date group to scroll to: today, or nearest future date
   const todayGroupIndex = (() => {
     if (groupedMatches.length === 0) return -1;
     const today = new Date();
     const todayStr = today.toLocaleDateString('en-US', {
       weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
     }).toUpperCase().replace(',', '');
-    // Match by formatted date string (same format as group.date)
     for (let i = 0; i < groupedMatches.length; i++) {
       if (groupedMatches[i].date === todayStr) return i;
     }
-    // No exact match - find nearest future date
     const now = Date.now();
     for (let i = 0; i < groupedMatches.length; i++) {
       if (groupedMatches[i].timestamp > now) return i;
     }
     return groupedMatches.length - 1;
   })();
-
-  const hasActiveFilter = teamFilter !== 'all' || dateFilter !== 'all';
-
-  // Auto-scroll to today's date group after matches load (skip if filter is active)
-  useEffect(() => {
-    if (!loading && matches.length > 0 && !hasScrolled.current && view === 'matches' && !hasActiveFilter) {
-      const timer = setTimeout(() => {
-        const el = todayRef.current;
-        if (!el) return;
-        hasScrolled.current = true;
-        const targetY = Math.max(0, el.getBoundingClientRect().top + window.scrollY - (headerRef.current?.offsetHeight || 120));
-        const startY = window.scrollY;
-        const distance = targetY - startY;
-        if (Math.abs(distance) < 10) return;
-        const duration = Math.min(2500, Math.max(1200, Math.abs(distance) * 1.5));
-        const startTime = performance.now();
-        const easeInOutCubic = (t: number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-        const step = (now: number) => {
-          const elapsed = now - startTime;
-          const progress = Math.min(elapsed / duration, 1);
-          window.scrollTo(0, startY + distance * easeInOutCubic(progress));
-          if (progress < 1) requestAnimationFrame(step);
-        };
-        requestAnimationFrame(step);
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [loading, matches.length, view, hasActiveFilter]);
 
   const tabs: { value: SeriesView; label: string; shortLabel: string; hidden?: boolean }[] = [
     { value: 'matches', label: 'Matches', shortLabel: 'Matches' },
@@ -280,19 +268,66 @@ export default function SeriesPage() {
             })}
           </div>
 
-          {/* Series Top Performers */}
-          {view === 'matches' && (topRunScorer || topWicketTaker) && (
-            <div className="flex gap-3 pb-2">
-              {topRunScorer && topRunScorer.value && (
-                <div className="flex-1 min-w-0 px-4 py-3 rounded-xl bg-orange-500/10 border border-orange-500/20">
-                  <p className="text-[10px] uppercase tracking-wider text-orange-400 font-semibold">Most Runs</p>
-                  <p className="text-sm font-medium truncate">{topRunScorer.name} <span className="text-muted-foreground">({topRunScorer.value})</span></p>
+          {/* Series Top Performers + Filters */}
+          {view === 'matches' && (
+            <div className="space-y-2 pb-2">
+              {/* Top Performers */}
+              {(topRunScorer || topWicketTaker) && (
+                <div className="flex flex-col sm:flex-row gap-2">
+                  {topRunScorer && topRunScorer.value && (
+                    <div className="min-w-0 px-3 py-1.5 sm:py-2 rounded-xl bg-orange-500/10 border border-orange-500/20 flex-1">
+                      <p className="text-[8px] sm:text-[9px] uppercase tracking-wider text-orange-400 font-semibold">Most Runs</p>
+                      <p className="text-[11px] sm:text-xs font-medium truncate">{topRunScorer.name} <span className="text-muted-foreground">({topRunScorer.value})</span></p>
+                    </div>
+                  )}
+                  {topWicketTaker && topWicketTaker.value && (
+                    <div className="min-w-0 px-3 py-1.5 sm:py-2 rounded-xl bg-purple-500/10 border border-purple-500/20 flex-1">
+                      <p className="text-[8px] sm:text-[9px] uppercase tracking-wider text-purple-400 font-semibold">Most Wickets</p>
+                      <p className="text-[11px] sm:text-xs font-medium truncate">{topWicketTaker.name} <span className="text-muted-foreground">({topWicketTaker.value})</span></p>
+                    </div>
+                  )}
                 </div>
               )}
-              {topWicketTaker && topWicketTaker.value && (
-                <div className="flex-1 min-w-0 px-4 py-3 rounded-xl bg-purple-500/10 border border-purple-500/20">
-                  <p className="text-[10px] uppercase tracking-wider text-purple-400 font-semibold">Most Wickets</p>
-                  <p className="text-sm font-medium truncate">{topWicketTaker.name} <span className="text-muted-foreground">({topWicketTaker.value})</span></p>
+              {/* Filters */}
+              {!loading && !error && matches.length > 0 && (
+                <div className="flex justify-end gap-2">
+                  {availableDates.length > 1 && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" className="rounded-xl gap-1.5 h-7 sm:h-8 text-[11px] sm:text-xs px-2.5">
+                          {dateFilter === 'all' ? 'All Dates' : dateFilter}
+                          <ChevronDown className="h-2.5 w-2.5 sm:h-3 sm:w-3 opacity-50" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="rounded-xl max-h-72 overflow-y-auto">
+                        <DropdownMenuRadioGroup value={dateFilter} onValueChange={setDateFilter}>
+                          <DropdownMenuRadioItem value="all" className="rounded-lg">All Dates</DropdownMenuRadioItem>
+                          {availableDates.map((date) => (
+                            <DropdownMenuRadioItem key={date} value={date} className="rounded-lg">{date}</DropdownMenuRadioItem>
+                          ))}
+                        </DropdownMenuRadioGroup>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                  {teamNames.length > 2 && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" className="rounded-xl gap-1.5 h-7 sm:h-8 text-[11px] sm:text-xs px-2.5">
+                          <Filter className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                          {teamFilter === 'all' ? 'All Teams' : teamFilter}
+                          <ChevronDown className="h-2.5 w-2.5 sm:h-3 sm:w-3 opacity-50" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="rounded-xl max-h-72 overflow-y-auto">
+                        <DropdownMenuRadioGroup value={teamFilter} onValueChange={setTeamFilter}>
+                          <DropdownMenuRadioItem value="all" className="rounded-lg">All Teams</DropdownMenuRadioItem>
+                          {teamNames.map((name) => (
+                            <DropdownMenuRadioItem key={name} value={name} className="rounded-lg">{name}</DropdownMenuRadioItem>
+                          ))}
+                        </DropdownMenuRadioGroup>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
               )}
             </div>
@@ -300,66 +335,40 @@ export default function SeriesPage() {
         </div>
       </header>
 
-      {/* Sticky Filters */}
-      {view === 'matches' && !loading && !error && matches.length > 0 && (
-        <div className="sticky z-40 glass-nav !border-t-0" style={{ top: headerHeight }}>
-          <div className="max-w-7xl mx-auto px-4 md:px-6 py-2 flex justify-end gap-2">
-            {availableDates.length > 1 && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="rounded-xl gap-1.5">
-                    {dateFilter === 'all' ? 'All Dates' : dateFilter}
-                    <ChevronDown className="h-3 w-3 opacity-50" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="rounded-xl max-h-72 overflow-y-auto">
-                  <DropdownMenuRadioGroup value={dateFilter} onValueChange={setDateFilter}>
-                    <DropdownMenuRadioItem value="all" className="rounded-lg">
-                      All Dates
-                    </DropdownMenuRadioItem>
-                    {availableDates.map((date) => (
-                      <DropdownMenuRadioItem key={date} value={date} className="rounded-lg">
-                        {date}
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-            {teamNames.length > 2 && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="rounded-xl gap-2">
-                    <Filter className="h-3.5 w-3.5" />
-                    {teamFilter === 'all' ? 'All Teams' : teamFilter}
-                    <ChevronDown className="h-3.5 w-3.5 opacity-50" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="rounded-xl max-h-72 overflow-y-auto">
-                  <DropdownMenuRadioGroup value={teamFilter} onValueChange={setTeamFilter}>
-                    <DropdownMenuRadioItem value="all" className="rounded-lg">
-                      All Teams
-                    </DropdownMenuRadioItem>
-                    {teamNames.map((name) => (
-                      <DropdownMenuRadioItem key={name} value={name} className="rounded-lg">
-                        {name}
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </div>
-        </div>
-      )}
-
       <main className="max-w-7xl mx-auto px-4 md:px-6 py-8">
         {view === 'matches' && (
           <>
             {loading && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[...Array(6)].map((_, i) => (
-                  <div key={i} className="skeleton h-40 rounded-2xl" />
+              <div className="space-y-8">
+                {[...Array(3)].map((_, g) => (
+                  <div key={g}>
+                    <div className="flex items-center gap-3 mb-5">
+                      <div className="h-px flex-1 bg-gradient-to-r from-primary/30 to-transparent" />
+                      <div className="skeleton h-3 w-28 rounded" />
+                      <div className="h-px flex-1 bg-gradient-to-l from-primary/30 to-transparent" />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {[...Array(g === 1 ? 2 : 1)].map((_, i) => (
+                        <div key={i} className="glass-card p-5 space-y-4">
+                          <div className="skeleton h-3 w-3/5 rounded" />
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div className="skeleton h-4 w-2/5 rounded" />
+                              <div className="skeleton h-5 w-20 rounded" />
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <div className="skeleton h-4 w-2/5 rounded" />
+                              <div className="skeleton h-5 w-20 rounded" />
+                            </div>
+                          </div>
+                          <div className="pt-3 border-t border-border/50">
+                            <div className="skeleton h-3 w-3/4 rounded" />
+                          </div>
+                          <div className="skeleton h-3 w-2/5 rounded" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
