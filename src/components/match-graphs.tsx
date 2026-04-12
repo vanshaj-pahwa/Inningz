@@ -200,7 +200,10 @@ export default function MatchGraphs({ matchId, initialTab }: MatchGraphsProps) {
 
                 {activeTab === 'runRate' && (
                   overInnings.length > 0 ? (
-                    <RunRateChart allInnings={overInnings} />
+                    <RunRateChart
+                      allInnings={overInnings}
+                      teamColors={winProbData ? [winProbData.team1Color, winProbData.team2Color] : undefined}
+                    />
                   ) : (
                     <EmptyState message="No run rate data available" />
                   )
@@ -208,7 +211,10 @@ export default function MatchGraphs({ matchId, initialTab }: MatchGraphsProps) {
 
                 {activeTab === 'worm' && (
                   overInnings.length > 0 ? (
-                    <WormChart allInnings={overInnings} />
+                    <WormChart
+                      allInnings={overInnings}
+                      teamColors={winProbData ? [winProbData.team1Color, winProbData.team2Color] : undefined}
+                    />
                   ) : (
                     <EmptyState message="No worm data available" />
                   )
