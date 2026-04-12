@@ -13,13 +13,20 @@ import type { InningsOverData } from '@/app/actions';
 
 interface RunRateChartProps {
   allInnings: { inningsId: number; data: InningsOverData }[];
-  teamColors?: string[];
+  teamColorMap?: { name: string; color: string }[];
 }
 
 const DEFAULT_COLORS = ['#E6A937', '#0588F0', '#22c55e', '#ef4444'];
 
-export default function RunRateChart({ allInnings, teamColors }: RunRateChartProps) {
-  const COLORS = teamColors && teamColors.length >= allInnings.length ? teamColors : DEFAULT_COLORS;
+export default function RunRateChart({ allInnings, teamColorMap }: RunRateChartProps) {
+  // Map each innings to its team color by matching team name
+  const COLORS = allInnings.map((inn, idx) => {
+    if (teamColorMap) {
+      const match = teamColorMap.find(t => inn.data.teamName.toLowerCase().includes(t.name.toLowerCase()) || t.name.toLowerCase().includes(inn.data.teamName.toLowerCase()));
+      if (match) return match.color;
+    }
+    return DEFAULT_COLORS[idx % DEFAULT_COLORS.length];
+  });
   if (!allInnings.length) return null;
 
   const maxOvers = Math.max(...allInnings.map(i => i.data.overs.length));

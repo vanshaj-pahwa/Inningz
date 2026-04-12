@@ -13,13 +13,19 @@ import type { InningsOverData } from '@/app/actions';
 
 interface WormChartProps {
   allInnings: { inningsId: number; data: InningsOverData }[];
-  teamColors?: string[];
+  teamColorMap?: { name: string; color: string }[];
 }
 
 const DEFAULT_COLORS = ['#E6A937', '#0588F0', '#22c55e', '#ef4444'];
 
-export default function WormChart({ allInnings, teamColors }: WormChartProps) {
-  const COLORS = teamColors && teamColors.length >= allInnings.length ? teamColors : DEFAULT_COLORS;
+export default function WormChart({ allInnings, teamColorMap }: WormChartProps) {
+  const COLORS = allInnings.map((inn, idx) => {
+    if (teamColorMap) {
+      const match = teamColorMap.find(t => inn.data.teamName.toLowerCase().includes(t.name.toLowerCase()) || t.name.toLowerCase().includes(inn.data.teamName.toLowerCase()));
+      if (match) return match.color;
+    }
+    return DEFAULT_COLORS[idx % DEFAULT_COLORS.length];
+  });
   if (!allInnings.length) return null;
 
   const maxOvers = Math.max(...allInnings.map(i => i.data.overs.length));
