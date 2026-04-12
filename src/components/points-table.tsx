@@ -3,20 +3,24 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { getSeriesPointsTable } from '@/app/actions';
+import { getSeriesPointsTable, getSeriesStats } from '@/app/actions';
 import type { PointsTableData, PointsTableGroup, PointsTableTeam } from '@/app/actions';
+import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { TableProperties, ChevronDown } from "lucide-react";
+import { TableProperties, ChevronDown, ChevronRight } from "lucide-react";
 
 interface PointsTableProps {
   seriesId: string;
   onAvailabilityChange?: (available: boolean) => void;
+  showTopPerformers?: boolean;
 }
 
-export default function PointsTableDisplay({ seriesId, onAvailabilityChange }: PointsTableProps) {
+export default function PointsTableDisplay({ seriesId, onAvailabilityChange, showTopPerformers = false }: PointsTableProps) {
   const [data, setData] = useState<PointsTableData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [topRunScorer, setTopRunScorer] = useState<{ name: string; value: string } | null>(null);
+  const [topWicketTaker, setTopWicketTaker] = useState<{ name: string; value: string } | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -36,6 +40,22 @@ export default function PointsTableDisplay({ seriesId, onAvailabilityChange }: P
       setLoading(false);
     };
     fetchData();
+
+    // Fetch top performers only when needed
+    if (!showTopPerformers) return;
+    Promise.all([
+      getSeriesStats(seriesId, 'mostRuns').catch(() => null),
+      getSeriesStats(seriesId, 'mostWickets').catch(() => null),
+    ]).then(([runsResult, wktsResult]) => {
+      if (runsResult?.success && runsResult.data?.entries?.[0]) {
+        const top = runsResult.data.entries[0];
+        setTopRunScorer({ name: top.playerName, value: top.values['RUNS'] || top.values['Runs'] || '' });
+      }
+      if (wktsResult?.success && wktsResult.data?.entries?.[0]) {
+        const top = wktsResult.data.entries[0];
+        setTopWicketTaker({ name: top.playerName, value: top.values['WKTS'] || top.values['Wkts'] || '' });
+      }
+    });
   }, [seriesId]);
 
   if (loading) {
@@ -73,7 +93,36 @@ export default function PointsTableDisplay({ seriesId, onAvailabilityChange }: P
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      {/* Top Performers */}
+      {showTopPerformers && (topRunScorer || topWicketTaker) && (
+        <div className="space-y-2.5">
+          <div className="flex flex-col sm:flex-row gap-2">
+            {topRunScorer && topRunScorer.value && (
+              <div className="min-w-0 px-3 py-2 sm:py-2 rounded-xl bg-orange-500/10 border border-orange-500/20 flex-1">
+                <p className="text-[8px] sm:text-[9px] uppercase tracking-wider text-orange-400 font-semibold">Most Runs</p>
+                <p className="text-[11px] sm:text-xs font-medium truncate">{topRunScorer.name} <span className="text-muted-foreground">({topRunScorer.value})</span></p>
+              </div>
+            )}
+            {topWicketTaker && topWicketTaker.value && (
+              <div className="min-w-0 px-3 py-2 sm:py-2 rounded-xl bg-purple-500/10 border border-purple-500/20 flex-1">
+                <p className="text-[8px] sm:text-[9px] uppercase tracking-wider text-purple-400 font-semibold">Most Wickets</p>
+                <p className="text-[11px] sm:text-xs font-medium truncate">{topWicketTaker.name} <span className="text-muted-foreground">({topWicketTaker.value})</span></p>
+              </div>
+            )}
+          </div>
+          <div className="flex justify-end">
+            <Link
+              href={`/series/${seriesId}?view=stats`}
+              className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+            >
+              View all stats
+              <ChevronRight className="w-3 h-3" />
+            </Link>
+          </div>
+        </div>
+      )}
+
       {data.groups.map((group, groupIdx) => (
         <GroupTable key={groupIdx} group={group} showGroupName={data.groups.length > 1} />
       ))}

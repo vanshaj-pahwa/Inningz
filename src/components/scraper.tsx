@@ -1409,7 +1409,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                 {view === 'squads' && <MatchSquadsDisplay matchId={matchId} />}
                 {view === 'graphs' && <MatchGraphs matchId={matchId} initialTab={graphsInitialTab} />}
                 {view === 'table' && data?.seriesId && (
-                    <PointsTableDisplay seriesId={data.seriesId} />
+                    <PointsTableDisplay seriesId={data.seriesId} showTopPerformers />
                 )}
             </div>
 
