@@ -745,18 +745,42 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                 </>
                             );
                         })()}
+                        {/* Batsmen & Bowler */}
+                        {(comment.overBatsmen?.length || comment.overBowler) && (
+                            <div className="flex mt-3 pt-3 border-t border-dashed border-border/30">
+                                {comment.overBatsmen && comment.overBatsmen.length > 0 && (
+                                    <div className="flex-1 space-y-1">
+                                        {comment.overBatsmen.map((bat, i) => (
+                                            <div key={i} className="flex items-center justify-between text-sm">
+                                                <span className="text-foreground/80">{bat.name}</span>
+                                                <span className="text-foreground tabular-nums font-semibold">{bat.score}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                {comment.overBowler && (
+                                    <div className="flex-1 border-l border-dashed border-border/30 pl-4 ml-4">
+                                        <div className="flex items-center justify-between text-sm">
+                                            <span className="text-foreground/80">{comment.overBowler.name}</span>
+                                            <span className="text-foreground tabular-nums font-semibold">{comment.overBowler.figures}</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         {/* Over Summary & View Overs buttons */}
                         <div className="flex items-center gap-4 mt-2.5 pt-2.5 border-t border-border/30">
                             <button
                                 onClick={() => { setOverSheetData(comment); setOverSheetOpen(true); }}
-                                className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                                className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
                             >
                                 Over Summary
                                 <ChevronRight className="w-3 h-3" />
                             </button>
                             <button
                                 onClick={() => setView('graphs')}
-                                className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                                className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
                             >
                                 View all overs
                                 <ChevronRight className="w-3 h-3" />

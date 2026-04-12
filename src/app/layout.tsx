@@ -32,7 +32,6 @@ export const metadata: Metadata = {
   title: 'Inningz',
   description: 'Live Cricket Scores & Analytics',
   manifest: '/manifest.json',
-  themeColor: '#0A0E20',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
@@ -46,6 +45,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: 'cover',
+  themeColor: '#0A0E20',
 };
 
 export default function RootLayout({

@@ -38,11 +38,17 @@ export default function HomeDashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  const isLive = (status: string) => {
+  const isComplete = (status: string) => {
     const s = status.toLowerCase();
-    return s.includes('live') || s.includes('need') || s.includes('session') ||
-      s.includes('innings') || s.includes('lead') || s.includes('rain') ||
-      s.includes('weather') || s.includes('delay') || s.includes('stops play');
+    return s.includes('won') || s.includes('no result') || s.includes('drawn') ||
+      s.includes('tied') || s.includes('complete') || s.includes('abandoned');
+  };
+
+  const isLive = (status: string) => {
+    if (isComplete(status)) return false;
+    const s = status.toLowerCase();
+    if (s.includes('match scheduled') || s === 'status not available' || s.includes('preview')) return false;
+    return true;
   };
 
   return (
