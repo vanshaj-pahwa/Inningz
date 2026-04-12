@@ -31,6 +31,9 @@ export default function WinProbabilityChart({ data }: WinProbabilityChartProps) 
     over: p.over,
     team1: p.team1Prob,
     team2: p.team2Prob,
+    isTeam1Wicket: p.isTeam1Wicket,
+    isTeam2Wicket: p.isTeam2Wicket,
+    wicketCommentary: p.wicketCommentary,
   }));
 
   let inningsBreakIndex = -1;
@@ -41,7 +44,7 @@ export default function WinProbabilityChart({ data }: WinProbabilityChartProps) 
     }
   }
 
-  const indexedData = chartData.map((d, i) => ({ ...d, idx: i }));
+  const indexedData = chartData.map((d, i) => ({ ...d, idx: i, overLabel: `${d.over}` }));
 
   const filters = [
     { key: 'both' as const, label: 'Both' },
@@ -72,7 +75,7 @@ export default function WinProbabilityChart({ data }: WinProbabilityChartProps) 
       {/* Chart */}
       <div className="rounded-xl bg-muted/20 p-2 pt-4">
         <ResponsiveContainer width="100%" height={280}>
-          <LineChart data={indexedData} margin={{ top: 5, right: 10, left: -10, bottom: 25 }}>
+          <LineChart data={indexedData} margin={{ top: 10, right: 10, left: 0, bottom: 25 }}>
             <CartesianGrid strokeDasharray="4 4" stroke="hsl(var(--border) / 0.5)" />
             <ReferenceLine y={50} stroke="hsl(var(--border))" strokeDasharray="2 2" />
             {inningsBreakIndex > 0 && (
@@ -80,27 +83,33 @@ export default function WinProbabilityChart({ data }: WinProbabilityChartProps) 
             )}
             <XAxis
               dataKey="idx"
-              tick={false}
+              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+              tickFormatter={(idx: number) => indexedData[idx]?.overLabel || ''}
+              interval="preserveStartEnd"
               axisLine={{ stroke: 'hsl(var(--border) / 0.5)' }}
+              tickLine={false}
             />
             <YAxis
               domain={[0, 100]}
               ticks={[0, 25, 50, 75, 100]}
-              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+              tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
               axisLine={false}
               tickLine={false}
-              width={28}
-              label={{ value: '%', position: 'insideTopLeft', offset: -5, fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+              width={35}
             />
-            <Tooltip content={<WinProbTooltip team1={data.team1Name} team2={data.team2Name} color1={TEAM1_COLOR} color2={TEAM2_COLOR} />} />
+            <Tooltip content={<WinProbTooltip team1={data.team1Name} team2={data.team2Name} />} />
             {(filter === 'both' || filter === 'team1') && (
               <Line
                 type="monotone"
                 dataKey="team1"
                 stroke={TEAM1_COLOR}
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 4, strokeWidth: 0, fill: TEAM1_COLOR }}
+                strokeWidth={2.5}
+                dot={(props: any) => {
+                  const { cx, cy, payload } = props;
+                  if (!payload.isTeam1Wicket) return <circle key={`t1-${payload.over}`} r={0} />;
+                  return <circle key={`t1w-${payload.over}`} cx={cx} cy={cy} r={4} fill={TEAM1_COLOR} stroke="white" strokeWidth={1.5} />;
+                }}
+                activeDot={{ r: 5, strokeWidth: 2, stroke: TEAM1_COLOR, fill: 'hsl(var(--card))' }}
               />
             )}
             {(filter === 'both' || filter === 'team2') && (
@@ -108,9 +117,13 @@ export default function WinProbabilityChart({ data }: WinProbabilityChartProps) 
                 type="monotone"
                 dataKey="team2"
                 stroke={TEAM2_COLOR}
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 4, strokeWidth: 0, fill: TEAM2_COLOR }}
+                strokeWidth={2.5}
+                dot={(props: any) => {
+                  const { cx, cy, payload } = props;
+                  if (!payload.isTeam2Wicket) return <circle key={`t2-${payload.over}`} r={0} />;
+                  return <circle key={`t2w-${payload.over}`} cx={cx} cy={cy} r={4} fill={TEAM2_COLOR} stroke="white" strokeWidth={1.5} />;
+                }}
+                activeDot={{ r: 5, strokeWidth: 2, stroke: TEAM2_COLOR, fill: 'hsl(var(--card))' }}
               />
             )}
           </LineChart>
@@ -266,24 +279,68 @@ function InningsSection({ title, points, team1Color, team2Color }: {
   );
 }
 
-function WinProbTooltip({ active, payload, team1, team2, color1, color2 }: any) {
+function WinProbTooltip({ active, payload, team1, team2 }: any) {
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
   if (!d) return null;
 
   return (
-    <div className="bg-card text-card-foreground px-3 py-2 rounded-lg text-xs shadow-xl border border-border/80 space-y-0.5">
-      <p className="font-semibold text-foreground">Over {d.over}</p>
-      {d.team1 !== undefined && (
-        <p className="tabular-nums">
-          <span className="font-medium" style={{ color: color1 }}>{team1}</span>: {d.team1}%
-        </p>
-      )}
-      {d.team2 !== undefined && (
-        <p className="tabular-nums">
-          <span className="font-medium" style={{ color: color2 }}>{team2}</span>: {d.team2}%
-        </p>
-      )}
+    <div className="bg-card text-card-foreground rounded-xl text-xs shadow-2xl border border-border/80 max-w-[300px] overflow-hidden">
+      {/* Header */}
+      <div className="px-3 py-2 bg-muted/30 border-b border-border/30">
+        <p className="font-semibold text-foreground text-[11px]">Over {d.over} | {team1}: {d.team1}% {'\u2022'} {team2}: {d.team2}%</p>
+      </div>
+      {/* Wicket commentary */}
+      {d.wicketCommentary && (() => {
+        const text = d.wicketCommentary as string;
+        // Split: "Over X.YBowler to Batter, out Description. Batter c Fielder b Bowler score"
+        const overMatch = text.match(/^(Over \d+\.\d+)/);
+        const overBall = overMatch ? overMatch[1] : '';
+        const rest = overMatch ? text.substring(overMatch[0].length) : text;
+        // Find dismissal scorecard line at the end (e.g., "Mitchell Marsh c Shubman Gill b Kagiso Rabada 11(4) [4s-1 6s-1]")
+        const scorecardMatch = rest.match(/([A-Z][a-z]+ [A-Z][a-z]+(?:\s[A-Z][a-z]+)?\s+[clbr]\w?\s.+\d+\(\d+\)\s*\[.*\])\s*$/);
+        const scorecard = scorecardMatch ? scorecardMatch[1].trim() : '';
+        const description = scorecardMatch ? rest.substring(0, rest.indexOf(scorecard)).trim() : rest.trim();
+
+        return (
+          <div className="px-3 py-2 space-y-1.5">
+            {overBall && (
+              <p className="text-[11px] font-bold text-foreground">{overBall}</p>
+            )}
+            {description && (
+              <p className="text-[10px] text-foreground/60 leading-relaxed">
+                {(() => {
+                  // Extract bowler and batsman from "Bowler to Batsman, ..." pattern
+                  const nameMatch = description.match(/^([A-Z][a-zA-Z\s'-]+?)\s+to\s+([A-Z][a-zA-Z\s'-]+?),/);
+                  if (!nameMatch) return description;
+                  const bowler = nameMatch[1].trim();
+                  const batsman = nameMatch[2].trim();
+                  // Split text by player names and bold them
+                  const parts: (string | JSX.Element)[] = [];
+                  let key = 0;
+                  const regex = new RegExp(`(${bowler.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}|${batsman.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'g');
+                  let match: RegExpExecArray | null;
+                  let lastIndex = 0;
+                  while ((match = regex.exec(description)) !== null) {
+                    if (match.index > lastIndex) {
+                      parts.push(description.slice(lastIndex, match.index));
+                    }
+                    parts.push(<strong key={key++} className="text-foreground font-semibold">{match[1]}</strong>);
+                    lastIndex = regex.lastIndex;
+                  }
+                  if (lastIndex < description.length) {
+                    parts.push(description.slice(lastIndex));
+                  }
+                  return parts;
+                })()}
+              </p>
+            )}
+            {scorecard && (
+              <p className="text-[10px] font-semibold text-foreground pt-1 border-t border-border/20">{scorecard}</p>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }

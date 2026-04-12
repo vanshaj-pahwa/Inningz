@@ -529,6 +529,9 @@ export type WinProbPoint = {
   team1Prob: number;
   team2Name: string;
   team2Prob: number;
+  isTeam1Wicket: boolean;
+  isTeam2Wicket: boolean;
+  wicketCommentary?: string;
 };
 
 export type WinProbHistory = {
@@ -3958,14 +3961,56 @@ export async function scrapeWinProbHistory(matchId: string): Promise<WinProbHist
   // Data is in RSC flight format with escaped quotes: \"over\":1,\"team1\":47,\"team2\":53
   const points: WinProbPoint[] = [];
 
-  // Match individual data points: {\"over\":N,\"team1\":N,\"team2\":N,...\"innings\":N,...}
-  const pointRegex = /\{[\\]*"over[\\]*":\s*(\d+),[\\]*"team1[\\]*":\s*(\d+),[\\]*"team2[\\]*":\s*(\d+)[^}]*?[\\]*"innings[\\]*":\s*(\d+)/g;
+  // Match individual data points - extract each field independently from the JSON object
+  // The field order varies between entries so we match the whole object and extract fields
+  const objectRegex = /\{[\\]*"over[\\]*":\s*\d+[^}]+\}/g;
 
-  for (const match of html.matchAll(pointRegex)) {
-    const over = parseInt(match[1], 10);
-    const t1Prob = parseInt(match[2], 10);
-    const t2Prob = parseInt(match[3], 10);
-    const innings = parseInt(match[4], 10);
+  for (const objMatch of html.matchAll(objectRegex)) {
+    const obj = objMatch[0];
+    // Only process objects that have both team1 prob and innings (win prob data points)
+    const overM = obj.match(/[\\]*"over[\\]*":\s*(\d+)/);
+    const t1M = obj.match(/[\\]*"team1[\\]*":\s*(\d+)/);
+    const t2M = obj.match(/[\\]*"team2[\\]*":\s*(\d+)/);
+    const innM = obj.match(/[\\]*"innings[\\]*":\s*(\d+)/);
+    if (!overM || !t1M || !t2M || !innM) continue;
+
+    const over = parseInt(overM[1], 10);
+    const t1Prob = parseInt(t1M[1], 10);
+    const t2Prob = parseInt(t2M[1], 10);
+    const innings = parseInt(innM[1], 10);
+    const isT1Wicket = /[\\]*"isTeam1Wicket[\\]*":\s*true/.test(obj);
+    const isT2Wicket = /[\\]*"isTeam2Wicket[\\]*":\s*true/.test(obj);
+
+    // Extract wicket commentary if available
+    let wicketCommentary: string | undefined;
+    if (isT1Wicket || isT2Wicket) {
+      // Look ahead in the HTML for the wicket commentary near this data point
+      const field = isT1Wicket ? 'team1WicketCommentary' : 'team2WicketCommentary';
+      const overIdx = html.indexOf(`"over\\":${over},`);
+      if (overIdx > -1) {
+        const chunk = html.substring(overIdx, overIdx + 5000);
+        // Find the field and extract the string value between quotes
+        const fieldIdx = chunk.indexOf(field);
+        if (fieldIdx > -1) {
+          // Find opening quote of the commentary text (after :[" or :")
+          const afterField = chunk.substring(fieldIdx + field.length);
+          // Match content between the first \" and the next unescaped \"
+          const textMatch = afterField.match(/[\\]*":\[?[\\]*"((?:[^\\"]|\\\\|\\[^"])*)[\\]*"/);
+          if (textMatch && textMatch[1].length > 5) {
+            wicketCommentary = textMatch[1]
+              .replace(/\\u003c/g, '<')
+              .replace(/\\u003e/g, '>')
+              .replace(/<\/?span>/gi, '')
+              .replace(/<\/?b>/gi, '')
+              .replace(/<br\s*\/?>/gi, '\n')
+              .replace(/<[^>]*>/g, '')
+              .replace(/\\"/g, '"')
+              .replace(/\\n/g, '\n')
+              .trim();
+          }
+        }
+      }
+    }
 
     points.push({
       over,
@@ -3974,6 +4019,9 @@ export async function scrapeWinProbHistory(matchId: string): Promise<WinProbHist
       team1Prob: t1Prob,
       team2Name: team2Name || 'Team 2',
       team2Prob: t2Prob,
+      isTeam1Wicket: isT1Wicket,
+      isTeam2Wicket: isT2Wicket,
+      wicketCommentary,
     });
   }
 
