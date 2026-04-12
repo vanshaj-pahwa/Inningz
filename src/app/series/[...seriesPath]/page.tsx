@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { getSeriesMatches, getSeriesStats } from '@/app/actions';
 import type { LiveMatch, SeriesStatCategory } from '@/app/actions';
 import { Button } from '@/components/ui/button';
@@ -18,13 +18,22 @@ type SeriesView = 'matches' | 'stats' | 'points';
 export default function SeriesPage() {
   const router = useRouter();
   const params = useParams();
-  const searchParams = useSearchParams();
   const { addSeries } = useRecentHistoryContext();
   const seriesPath = params.seriesPath as string[] | undefined;
   const seriesId = seriesPath ? seriesPath.join('/') : undefined;
 
-  const initialView = (searchParams.get('view') as SeriesView) || 'matches';
-  const [view, setView] = useState<SeriesView>(initialView);
+  const [view, setView] = useState<SeriesView>('matches');
+  const viewInitialized = useRef(false);
+
+  // Read ?view= param on mount
+  useEffect(() => {
+    if (viewInitialized.current) return;
+    viewInitialized.current = true;
+    const v = new URLSearchParams(window.location.search).get('view');
+    if (v === 'stats' || v === 'points' || v === 'matches') {
+      setView(v);
+    }
+  }, []);
   const [matches, setMatches] = useState<LiveMatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

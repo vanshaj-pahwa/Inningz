@@ -13,9 +13,10 @@ interface PointsTableProps {
   seriesId: string;
   onAvailabilityChange?: (available: boolean) => void;
   showTopPerformers?: boolean;
+  seriesName?: string;
 }
 
-export default function PointsTableDisplay({ seriesId, onAvailabilityChange, showTopPerformers = false }: PointsTableProps) {
+export default function PointsTableDisplay({ seriesId, onAvailabilityChange, showTopPerformers = false, seriesName }: PointsTableProps) {
   const [data, setData] = useState<PointsTableData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -113,7 +114,7 @@ export default function PointsTableDisplay({ seriesId, onAvailabilityChange, sho
           </div>
           <div className="flex justify-end">
             <Link
-              href={`/series/${seriesId}?view=stats`}
+              href={`/series/${seriesId}${seriesName ? `/${seriesName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}` : ''}?view=stats`}
               className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
             >
               View all stats
