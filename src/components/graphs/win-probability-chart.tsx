@@ -18,10 +18,9 @@ interface WinProbabilityChartProps {
   data: WinProbHistory;
 }
 
-const TEAM1_COLOR = '#E6A937';
-const TEAM2_COLOR = '#0588F0';
-
 export default function WinProbabilityChart({ data }: WinProbabilityChartProps) {
+  const TEAM1_COLOR = data.team1Color || '#E6A937';
+  const TEAM2_COLOR = data.team2Color || '#0588F0';
   const [filter, setFilter] = useState<'both' | 'team1' | 'team2'>('both');
 
   if (!data.points.length) {
@@ -93,7 +92,7 @@ export default function WinProbabilityChart({ data }: WinProbabilityChartProps) 
               width={28}
               label={{ value: '%', position: 'insideTopLeft', offset: -5, fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
             />
-            <Tooltip content={<WinProbTooltip team1={data.team1Name} team2={data.team2Name} />} />
+            <Tooltip content={<WinProbTooltip team1={data.team1Name} team2={data.team2Name} color1={TEAM1_COLOR} color2={TEAM2_COLOR} />} />
             {(filter === 'both' || filter === 'team1') && (
               <Line
                 type="monotone"
@@ -143,12 +142,12 @@ export default function WinProbabilityChart({ data }: WinProbabilityChartProps) 
       </div>
 
       {/* Over-by-over bars */}
-      <OverByOverBars data={data} inningsBreakIndex={inningsBreakIndex} />
+      <OverByOverBars data={data} inningsBreakIndex={inningsBreakIndex} team1Color={TEAM1_COLOR} team2Color={TEAM2_COLOR} />
     </div>
   );
 }
 
-function OverByOverBars({ data, inningsBreakIndex }: { data: WinProbHistory; inningsBreakIndex: number }) {
+function OverByOverBars({ data, inningsBreakIndex, team1Color, team2Color }: { data: WinProbHistory; inningsBreakIndex: number; team1Color: string; team2Color: string }) {
   const [expanded, setExpanded] = useState(false);
 
   const inn1Points = inningsBreakIndex > 0
@@ -178,20 +177,32 @@ function OverByOverBars({ data, inningsBreakIndex }: { data: WinProbHistory; inn
 
       {expanded && (
         <div className="border-t border-border/40">
+          {/* Legend */}
+          <div className="flex items-center gap-4 px-4 py-2 text-[10px] text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: team1Color }} />
+              {data.team1Name}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: team2Color }} />
+              {data.team2Name}
+            </span>
+          </div>
+
           {inn1Sorted.length > 0 && (
             <InningsSection
               title={`${data.team1Name} (1st Innings)`}
               points={inn1Sorted}
-              team1Name={data.team1Name}
-              team2Name={data.team2Name}
+              team1Color={team1Color}
+              team2Color={team2Color}
             />
           )}
           {inn2Sorted.length > 0 && (
             <InningsSection
               title={`${data.team2Name} (2nd Innings)`}
               points={inn2Sorted}
-              team1Name={data.team1Name}
-              team2Name={data.team2Name}
+              team1Color={team1Color}
+              team2Color={team2Color}
             />
           )}
         </div>
@@ -200,44 +211,62 @@ function OverByOverBars({ data, inningsBreakIndex }: { data: WinProbHistory; inn
   );
 }
 
-function InningsSection({ title, points, team1Name, team2Name }: {
-  title: string; points: any[]; team1Name: string; team2Name: string;
+function InningsSection({ title, points, team1Color, team2Color }: {
+  title: string; points: any[]; team1Color: string; team2Color: string;
 }) {
   return (
     <div>
       <div className="bg-muted/20 text-muted-foreground px-4 py-1.5 text-[11px] font-medium tracking-wide">
         {title}
       </div>
-      <div className="px-4 py-2.5 space-y-1.5">
-        {points.map(p => (
-          <div
-            key={`${p.innings}-${p.over}`}
-            className="flex items-center gap-2.5"
-            title={`Over ${p.over} | ${team1Name}: ${p.team1Prob}%${p.team2Prob > 0 ? ` \u2022 ${team2Name}: ${p.team2Prob}%` : ''}`}
-          >
-            <span className="w-5 text-[10px] text-muted-foreground/70 tabular-nums text-right shrink-0">
-              {p.over}
-            </span>
-            <div className="flex-1 relative h-[6px] rounded-full bg-muted/30 overflow-hidden">
-              <div
-                className="absolute left-0 top-0 h-full"
-                style={{ width: `${p.team1Prob}%`, backgroundColor: TEAM1_COLOR }}
-              />
-              {p.team2Prob > 0 && (
+      <div className="px-4 py-2 space-y-0.5">
+        {points.map(p => {
+          const leader = p.team1Prob >= p.team2Prob ? 'team1' : 'team2';
+          return (
+            <div
+              key={`${p.innings}-${p.over}`}
+              className="flex items-center gap-2 py-1 group hover:bg-muted/10 rounded -mx-1 px-1 transition-colors"
+            >
+              <span className="w-6 text-[11px] text-muted-foreground tabular-nums text-right shrink-0 font-medium">
+                {p.over}
+              </span>
+
+              {/* Team 1 percentage */}
+              <span
+                className="w-8 text-[11px] tabular-nums text-right shrink-0 font-semibold"
+                style={{ color: leader === 'team1' ? team1Color : 'hsl(var(--muted-foreground))' }}
+              >
+                {p.team1Prob}%
+              </span>
+
+              {/* Bar */}
+              <div className="flex-1 flex items-center h-2 gap-px">
                 <div
-                  className="absolute top-0 h-full"
-                  style={{ width: `${p.team2Prob}%`, left: `calc(${p.team1Prob}% + 3px)`, backgroundColor: TEAM2_COLOR }}
+                  className="h-full rounded-l-sm transition-all"
+                  style={{ width: `${p.team1Prob}%`, backgroundColor: team1Color, opacity: leader === 'team1' ? 1 : 0.4 }}
                 />
-              )}
+                <div
+                  className="h-full rounded-r-sm transition-all"
+                  style={{ width: `${p.team2Prob}%`, backgroundColor: team2Color, opacity: leader === 'team2' ? 1 : 0.4 }}
+                />
+              </div>
+
+              {/* Team 2 percentage */}
+              <span
+                className="w-8 text-[11px] tabular-nums shrink-0 font-semibold"
+                style={{ color: leader === 'team2' ? team2Color : 'hsl(var(--muted-foreground))' }}
+              >
+                {p.team2Prob}%
+              </span>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
 }
 
-function WinProbTooltip({ active, payload, team1, team2 }: any) {
+function WinProbTooltip({ active, payload, team1, team2, color1, color2 }: any) {
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
   if (!d) return null;
@@ -247,12 +276,12 @@ function WinProbTooltip({ active, payload, team1, team2 }: any) {
       <p className="font-semibold text-foreground">Over {d.over}</p>
       {d.team1 !== undefined && (
         <p className="tabular-nums">
-          <span className="font-medium" style={{ color: TEAM1_COLOR }}>{team1}</span>: {d.team1}%
+          <span className="font-medium" style={{ color: color1 }}>{team1}</span>: {d.team1}%
         </p>
       )}
       {d.team2 !== undefined && (
         <p className="tabular-nums">
-          <span className="font-medium" style={{ color: TEAM2_COLOR }}>{team2}</span>: {d.team2}%
+          <span className="font-medium" style={{ color: color2 }}>{team2}</span>: {d.team2}%
         </p>
       )}
     </div>

@@ -59,6 +59,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
     const [statShareData, setStatShareData] = useState<{ headline?: string; text: string; snippetType?: string } | null>(null);
     const [overSheetOpen, setOverSheetOpen] = useState(false);
     const [overSheetData, setOverSheetData] = useState<Commentary | null>(null);
+    const [graphsInitialTab, setGraphsInitialTab] = useState<string | undefined>(undefined);
 
     // SSE-powered live score with polling fallback
     const {
@@ -1385,7 +1386,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                 )}
                 {view === 'scorecard' && <FullScorecard matchId={matchId} />}
                 {view === 'squads' && <MatchSquadsDisplay matchId={matchId} />}
-                {view === 'graphs' && <MatchGraphs matchId={matchId} />}
+                {view === 'graphs' && <MatchGraphs matchId={matchId} initialTab={graphsInitialTab} />}
                 {view === 'table' && data?.seriesId && (
                     <PointsTableDisplay seriesId={data.seriesId} />
                 )}
@@ -1511,105 +1512,105 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
 
             {/* Over Summary Sheet */}
             <Sheet open={overSheetOpen} onOpenChange={setOverSheetOpen}>
-                <SheetContent side="bottom" className="rounded-t-2xl max-h-[70vh] overflow-y-auto">
-                    <SheetHeader>
-                        <SheetTitle className="text-base font-display">After this over</SheetTitle>
+                <SheetContent side="bottom" className="rounded-t-2xl max-h-[70vh] overflow-y-auto px-0 pb-6">
+                    <SheetHeader className="px-5 pb-3 border-b border-border/30">
+                        <SheetTitle className="text-sm font-bold uppercase tracking-widest text-foreground">After this over</SheetTitle>
                     </SheetHeader>
                     {overSheetData && (
-                        <div className="space-y-4 pt-2">
-                            {/* Over info bar */}
-                            <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50 border border-border/50">
-                                <div className="flex items-center gap-3">
-                                    <div className="flex flex-col items-center">
-                                        <span className="text-[9px] text-muted-foreground">Over</span>
-                                        <span className="text-lg font-display text-primary">{Math.floor(overSheetData.overNumber || 0)}</span>
-                                    </div>
-                                    <div className="border-l border-border/50 pl-3">
-                                        <span className="font-display text-foreground">{overSheetData.teamScore}-{overSheetData.teamWickets}</span>
-                                    </div>
+                        <div className="pt-4 px-5">
+                            {/* Score headline */}
+                            <div className="flex items-baseline justify-between mb-4">
+                                <div className="flex items-baseline gap-3">
+                                    <span className="text-2xl font-display text-foreground tabular-nums">
+                                        {overSheetData.teamScore}-{overSheetData.teamWickets}
+                                    </span>
+                                    <span className="text-sm text-muted-foreground">
+                                        ({Math.floor(overSheetData.overNumber || 0)} ov)
+                                    </span>
                                 </div>
-                                {overSheetData.overSummary && (
-                                    <div className="flex items-center gap-1 flex-wrap">
-                                        {overSheetData.overSummary.replace(/\(\d+\s*runs?\)/i, '').trim().split(/\s+/).map((ball, idx) => {
-                                            const b = ball.trim();
-                                            if (!b || b.includes('(') || b.includes(')') || b.toLowerCase() === 'runs' || b.toLowerCase() === 'run') return null;
-                                            let cls = 'text-xs tabular-nums';
-                                            if (b === 'W') cls += ' text-red-500 font-bold';
-                                            else if (b === '4') cls += ' text-blue-500 font-bold';
-                                            else if (b === '6') cls += ' text-purple-500 font-bold';
-                                            else cls += ' text-muted-foreground';
-                                            return <span key={idx} className={cls}>{b}</span>;
-                                        })}
-                                        {overSheetData.overRuns !== undefined && (
-                                            <span className="text-xs text-muted-foreground ml-1">({overSheetData.overRuns} runs)</span>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Batsmen & Bowler */}
-                            <div className="flex gap-0">
-                                {/* Batsmen */}
-                                {overSheetData.overBatsmen && overSheetData.overBatsmen.length > 0 && (
-                                    <div className="flex-1 space-y-2 p-3 rounded-l-xl bg-muted/30 border border-border/40">
-                                        {overSheetData.overBatsmen.map((bat, i) => (
-                                            <div key={i} className="flex items-center justify-between">
-                                                <span className="text-sm text-foreground">{bat.name}</span>
-                                                <span className="text-sm font-semibold text-foreground tabular-nums">{bat.score}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                                {/* Bowler */}
-                                {overSheetData.overBowler && (
-                                    <div className="flex-1 p-3 rounded-r-xl bg-muted/30 border border-border/40 border-l-0">
-                                        <div className="flex items-center justify-between border-l border-dashed border-border/50 pl-3">
-                                            <span className="text-sm text-foreground">{overSheetData.overBowler.name}</span>
-                                            <span className="text-sm font-semibold text-foreground tabular-nums">{overSheetData.overBowler.figures}</span>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* CRR & Score */}
-                            <div className="p-3 rounded-xl bg-muted/30 border border-border/40 space-y-2">
                                 {overSheetData.teamScore !== undefined && overSheetData.overNumber && (
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm text-muted-foreground">CRR</span>
+                                    <div className="text-right">
+                                        <span className="text-xs text-muted-foreground">CRR </span>
                                         <span className="text-sm font-semibold text-foreground tabular-nums">
                                             {(overSheetData.teamScore / Math.floor(overSheetData.overNumber)).toFixed(2)}
                                         </span>
                                     </div>
                                 )}
-                                {overSheetData.teamShortName && (
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-sm text-muted-foreground">{overSheetData.teamShortName}</span>
-                                        <span className="text-sm font-semibold text-foreground tabular-nums">
-                                            {overSheetData.teamScore}-{overSheetData.teamWickets}
-                                        </span>
-                                    </div>
-                                )}
                             </div>
+
+                            {/* Ball summary */}
+                            {overSheetData.overSummary && (
+                                <div className="flex items-center gap-1.5 mb-5">
+                                    {overSheetData.overSummary.replace(/\(\d+\s*runs?\)/i, '').trim().split(/\s+/).map((ball, idx) => {
+                                        const b = ball.trim();
+                                        if (!b || b.includes('(') || b.includes(')') || b.toLowerCase() === 'runs' || b.toLowerCase() === 'run') return null;
+                                        let cls = 'w-7 h-7 rounded-full text-xs font-bold flex items-center justify-center';
+                                        if (b === 'W') cls += ' bg-red-500 text-white';
+                                        else if (b === '6') cls += ' bg-purple-600 text-white';
+                                        else if (b === '4') cls += ' bg-blue-500 text-white';
+                                        else if (b === '0' || b === '.') cls += ' bg-muted text-muted-foreground';
+                                        else if (b.toLowerCase().includes('wd') || b.toLowerCase().includes('n')) cls += ' bg-amber-500/80 text-white text-[10px]';
+                                        else cls += ' bg-emerald-600 text-white';
+                                        return <span key={idx} className={cls}>{b === '0' ? '\u2022' : b}</span>;
+                                    })}
+                                    {overSheetData.overRuns !== undefined && (
+                                        <span className="text-sm text-primary font-semibold ml-1 tabular-nums">
+                                            {overSheetData.overRuns} runs
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Batsmen & Bowler */}
+                            {(overSheetData.overBatsmen?.length || overSheetData.overBowler) && (
+                                <div className="flex border-t border-border/20 pt-4 mb-4">
+                                    {overSheetData.overBatsmen && overSheetData.overBatsmen.length > 0 && (
+                                        <div className="flex-1 space-y-2">
+                                            {overSheetData.overBatsmen.map((bat, i) => (
+                                                <div key={i} className="flex items-center justify-between">
+                                                    <span className="text-sm text-foreground">{bat.name}</span>
+                                                    <span className="text-sm font-semibold text-foreground tabular-nums">{bat.score}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {overSheetData.overBowler && (
+                                        <div className="flex-1 border-l border-dashed border-border/30 pl-4 ml-4">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-sm text-foreground">{overSheetData.overBowler.name}</span>
+                                                <span className="text-sm font-semibold text-foreground tabular-nums">{overSheetData.overBowler.figures}</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             {/* Win Probability */}
                             {data && data.winProbability?.team1?.name && data.winProbability?.team2?.name && (
-                                <div className="p-3 rounded-xl bg-muted/30 border border-border/40">
+                                <div className="border-t border-border/20 pt-4">
                                     <div className="flex items-center justify-between mb-2">
-                                        <span className="text-xs font-medium text-muted-foreground">Win Probability</span>
+                                        <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Win Probability</span>
+                                        <button
+                                            onClick={() => { setOverSheetOpen(false); setGraphsInitialTab('winProb'); setView('graphs'); }}
+                                            className="flex items-center gap-0.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+                                        >
+                                            View Graph
+                                            <ChevronRight className="w-3 h-3" />
+                                        </button>
                                     </div>
-                                    <div className="relative h-1.5 rounded-full overflow-hidden bg-muted mb-2">
+                                    <div className="relative h-2 rounded-full overflow-hidden bg-muted/50 mb-2">
                                         <div
-                                            className="absolute inset-y-0 left-0 bg-amber-500 transition-all"
-                                            style={{ width: `${data.winProbability.team1.probability}%` }}
+                                            className="absolute inset-y-0 left-0 rounded-l-full transition-all"
+                                            style={{ width: `${data.winProbability.team1.probability}%`, backgroundColor: '#E6A937' }}
                                         />
                                         <div
-                                            className="absolute inset-y-0 right-0 bg-blue-500 transition-all"
-                                            style={{ width: `${data.winProbability.team2.probability}%` }}
+                                            className="absolute inset-y-0 right-0 rounded-r-full transition-all"
+                                            style={{ width: `${data.winProbability.team2.probability}%`, backgroundColor: '#0588F0' }}
                                         />
                                     </div>
                                     <div className="flex items-center justify-between text-xs">
-                                        <span className="text-amber-500 font-semibold">{data.winProbability.team1.name} {data.winProbability.team1.probability}%</span>
-                                        <span className="text-blue-500 font-semibold">{data.winProbability.team2.name} {data.winProbability.team2.probability}%</span>
+                                        <span style={{ color: '#E6A937' }} className="font-semibold">{data.winProbability.team1.name} {data.winProbability.team1.probability}%</span>
+                                        <span style={{ color: '#0588F0' }} className="font-semibold">{data.winProbability.team2.name} {data.winProbability.team2.probability}%</span>
                                     </div>
                                 </div>
                             )}

@@ -35,10 +35,11 @@ const SUB_TABS: { key: SubTab; label: string }[] = [
 
 interface MatchGraphsProps {
   matchId: string;
+  initialTab?: string;
 }
 
-export default function MatchGraphs({ matchId }: MatchGraphsProps) {
-  const [activeTab, setActiveTab] = useState<SubTab>('overs');
+export default function MatchGraphs({ matchId, initialTab }: MatchGraphsProps) {
+  const [activeTab, setActiveTab] = useState<SubTab>((initialTab as SubTab) || 'overs');
   const [selectedInnings, setSelectedInnings] = useState(1);
   const [loading, setLoading] = useState(false);
   const [overDataLoading, setOverDataLoading] = useState(true);

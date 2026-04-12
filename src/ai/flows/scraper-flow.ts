@@ -534,6 +534,8 @@ export type WinProbPoint = {
 export type WinProbHistory = {
   team1Name: string;
   team2Name: string;
+  team1Color: string;
+  team2Color: string;
   points: WinProbPoint[];
 };
 
@@ -3935,6 +3937,8 @@ export async function scrapeWinProbHistory(matchId: string): Promise<WinProbHist
   // Pattern: "teamSName\":\"CSK\"" in the legends section
   let team1Name = '';
   let team2Name = '';
+  let team1Color = '#E6A937';
+  let team2Color = '#0588F0';
   const legendsMatch = html.match(/winProbabilityChartLegends[\\]*":\{([\s\S]*?)(?:winProbabilityHorizontalChartData|runsChartData|$)/);
   if (legendsMatch) {
     const legendStr = legendsMatch[1];
@@ -3943,6 +3947,11 @@ export async function scrapeWinProbHistory(matchId: string): Promise<WinProbHist
     const team2Match = legendStr.match(/team2[\\]*":\{[^}]*teamSName[\\]*":[\\]*"([^"\\]+)/);
     if (team1Match) team1Name = team1Match[1];
     if (team2Match) team2Name = team2Match[1];
+    // Extract team colors - pattern: "teamColor\":\"#E6A937|#EBAA33\""
+    const color1Match = legendStr.match(/team1[\\]*":\{[^}]*teamColor[\\]*":[\\]*"(#[0-9A-Fa-f]{6})/);
+    const color2Match = legendStr.match(/team2[\\]*":\{[^}]*teamColor[\\]*":[\\]*"(#[0-9A-Fa-f]{6})/);
+    if (color1Match) team1Color = color1Match[1];
+    if (color2Match) team2Color = color2Match[1];
   }
 
   // Extract win probability data points from winProbabilityChartData
@@ -3985,7 +3994,7 @@ export async function scrapeWinProbHistory(matchId: string): Promise<WinProbHist
     return a.over - b.over;
   });
 
-  return { team1Name, team2Name, points: uniquePoints };
+  return { team1Name, team2Name, team1Color, team2Color, points: uniquePoints };
 }
 
 
