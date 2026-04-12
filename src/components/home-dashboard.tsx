@@ -7,7 +7,7 @@ import type { LiveMatch } from '@/app/actions';
 import { useDashboardPreferences } from '@/contexts/dashboard-preferences-context';
 import RecentHistory from '@/components/recent-history';
 import FavoritesSection from '@/components/favorites-section';
-import { Flame, Calendar, Tv } from 'lucide-react';
+import { Tv } from 'lucide-react';
 
 export default function HomeDashboard() {
   const [liveMatches, setLiveMatches] = useState<LiveMatch[]>([]);
@@ -56,11 +56,9 @@ export default function HomeDashboard() {
       {liveMatches.length > 0 && (
         <section className="overflow-hidden">
           <div className="flex items-center gap-2 mb-3 md:mb-4">
-            <div className="p-1 md:p-1.5 rounded-lg bg-red-500/10">
-              <Flame className="w-3.5 md:w-4 h-3.5 md:h-4 text-red-500" />
-            </div>
-            <h3 className="text-xs md:text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-              Live Now
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            <h3 className="text-xs md:text-sm font-bold uppercase tracking-widest text-foreground">
+              Live
             </h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-4 overflow-hidden">
@@ -87,11 +85,8 @@ export default function HomeDashboard() {
       {/* Upcoming Section */}
       {upcomingMatches.length > 0 && (
         <section className="overflow-hidden">
-          <div className="flex items-center gap-2 mb-3 md:mb-4">
-            <div className="p-1 md:p-1.5 rounded-lg bg-blue-500/10">
-              <Calendar className="w-3.5 md:w-4 h-3.5 md:h-4 text-blue-500" />
-            </div>
-            <h3 className="text-xs md:text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+          <div className="mb-3 md:mb-4">
+            <h3 className="text-xs md:text-sm font-bold uppercase tracking-widest text-foreground">
               Upcoming
             </h3>
           </div>

@@ -3,7 +3,7 @@
 import { useDashboardPreferences } from '@/contexts/dashboard-preferences-context';
 import type { FavoriteItem } from '@/types/dashboard-preferences';
 import Link from 'next/link';
-import { Star, X, ChevronRight, Trophy } from 'lucide-react';
+import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface FavoritesSectionProps {
@@ -21,12 +21,9 @@ export default function FavoritesSection({ className }: FavoritesSectionProps) {
   return (
     <div className={cn('', className)}>
       {/* Header */}
-      <div className="flex items-center gap-2 mb-2 md:mb-3">
-        <div className="p-1 md:p-1.5 rounded-lg bg-amber-500/10">
-          <Star className="w-3.5 md:w-4 h-3.5 md:h-4 text-amber-400 fill-amber-400" />
-        </div>
-        <h3 className="text-xs md:text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-          Favorites
+      <div className="mb-2 md:mb-3">
+        <h3 className="text-xs md:text-sm font-bold uppercase tracking-widest text-foreground">
+          Following
         </h3>
       </div>
 
@@ -53,25 +50,21 @@ function FavoriteCard({
         href={`/series/${item.id}`}
         title={item.subtitle ? `${item.name} - ${item.subtitle}` : item.name}
         className={cn(
-          'flex items-center gap-1.5 md:gap-2 px-2.5 md:px-3 py-1.5 md:py-2 rounded-lg md:rounded-xl border transition-all',
-          'bg-card/60 border-border hover:border-amber-500/50 hover:bg-muted/80',
-          'min-w-[140px] md:min-w-[160px] max-w-[220px] md:max-w-[260px]'
+          'flex items-center gap-2 px-3 py-2 rounded-xl border transition-all',
+          'bg-card/60 border-border hover:border-primary/30 hover:bg-muted/80',
+          'min-w-[150px] max-w-[260px]'
         )}
       >
-        <div className="p-1 md:p-1.5 rounded-md md:rounded-lg bg-amber-500/10 shrink-0">
-          <Trophy className="w-3 md:w-3.5 h-3 md:h-3.5 text-amber-400" />
-        </div>
         <div className="flex-1 text-left overflow-hidden">
-          <p className="text-[13px] md:text-sm font-medium text-foreground truncate">
+          <p className="text-sm font-medium text-foreground truncate">
             {item.name}
           </p>
           {item.subtitle && (
-            <p className="text-[9px] md:text-[10px] text-muted-foreground truncate">
+            <p className="text-[10px] text-muted-foreground truncate">
               {item.subtitle}
             </p>
           )}
         </div>
-        <ChevronRight className="w-3 md:w-3.5 h-3 md:h-3.5 text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity hidden md:block" />
       </Link>
 
       {/* Remove button - always visible on mobile for touch */}

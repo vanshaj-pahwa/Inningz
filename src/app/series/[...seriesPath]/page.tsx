@@ -7,7 +7,7 @@ import { getSeriesMatches } from '@/app/actions';
 import type { LiveMatch } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ArrowLeft, Calendar, BarChart3, TableProperties, Filter, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Filter, ChevronDown } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import SeriesStatsDisplay from '@/components/series-stats';
 import PointsTableDisplay from '@/components/points-table';
@@ -191,10 +191,10 @@ export default function SeriesPage() {
     }
   }, [loading, matches.length, view]);
 
-  const tabs: { value: SeriesView; label: string; shortLabel: string; icon: typeof Calendar; hidden?: boolean }[] = [
-    { value: 'matches', label: 'Matches', shortLabel: 'Matches', icon: Calendar },
-    { value: 'points', label: 'Points Table', shortLabel: 'Table', icon: TableProperties, hidden: hasPointsTable === false },
-    { value: 'stats', label: 'Stats', shortLabel: 'Stats', icon: BarChart3 },
+  const tabs: { value: SeriesView; label: string; shortLabel: string; hidden?: boolean }[] = [
+    { value: 'matches', label: 'Matches', shortLabel: 'Matches' },
+    { value: 'points', label: 'Points Table', shortLabel: 'Table', hidden: hasPointsTable === false },
+    { value: 'stats', label: 'Stats', shortLabel: 'Stats' },
   ];
 
   const visibleTabs = tabs.filter(t => !t.hidden);
@@ -213,23 +213,21 @@ export default function SeriesPage() {
             </h1>
           </div>
           {/* Tabs */}
-          <div className="flex gap-1 pb-2">
+          <div className="flex gap-0.5 pb-2">
             {visibleTabs.map(tab => {
-              const Icon = tab.icon;
               const isActive = view === tab.value;
               return (
                 <button
                   key={tab.value}
                   onClick={() => setView(tab.value)}
                   className={`
-                    flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-all
+                    px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-all
                     ${isActive
                       ? 'text-primary bg-primary/10'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10'
+                      : 'text-muted-foreground hover:text-foreground'
                     }
                   `}
                 >
-                  <Icon className="h-4 w-4" />
                   <span className="md:hidden">{tab.shortLabel}</span>
                   <span className="hidden md:inline">{tab.label}</span>
                 </button>
@@ -265,10 +263,9 @@ export default function SeriesPage() {
                 {availableDates.length > 1 && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="rounded-xl gap-2">
-                        <Calendar className="h-3.5 w-3.5" />
+                      <Button variant="outline" size="sm" className="rounded-xl gap-1.5">
                         {dateFilter === 'all' ? 'All Dates' : dateFilter}
-                        <ChevronDown className="h-3.5 w-3.5 opacity-50" />
+                        <ChevronDown className="h-3 w-3 opacity-50" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="rounded-xl max-h-72 overflow-y-auto">
@@ -315,9 +312,6 @@ export default function SeriesPage() {
 
             {!loading && !error && matches.length === 0 && (
               <div className="w-full flex flex-col items-center justify-center min-h-[60vh] p-8">
-                <div className="p-5 rounded-full bg-primary/10 mb-5">
-                  <Calendar className="w-8 h-8 text-primary" />
-                </div>
                 <h3 className="text-xl font-display mb-2">No matches found</h3>
                 <p className="text-muted-foreground text-center max-w-sm text-sm">
                   No matches available for this series yet
@@ -332,8 +326,7 @@ export default function SeriesPage() {
                     {/* Date Header */}
                     <div className="flex items-center gap-3 mb-5">
                       <div className="h-px flex-1 bg-gradient-to-r from-primary/30 to-transparent" />
-                      <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground px-1">
-                        <Calendar className="w-3.5 h-3.5" />
+                      <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">
                         {group.date}
                       </h3>
                       <div className="h-px flex-1 bg-gradient-to-l from-primary/30 to-transparent" />
