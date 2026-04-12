@@ -302,12 +302,53 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
     }
 
     // Helper function to highlight "THATS OUT!!" in any commentary text
-    const highlightThatsOut = (html: string) => {
-        // Match various forms: "THATS OUT!!", "THAT'S OUT!!", "Thats Out!!", etc.
-        return html.replace(
+    const formatCommentaryHtml = (html: string) => {
+        let result = html;
+
+        // "THATS OUT!!" / "THAT'S OUT!!" in red
+        result = result.replace(
             /(that'?s\s*out!*)/gi,
             '<span class="font-bold text-red-500">$1</span>'
         );
+
+        // Highlight "out" keyword (dismissals) - but not inside "THATS OUT" which is already styled
+        result = result.replace(
+            /(<b[^>]*>)\s*out\s*(<\/b>)/gi,
+            '<b class="text-foreground font-semibold"><span class="font-bold text-red-500">out</span></b>'
+        );
+
+        // Highlight "FOUR" and "SIX" keywords
+        result = result.replace(/\bFOUR\b/g, '<span class="font-bold text-blue-400">FOUR</span>');
+        result = result.replace(/\bSIX\b/g, '<span class="font-bold text-purple-400">SIX</span>');
+        result = result.replace(/\bno ball\b/gi, '<span class="font-semibold text-amber-400">no ball</span>');
+
+        // Make <b> tags more prominent with foreground color
+        result = result.replace(/<b>/gi, '<b class="text-foreground font-semibold">');
+
+        // Style "When:", "Where:", "What to expect:", "Head to head:", "Probable XII:" etc.
+        const sectionLabels = 'When|Where|What to expect|Head to head|Probable XII|Injuries\\/Availability|Tactics &amp; Matchups|Preview|Did you know\\??|What they said|Key stats|Form guide|Last 5 matches|Pitch report|Weather';
+
+        // Remove "Team watch" label entirely - the team name header right after it is enough
+        result = result.replace(/<b[^>]*>Team watch<\/b>(?:\s*<br\s*\/?>)*/gi, '');
+
+        result = result.replace(
+            new RegExp(`(<b[^>]*>)?(${sectionLabels})(:?)</b>(?:\\s*<br\\s*/?>)*`, 'gi'),
+            '<span class="block mt-4 mb-0.5 text-foreground font-bold text-[13px]">$2$3</span>'
+        );
+
+        // Also catch these labels without <b> tags
+        result = result.replace(
+            new RegExp(`(?:^|<br\\s*/?>)\\s*(${sectionLabels}):?\\s*(?:<br\\s*/?>)*`, 'gi'),
+            '<span class="block mt-4 mb-0.5 text-foreground font-bold text-[13px]">$1:</span> '
+        );
+
+        // Style team names as section headers - remove trailing <br> tags too
+        result = result.replace(
+            /<br\s*\/?>\s*<b[^>]*>((?:Chennai Super Kings|Mumbai Indians|Royal Challengers Bengaluru|Kolkata Knight Riders|Rajasthan Royals|Delhi Capitals|Punjab Kings|Sunrisers Hyderabad|Lucknow Super Giants|Gujarat Titans)[^<]*)<\/b>(?:\s*<br\s*\/?>)*/gi,
+            '<span class="block mt-5 mb-1 text-foreground font-bold text-sm border-b border-border/30 pb-1">$1</span>'
+        );
+
+        return result;
     };
 
     const renderCommentaryItem = (comment: Commentary, index: number) => {
@@ -392,7 +433,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                         )}
                     </div>
                     {comment.text && (
-                        <p className="text-xs text-muted-foreground leading-relaxed" dangerouslySetInnerHTML={{ __html: highlightThatsOut(comment.text) }} />
+                        <div className="text-xs text-foreground/70 leading-relaxed [&_b]:text-foreground [&_b]:font-semibold" dangerouslySetInnerHTML={{ __html: formatCommentaryHtml(comment.text) }} />
                     )}
                 </div>
             );
@@ -527,7 +568,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                             <Share2 className="w-3 h-3 text-muted-foreground" />
                         </button>
                         <div className="flex items-start justify-between gap-2">
-                            <p className={`text-xs text-muted-foreground flex-1 ${isShortText ? 'text-center font-medium' : ''}`} dangerouslySetInnerHTML={{ __html: highlightThatsOut(comment.text) }} />
+                            <p className={`text-xs text-muted-foreground flex-1 ${isShortText ? 'text-center font-medium' : ''}`} dangerouslySetInnerHTML={{ __html: formatCommentaryHtml(comment.text) }} />
                             <button
                                 onClick={() => {
                                     setStatShareData({ text: comment.text, snippetType: 'stat' });
@@ -544,8 +585,16 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
             }
 
             return (
-                <div key={index} className="slide-in-left py-3 px-4 my-2 commentary-item">
-                    <p className={`text-xs text-muted-foreground ${isShortText ? 'text-center font-medium' : ''}`} dangerouslySetInnerHTML={{ __html: highlightThatsOut(comment.text) }} />
+                <div key={index} className={cn(
+                    "slide-in-left my-2",
+                    isShortText ? 'py-2 px-4' : 'py-3 px-4 commentary-item'
+                )}>
+                    <div className={cn(
+                        'text-xs leading-relaxed',
+                        isShortText
+                            ? 'text-center font-medium text-muted-foreground/70 italic'
+                            : 'text-foreground/70 [&_b]:text-foreground [&_b]:font-semibold'
+                    )} dangerouslySetInnerHTML={{ __html: formatCommentaryHtml(comment.text) }} />
                 </div>
             );
         }
@@ -564,6 +613,18 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                 default: return null;
             }
         }
+
+        // Format ball-by-ball text: split "Bowler to Batsman, result" into styled parts
+        const formatBallText = (rawText: string) => {
+            // Match pattern: "Bowler to Batsman, rest of commentary"
+            const introMatch = rawText.match(/^(\s*)([\w\s.''-]+?\s+to\s+[\w\s.''-]+?),\s*/);
+            if (introMatch) {
+                const intro = introMatch[2];
+                const rest = rawText.substring(introMatch[0].length);
+                return `<span class="text-foreground font-medium">${intro}</span>, ${rest}`;
+            }
+            return rawText;
+        };
 
         return (
             <div key={index} className="slide-in-left">
@@ -703,7 +764,12 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                         </div>
                     </div>
                 )}
-                <div className="flex gap-3 items-start py-2.5 px-1">
+                <div className={cn(
+                    "flex gap-3 items-start py-2.5 px-1",
+                    events.includes('WICKET') && 'border-l-2 border-red-500/60 pl-2',
+                    events.includes('FOUR') && !events.includes('WICKET') && 'border-l-2 border-blue-500/40 pl-2',
+                    events.includes('SIX') && !events.includes('WICKET') && 'border-l-2 border-purple-500/40 pl-2',
+                )}>
                     <div className="flex flex-col items-center flex-shrink-0 w-10 md:w-12 gap-1">
                         <span className="font-mono text-[11px] text-muted-foreground">{over}</span>
                         {events.map((event, i) => {
@@ -721,9 +787,9 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                             );
                         })}
                     </div>
-                    <p className="text-sm text-foreground/80 flex-1 leading-relaxed">
-                        <span dangerouslySetInnerHTML={{ __html: highlightThatsOut(text) }} />
-                    </p>
+                    <div className="text-sm text-foreground/60 flex-1 leading-relaxed [&_b]:text-foreground [&_b]:font-semibold">
+                        <span dangerouslySetInnerHTML={{ __html: formatCommentaryHtml(formatBallText(text)) }} />
+                    </div>
                 </div>
             </div>
         );
