@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { getSeriesMatches } from '@/app/actions';
-import type { LiveMatch } from '@/app/actions';
+import { getSeriesMatches, getSeriesStats } from '@/app/actions';
+import type { LiveMatch, SeriesStatCategory } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ArrowLeft, Filter, ChevronDown } from 'lucide-react';
@@ -30,8 +30,21 @@ export default function SeriesPage() {
   const [teamFilter, setTeamFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('all');
   const [hasTrackedSeries, setHasTrackedSeries] = useState(false);
+  const [topRunScorer, setTopRunScorer] = useState<{ name: string; value: string } | null>(null);
+  const [topWicketTaker, setTopWicketTaker] = useState<{ name: string; value: string } | null>(null);
+  const [headerHeight, setHeaderHeight] = useState(0);
+  const headerRef = useRef<HTMLElement>(null);
   const todayRef = useRef<HTMLDivElement>(null);
   const hasScrolled = useRef(false);
+
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setHeaderHeight(el.offsetHeight));
+    ro.observe(el);
+    setHeaderHeight(el.offsetHeight);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!seriesId) return;
@@ -47,6 +60,23 @@ export default function SeriesPage() {
       setLoading(false);
     };
     fetchMatches();
+
+    // Fetch series top performers
+    const fetchTopPerformers = async () => {
+      const [runsResult, wktsResult] = await Promise.all([
+        getSeriesStats(seriesId, 'mostRuns').catch(() => null),
+        getSeriesStats(seriesId, 'mostWickets').catch(() => null),
+      ]);
+      if (runsResult?.success && runsResult.data?.entries?.[0]) {
+        const top = runsResult.data.entries[0];
+        setTopRunScorer({ name: top.playerName, value: top.values['RUNS'] || top.values['Runs'] || '' });
+      }
+      if (wktsResult?.success && wktsResult.data?.entries?.[0]) {
+        const top = wktsResult.data.entries[0];
+        setTopWicketTaker({ name: top.playerName, value: top.values['WKTS'] || top.values['Wkts'] || '' });
+      }
+    };
+    fetchTopPerformers();
   }, [seriesId]);
 
   // Track series in recent history
@@ -178,18 +208,33 @@ export default function SeriesPage() {
     return groupedMatches.length - 1;
   })();
 
-  // Auto-scroll to today's date group after matches load
+  const hasActiveFilter = teamFilter !== 'all' || dateFilter !== 'all';
+
+  // Auto-scroll to today's date group after matches load (skip if filter is active)
   useEffect(() => {
-    if (!loading && matches.length > 0 && !hasScrolled.current && view === 'matches' && todayRef.current) {
-      hasScrolled.current = true;
-      setTimeout(() => {
+    if (!loading && matches.length > 0 && !hasScrolled.current && view === 'matches' && !hasActiveFilter) {
+      const timer = setTimeout(() => {
         const el = todayRef.current;
         if (!el) return;
-        const y = el.getBoundingClientRect().top + window.scrollY - 120; // offset for sticky header
-        window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
-      }, 300);
+        hasScrolled.current = true;
+        const targetY = Math.max(0, el.getBoundingClientRect().top + window.scrollY - (headerRef.current?.offsetHeight || 120));
+        const startY = window.scrollY;
+        const distance = targetY - startY;
+        if (Math.abs(distance) < 10) return;
+        const duration = Math.min(2500, Math.max(1200, Math.abs(distance) * 1.5));
+        const startTime = performance.now();
+        const easeInOutCubic = (t: number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        const step = (now: number) => {
+          const elapsed = now - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+          window.scrollTo(0, startY + distance * easeInOutCubic(progress));
+          if (progress < 1) requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+      }, 3000);
+      return () => clearTimeout(timer);
     }
-  }, [loading, matches.length, view]);
+  }, [loading, matches.length, view, hasActiveFilter]);
 
   const tabs: { value: SeriesView; label: string; shortLabel: string; hidden?: boolean }[] = [
     { value: 'matches', label: 'Matches', shortLabel: 'Matches' },
@@ -202,7 +247,7 @@ export default function SeriesPage() {
   return (
     <div className="min-h-screen stadium-glow">
       {/* Header - Glass Nav */}
-      <header className="sticky top-0 z-50 w-full glass-nav">
+      <header ref={headerRef} className="sticky top-0 z-50 w-full glass-nav">
         <div className="max-w-7xl mx-auto px-4 md:px-6">
           <div className="flex items-center gap-4 h-14">
             <Button variant="ghost" size="icon" className="rounded-xl shrink-0 hover:bg-black/5 dark:hover:bg-white/10" onClick={() => router.back()}>
@@ -234,8 +279,79 @@ export default function SeriesPage() {
               );
             })}
           </div>
+
+          {/* Series Top Performers */}
+          {view === 'matches' && (topRunScorer || topWicketTaker) && (
+            <div className="flex gap-3 pb-2">
+              {topRunScorer && topRunScorer.value && (
+                <div className="flex-1 min-w-0 px-4 py-3 rounded-xl bg-orange-500/10 border border-orange-500/20">
+                  <p className="text-[10px] uppercase tracking-wider text-orange-400 font-semibold">Most Runs</p>
+                  <p className="text-sm font-medium truncate">{topRunScorer.name} <span className="text-muted-foreground">({topRunScorer.value})</span></p>
+                </div>
+              )}
+              {topWicketTaker && topWicketTaker.value && (
+                <div className="flex-1 min-w-0 px-4 py-3 rounded-xl bg-purple-500/10 border border-purple-500/20">
+                  <p className="text-[10px] uppercase tracking-wider text-purple-400 font-semibold">Most Wickets</p>
+                  <p className="text-sm font-medium truncate">{topWicketTaker.name} <span className="text-muted-foreground">({topWicketTaker.value})</span></p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </header>
+
+      {/* Sticky Filters */}
+      {view === 'matches' && !loading && !error && matches.length > 0 && (
+        <div className="sticky z-40 glass-nav !border-t-0" style={{ top: headerHeight }}>
+          <div className="max-w-7xl mx-auto px-4 md:px-6 py-2 flex justify-end gap-2">
+            {availableDates.length > 1 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="rounded-xl gap-1.5">
+                    {dateFilter === 'all' ? 'All Dates' : dateFilter}
+                    <ChevronDown className="h-3 w-3 opacity-50" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="rounded-xl max-h-72 overflow-y-auto">
+                  <DropdownMenuRadioGroup value={dateFilter} onValueChange={setDateFilter}>
+                    <DropdownMenuRadioItem value="all" className="rounded-lg">
+                      All Dates
+                    </DropdownMenuRadioItem>
+                    {availableDates.map((date) => (
+                      <DropdownMenuRadioItem key={date} value={date} className="rounded-lg">
+                        {date}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            {teamNames.length > 2 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="rounded-xl gap-2">
+                    <Filter className="h-3.5 w-3.5" />
+                    {teamFilter === 'all' ? 'All Teams' : teamFilter}
+                    <ChevronDown className="h-3.5 w-3.5 opacity-50" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="rounded-xl max-h-72 overflow-y-auto">
+                  <DropdownMenuRadioGroup value={teamFilter} onValueChange={setTeamFilter}>
+                    <DropdownMenuRadioItem value="all" className="rounded-lg">
+                      All Teams
+                    </DropdownMenuRadioItem>
+                    {teamNames.map((name) => (
+                      <DropdownMenuRadioItem key={name} value={name} className="rounded-lg">
+                        {name}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+        </div>
+      )}
 
       <main className="max-w-7xl mx-auto px-4 md:px-6 py-8">
         {view === 'matches' && (
@@ -254,59 +370,6 @@ export default function SeriesPage() {
                   <AlertTitle className="text-lg">Unable to fetch matches</AlertTitle>
                   <AlertDescription className="mt-2">{error}</AlertDescription>
                 </Alert>
-              </div>
-            )}
-
-            {!loading && !error && matches.length > 0 && (
-              <div className="flex justify-end gap-2 mb-4">
-                {/* Date Filter */}
-                {availableDates.length > 1 && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="rounded-xl gap-1.5">
-                        {dateFilter === 'all' ? 'All Dates' : dateFilter}
-                        <ChevronDown className="h-3 w-3 opacity-50" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="rounded-xl max-h-72 overflow-y-auto">
-                      <DropdownMenuRadioGroup value={dateFilter} onValueChange={setDateFilter}>
-                        <DropdownMenuRadioItem value="all" className="rounded-lg">
-                          All Dates
-                        </DropdownMenuRadioItem>
-                        {availableDates.map((date) => (
-                          <DropdownMenuRadioItem key={date} value={date} className="rounded-lg">
-                            {date}
-                          </DropdownMenuRadioItem>
-                        ))}
-                      </DropdownMenuRadioGroup>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-
-                {/* Team Filter */}
-                {teamNames.length > 2 && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="rounded-xl gap-2">
-                        <Filter className="h-3.5 w-3.5" />
-                        {teamFilter === 'all' ? 'All Teams' : teamFilter}
-                        <ChevronDown className="h-3.5 w-3.5 opacity-50" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="rounded-xl max-h-72 overflow-y-auto">
-                      <DropdownMenuRadioGroup value={teamFilter} onValueChange={setTeamFilter}>
-                        <DropdownMenuRadioItem value="all" className="rounded-lg">
-                          All Teams
-                        </DropdownMenuRadioItem>
-                        {teamNames.map((name) => (
-                          <DropdownMenuRadioItem key={name} value={name} className="rounded-lg">
-                            {name}
-                          </DropdownMenuRadioItem>
-                        ))}
-                      </DropdownMenuRadioGroup>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
               </div>
             )}
 
