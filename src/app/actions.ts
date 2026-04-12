@@ -213,6 +213,18 @@ export async function loadMoreCommentary(matchId: string, timestamp: number, inn
                                 comm.teamScore = item.overSeparator.score;
                                 comm.teamWickets = item.overSeparator.wickets;
                             }
+                            const batsmen: { name: string; score: string }[] = [];
+                            const sep = item.overSeparator;
+                            if (sep.batStrikerObj?.playerName) {
+                                batsmen.push({ name: sep.batStrikerObj.playerName, score: sep.batStrikerObj.playerScore || '' });
+                            }
+                            if (sep.batNonStrikerObj?.playerName) {
+                                batsmen.push({ name: sep.batNonStrikerObj.playerName, score: sep.batNonStrikerObj.playerScore || '' });
+                            }
+                            if (batsmen.length > 0) comm.overBatsmen = batsmen;
+                            if (sep.bowlerObj?.playerName) {
+                                comm.overBowler = { name: sep.bowlerObj.playerName, figures: sep.bowlerObj.playerScore || '' };
+                            }
                         }
 
                         commentary.push(comm);

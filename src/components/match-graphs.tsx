@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { LoaderCircle } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { LoaderCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   getPartnershipData,
@@ -41,21 +41,20 @@ export default function MatchGraphs({ matchId }: MatchGraphsProps) {
   const [activeTab, setActiveTab] = useState<SubTab>('overs');
   const [selectedInnings, setSelectedInnings] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [overDataLoading, setOverDataLoading] = useState(true);
 
   const [partnershipData, setPartnershipData] = useState<PartnershipInnings[] | null>(null);
   const [ballMapData, setBallMapData] = useState<Map<number, BallMapData>>(new Map());
   const [winProbData, setWinProbData] = useState<WinProbHistory | null>(null);
   const [overData, setOverData] = useState<Map<number, InningsOverData>>(new Map());
-  const [fetched, setFetched] = useState<Set<string>>(new Set());
+  const fetchedRef = useRef<Set<string>>(new Set());
 
-  const markFetched = useCallback((key: string) => {
-    setFetched(prev => new Set(prev).add(key));
-  }, []);
-
+  // Fetch over data eagerly on mount (shared by overs, runRate, worm tabs)
   useEffect(() => {
-    if (fetched.has('overData')) return;
-    markFetched('overData');
+    if (fetchedRef.current.has('overData')) return;
+    fetchedRef.current.add('overData');
     const fetchOvers = async () => {
+      setOverDataLoading(true);
       const ids = [1, 2, 3, 4];
       const results = await Promise.allSettled(ids.map(id => getInningsOverData(matchId, id)));
       const map = new Map<number, InningsOverData>();
@@ -65,16 +64,17 @@ export default function MatchGraphs({ matchId }: MatchGraphsProps) {
         }
       });
       if (map.size > 0) setOverData(map);
+      setOverDataLoading(false);
     };
     fetchOvers();
-  }, [matchId, fetched, markFetched]);
+  }, [matchId]);
 
   useEffect(() => {
     const fetchTabData = async () => {
       if (activeTab === 'ballMap') {
         const key = `ballMap-${selectedInnings}`;
-        if (fetched.has(key)) return;
-        markFetched(key);
+        if (fetchedRef.current.has(key)) return;
+        fetchedRef.current.add(key);
         setLoading(true);
         const result = await getBallMapData(matchId, selectedInnings);
         if (result.success && result.data) {
@@ -82,8 +82,8 @@ export default function MatchGraphs({ matchId }: MatchGraphsProps) {
         }
         setLoading(false);
       } else if (activeTab === 'winProb') {
-        if (fetched.has('winProb')) return;
-        markFetched('winProb');
+        if (fetchedRef.current.has('winProb')) return;
+        fetchedRef.current.add('winProb');
         setLoading(true);
         const result = await getWinProbHistory(matchId);
         if (result.success && result.data) {
@@ -91,8 +91,8 @@ export default function MatchGraphs({ matchId }: MatchGraphsProps) {
         }
         setLoading(false);
       } else if (activeTab === 'partnerships') {
-        if (fetched.has('partnerships')) return;
-        markFetched('partnerships');
+        if (fetchedRef.current.has('partnerships')) return;
+        fetchedRef.current.add('partnerships');
         setLoading(true);
         const result = await getPartnershipData(matchId);
         if (result.success && result.data) {
@@ -102,7 +102,7 @@ export default function MatchGraphs({ matchId }: MatchGraphsProps) {
       }
     };
     fetchTabData();
-  }, [activeTab, selectedInnings, matchId, fetched, markFetched]);
+  }, [activeTab, selectedInnings, matchId]);
 
   const overInnings = Array.from(overData.entries()).map(([id, d]) => ({
     inningsId: id,
@@ -113,23 +113,8 @@ export default function MatchGraphs({ matchId }: MatchGraphsProps) {
 
   return (
     <div className="space-y-3">
-      {/* Sub-tab navigation - horizontal scroll pills */}
-      <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-hide -mx-1 px-1">
-        {SUB_TABS.map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={cn(
-              'shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-200',
-              activeTab === tab.key
-                ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
-                : 'bg-card text-muted-foreground border border-border hover:text-foreground hover:border-foreground/20'
-            )}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      {/* Sub-tab navigation */}
+      <GraphTabNav activeTab={activeTab} onTabChange={setActiveTab} />
 
       {/* Content card */}
       <div className="glass-card overflow-hidden">
@@ -140,10 +125,12 @@ export default function MatchGraphs({ matchId }: MatchGraphsProps) {
               ? partnershipData.map(p => p.inningsId)
               : activeTab === 'ballMap' ? [1, 2, 3, 4] : Array.from(overData.keys())
             ).map(id => {
+              const ordinal = id === 1 ? '1st' : id === 2 ? '2nd' : id === 3 ? '3rd' : '4th';
+              // Try to get team name from partnership data or over data
               const pInnings = partnershipData?.find(p => p.inningsId === id);
-              const label = pInnings
-                ? `${pInnings.teamShortName || pInnings.teamName} (${id === 1 ? '1st' : id === 2 ? '2nd' : id === 3 ? '3rd' : '4th'} Inn)`
-                : `${id === 1 ? '1st' : id === 2 ? '2nd' : id === 3 ? '3rd' : '4th'} Inn`;
+              const oInnings = overData.get(id);
+              const teamName = pInnings?.teamShortName || pInnings?.teamName || oInnings?.teamName || '';
+              const label = teamName ? `${teamName} (${ordinal} Inn)` : `${ordinal} Inn`;
               return (
                 <button
                   key={id}
@@ -155,7 +142,7 @@ export default function MatchGraphs({ matchId }: MatchGraphsProps) {
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                   )}
                 >
-                  {activeTab === 'partnerships' ? label : `${id === 1 ? '1st' : id === 2 ? '2nd' : id === 3 ? '3rd' : '4th'} Inn`}
+                  {label}
                 </button>
               );
             })}
@@ -163,64 +150,146 @@ export default function MatchGraphs({ matchId }: MatchGraphsProps) {
         )}
 
         <div className="p-4 md:p-5">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-16 gap-3">
-              <LoaderCircle className="w-7 h-7 animate-spin text-primary" />
-              <span className="text-xs text-muted-foreground tracking-wide">Loading data...</span>
-            </div>
-          ) : (
-            <>
-              {activeTab === 'ballMap' && (
-                ballMapData.has(selectedInnings) ? (
-                  <BallMap data={ballMapData.get(selectedInnings)!} />
-                ) : (
-                  <EmptyState message="No ball map data available for this innings" />
-                )
-              )}
+          {(() => {
+            const isOverTab = activeTab === 'overs' || activeTab === 'runRate' || activeTab === 'worm';
+            const showLoader = loading || (isOverTab && overDataLoading);
 
-              {activeTab === 'winProb' && (
-                winProbData ? (
-                  <WinProbabilityChart data={winProbData} />
-                ) : (
-                  <EmptyState message="No win probability data available" />
-                )
-              )}
+            if (showLoader) {
+              return (
+                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                  <LoaderCircle className="w-7 h-7 animate-spin text-primary" />
+                  <span className="text-xs text-muted-foreground tracking-wide">Loading data...</span>
+                </div>
+              );
+            }
 
-              {activeTab === 'partnerships' && (
-                partnershipData && partnershipData.find(p => p.inningsId === selectedInnings) ? (
-                  <PartnershipsChart data={partnershipData.find(p => p.inningsId === selectedInnings)!} />
-                ) : (
-                  <EmptyState message="No partnership data available" />
-                )
-              )}
+            return (
+              <>
+                {activeTab === 'ballMap' && (
+                  ballMapData.has(selectedInnings) ? (
+                    <BallMap data={ballMapData.get(selectedInnings)!} />
+                  ) : (
+                    <EmptyState message="No ball map data available for this innings" />
+                  )
+                )}
 
-              {activeTab === 'overs' && (
-                overData.has(selectedInnings) ? (
-                  <OverByOverChart data={overData.get(selectedInnings)!} />
-                ) : (
-                  <EmptyState message="No over data available for this innings" />
-                )
-              )}
+                {activeTab === 'winProb' && (
+                  winProbData ? (
+                    <WinProbabilityChart data={winProbData} />
+                  ) : (
+                    <EmptyState message="No win probability data available" />
+                  )
+                )}
 
-              {activeTab === 'runRate' && (
-                overInnings.length > 0 ? (
-                  <RunRateChart allInnings={overInnings} />
-                ) : (
-                  <EmptyState message="No run rate data available" />
-                )
-              )}
+                {activeTab === 'partnerships' && (
+                  partnershipData && partnershipData.find(p => p.inningsId === selectedInnings) ? (
+                    <PartnershipsChart data={partnershipData.find(p => p.inningsId === selectedInnings)!} />
+                  ) : (
+                    <EmptyState message="No partnership data available" />
+                  )
+                )}
 
-              {activeTab === 'worm' && (
-                overInnings.length > 0 ? (
-                  <WormChart allInnings={overInnings} />
-                ) : (
-                  <EmptyState message="No worm data available" />
-                )
-              )}
-            </>
-          )}
+                {activeTab === 'overs' && (
+                  overData.has(selectedInnings) ? (
+                    <OverByOverChart data={overData.get(selectedInnings)!} />
+                  ) : (
+                    <EmptyState message="No over data available for this innings" />
+                  )
+                )}
+
+                {activeTab === 'runRate' && (
+                  overInnings.length > 0 ? (
+                    <RunRateChart allInnings={overInnings} />
+                  ) : (
+                    <EmptyState message="No run rate data available" />
+                  )
+                )}
+
+                {activeTab === 'worm' && (
+                  overInnings.length > 0 ? (
+                    <WormChart allInnings={overInnings} />
+                  ) : (
+                    <EmptyState message="No worm data available" />
+                  )
+                )}
+              </>
+            );
+          })()}
         </div>
       </div>
+    </div>
+  );
+}
+
+function GraphTabNav({ activeTab, onTabChange }: { activeTab: SubTab; onTabChange: (tab: SubTab) => void }) {
+  const activeIdx = SUB_TABS.findIndex(t => t.key === activeTab);
+  const tabsRef = useRef<HTMLDivElement>(null);
+
+  // Scroll active tab into view
+  useEffect(() => {
+    const container = tabsRef.current;
+    if (!container) return;
+    const activeEl = container.children[activeIdx] as HTMLElement | undefined;
+    if (activeEl) {
+      const containerRect = container.getBoundingClientRect();
+      const elRect = activeEl.getBoundingClientRect();
+      if (elRect.left < containerRect.left || elRect.right > containerRect.right) {
+        activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+    }
+  }, [activeIdx]);
+
+  return (
+    <div className="flex items-center gap-0">
+      {/* Left arrow */}
+      <button
+        onClick={() => { if (activeIdx > 0) onTabChange(SUB_TABS[activeIdx - 1].key); }}
+        disabled={activeIdx === 0}
+        className={cn(
+          'shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-all',
+          activeIdx === 0
+            ? 'text-muted-foreground/20 cursor-default'
+            : 'text-muted-foreground hover:text-foreground hover:bg-muted/60 active:scale-90'
+        )}
+      >
+        <ChevronLeft className="w-4 h-4" />
+      </button>
+
+      {/* Tabs - naturally sized, hidden scrollbar */}
+      <div
+        ref={tabsRef}
+        className="flex-1 flex gap-0.5 p-0.5 bg-muted/40 rounded-xl overflow-x-auto scrollbar-hide"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      >
+        {SUB_TABS.map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => onTabChange(tab.key)}
+            className={cn(
+              'shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 whitespace-nowrap',
+              activeTab === tab.key
+                ? 'bg-card text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Right arrow */}
+      <button
+        onClick={() => { if (activeIdx < SUB_TABS.length - 1) onTabChange(SUB_TABS[activeIdx + 1].key); }}
+        disabled={activeIdx === SUB_TABS.length - 1}
+        className={cn(
+          'shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-all',
+          activeIdx === SUB_TABS.length - 1
+            ? 'text-muted-foreground/20 cursor-default'
+            : 'text-muted-foreground hover:text-foreground hover:bg-muted/60 active:scale-90'
+        )}
+      >
+        <ChevronRight className="w-4 h-4" />
+      </button>
     </div>
   );
 }

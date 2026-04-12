@@ -20,6 +20,8 @@ const CommentarySchema = z.object({
   teamWickets: z.number().optional(),
   headline: z.string().optional(),
   snippetType: z.string().optional(),
+  overBatsmen: z.array(z.object({ name: z.string(), score: z.string() })).optional(),
+  overBowler: z.object({ name: z.string(), figures: z.string() }).optional(),
 });
 
 const AwardPlayerSchema = z.object({
@@ -2310,6 +2312,19 @@ export async function getScoreForMatchId(
           } else {
             commentary.teamScore = c.overSeparator.score;
             commentary.teamWickets = c.overSeparator.wickets;
+          }
+          // Extract batsmen and bowler info
+          const batsmen: { name: string; score: string }[] = [];
+          const sep = c.overSeparator;
+          if (sep.batStrikerObj?.playerName) {
+            batsmen.push({ name: sep.batStrikerObj.playerName, score: sep.batStrikerObj.playerScore || '' });
+          }
+          if (sep.batNonStrikerObj?.playerName) {
+            batsmen.push({ name: sep.batNonStrikerObj.playerName, score: sep.batNonStrikerObj.playerScore || '' });
+          }
+          if (batsmen.length > 0) commentary.overBatsmen = batsmen;
+          if (sep.bowlerObj?.playerName) {
+            commentary.overBowler = { name: sep.bowlerObj.playerName, figures: sep.bowlerObj.playerScore || '' };
           }
         }
 
