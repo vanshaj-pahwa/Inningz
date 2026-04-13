@@ -1682,6 +1682,17 @@ export async function scrapeUpcomingMatches(): Promise<LiveMatch[]> {
     });
   });
 
+  // Fallback: if CSS parsing returned nothing, try extracting from RSC payload
+  if (upcomingMatches.length === 0) {
+    const fallback = extractMatchesFromRSCPayload(html);
+    const upcoming = fallback.filter(m => {
+      const s = m.status.toLowerCase();
+      return !s.includes('won') && !s.includes('drawn') && !s.includes('no result') &&
+             !s.includes('abandoned') && !s.includes('tied');
+    });
+    return upcoming.length > 0 ? upcoming : fallback;
+  }
+
   return upcomingMatches;
 }
 
@@ -1777,8 +1788,129 @@ export async function scrapeRecentMatches(): Promise<LiveMatch[]> {
     });
   });
 
+  // Fallback: if CSS parsing returned nothing, try extracting from RSC payload
+  if (recentMatches.length === 0) {
+    const fallback = extractMatchesFromRSCPayload(html);
+    // Filter for completed matches
+    const recent = fallback.filter(m => {
+      const s = m.status.toLowerCase();
+      return s.includes('won') || s.includes('drawn') || s.includes('no result') ||
+             s.includes('abandoned') || s.includes('tied');
+    });
+    return recent.length > 0 ? recent : fallback;
+  }
+
   return recentMatches;
 }
+function matchInfoToLiveMatch(match: any): LiveMatch | null {
+  const matchInfo = match?.matchInfo;
+  if (!matchInfo) return null;
+  const teams: { name: string; score?: string }[] = [];
+  if (matchInfo.team1) {
+    let s = '';
+    if (match.matchScore?.team1Score?.inngs1) {
+      const i = match.matchScore.team1Score.inngs1;
+      s = `${i.runs}${i.wickets !== undefined ? `/${i.wickets}` : ''} (${i.overs})`;
+    }
+    teams.push({ name: matchInfo.team1.teamName, score: s || undefined });
+  }
+  if (matchInfo.team2) {
+    let s = '';
+    if (match.matchScore?.team2Score?.inngs1) {
+      const i = match.matchScore.team2Score.inngs1;
+      s = `${i.runs}${i.wickets !== undefined ? `/${i.wickets}` : ''} (${i.overs})`;
+    }
+    teams.push({ name: matchInfo.team2.teamName, score: s || undefined });
+  }
+  const venue = matchInfo.venueInfo
+    ? `${matchInfo.venueInfo.ground}, ${matchInfo.venueInfo.city}`
+    : undefined;
+  const seriesName = matchInfo.seriesName || '';
+  const title = `${matchInfo.team1?.teamName || ''} vs ${matchInfo.team2?.teamName || ''}, ${matchInfo.matchDesc}`;
+  return {
+    title,
+    url: `/live-cricket-scores/${matchInfo.matchId}`,
+    matchId: matchInfo.matchId.toString(),
+    teams,
+    status: matchInfo.status || 'Status not available',
+    matchType: getMatchTypeFromSeries(seriesName, title),
+    seriesName: seriesName || undefined,
+    venue,
+    startDate: matchInfo.startDate || matchInfo.matchStartTimestamp,
+  };
+}
+
+function extractArrayAt(html: string, markerIdx: number, markerLen: number): string | null {
+  const arrStart = markerIdx + markerLen - 1; // position of '['
+  let depth = 0;
+  for (let i = arrStart; i < html.length && i < arrStart + 500000; i++) {
+    if (html[i] === '[') depth++;
+    if (html[i] === ']') depth--;
+    if (depth === 0) return html.substring(arrStart, i + 1);
+  }
+  return null;
+}
+
+function extractMatchesFromRSCPayload(html: string): LiveMatch[] {
+  const matches: LiveMatch[] = [];
+
+  // NEW format: "matches\":[{\"match\":{\"matchInfo\":...}}]
+  const newMarker = '"matches\\":[';
+  let searchFrom = 0;
+  while (true) {
+    const idx = html.indexOf(newMarker, searchFrom);
+    if (idx === -1) break;
+    const rawArr = extractArrayAt(html, idx, newMarker.length);
+    if (!rawArr) break;
+    searchFrom = idx + rawArr.length;
+    try {
+      const rawJson = rawArr.replace(/\\\\/g, '\\').replace(/\\"/g, '"');
+      const arr = JSON.parse(rawJson);
+      for (const item of arr) {
+        const m = matchInfoToLiveMatch(item.match || item);
+        if (m) matches.push(m);
+      }
+    } catch {
+      // skip this chunk
+    }
+  }
+
+  // OLD format fallback: "matchDetails\":[{"matchDetailsMap":{"match":[...]}}]
+  if (matches.length === 0) {
+    const oldMarker = '"matchDetails\\":[';
+    searchFrom = 0;
+    while (true) {
+      const idx = html.indexOf(oldMarker, searchFrom);
+      if (idx === -1) break;
+      const rawArr = extractArrayAt(html, idx, oldMarker.length);
+      if (!rawArr) break;
+      searchFrom = idx + rawArr.length;
+      try {
+        const rawJson = rawArr.replace(/\\\\/g, '\\').replace(/\\"/g, '"');
+        const matchDetails = JSON.parse(rawJson);
+        for (const dateGroup of matchDetails) {
+          if (dateGroup.matchDetailsMap?.match) {
+            for (const match of dateGroup.matchDetailsMap.match) {
+              const m = matchInfoToLiveMatch(match);
+              if (m) matches.push(m);
+            }
+          }
+        }
+      } catch {
+        // skip this chunk
+      }
+    }
+  }
+
+  // Deduplicate by matchId
+  const seen = new Set<string>();
+  return matches.filter(m => {
+    if (seen.has(m.matchId)) return false;
+    seen.add(m.matchId);
+    return true;
+  });
+}
+
 export async function scrapeLiveMatches(): Promise<LiveMatch[]> {
   const response = await fetch('https://www.cricbuzz.com/cricket-match/live-scores', {
     headers: {
@@ -1917,6 +2049,18 @@ export async function scrapeLiveMatches(): Promise<LiveMatch[]> {
       }
     });
   });
+
+  // Fallback: if CSS parsing returned nothing, try extracting from RSC payload
+  if (liveMatches.length === 0) {
+    const fallback = extractMatchesFromRSCPayload(html);
+    // Filter for live-ish statuses
+    const live = fallback.filter(m => {
+      const s = m.status.toLowerCase();
+      return !s.includes('won') && !s.includes('drawn') && !s.includes('no result') &&
+             !s.includes('abandoned') && !s.includes('match starts') && !s.includes('match yet');
+    });
+    return live.length > 0 ? live : fallback;
+  }
 
   return liveMatches;
 }
