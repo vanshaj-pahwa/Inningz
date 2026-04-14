@@ -27,24 +27,27 @@ export default function WinProbabilityChart({ data }: WinProbabilityChartProps) 
     return <p className="text-xs text-muted-foreground">No win probability data available</p>;
   }
 
-  const chartData = data.points.map(p => ({
-    over: p.over,
-    team1: p.team1Prob,
-    team2: p.team2Prob,
-    isTeam1Wicket: p.isTeam1Wicket,
-    isTeam2Wicket: p.isTeam2Wicket,
-    wicketCommentary: p.wicketCommentary,
-  }));
+  // Detect innings break via the `innings` field (backend sends continuous over numbers)
+  const firstInn2Idx = data.points.findIndex(p => p.innings === 2);
+  const inningsBreakIndex = firstInn2Idx > 0 ? firstInn2Idx : -1;
+  // Overs in innings 2 are continuous (21, 22, …) — rebase them to 1-based per-innings
+  const inn1LastOver = firstInn2Idx > 0 ? data.points[firstInn2Idx - 1].over : 0;
 
-  let inningsBreakIndex = -1;
-  for (let i = 1; i < data.points.length; i++) {
-    if (data.points[i].over < data.points[i - 1].over) {
-      inningsBreakIndex = i;
-      break;
-    }
-  }
+  const chartData = data.points.map(p => {
+    const displayOver = p.innings === 2 ? p.over - inn1LastOver : p.over;
+    return {
+      over: p.over,
+      displayOver,
+      innings: p.innings,
+      team1: p.team1Prob,
+      team2: p.team2Prob,
+      isTeam1Wicket: p.isTeam1Wicket,
+      isTeam2Wicket: p.isTeam2Wicket,
+      wicketCommentary: p.wicketCommentary,
+    };
+  });
 
-  const indexedData = chartData.map((d, i) => ({ ...d, idx: i, overLabel: `${d.over}` }));
+  const indexedData = chartData.map((d, i) => ({ ...d, idx: i, overLabel: `${d.displayOver}` }));
 
   const filters = [
     { key: 'both' as const, label: 'Both' },
@@ -173,8 +176,13 @@ function OverByOverBars({ data, inningsBreakIndex, team1Color, team2Color }: { d
     ? data.points.slice(inningsBreakIndex)
     : [];
 
-  const inn1Sorted = [...inn1Points].sort((a, b) => b.over - a.over);
-  const inn2Sorted = [...inn2Points].sort((a, b) => b.over - a.over);
+  // Rebase 2nd-innings overs to 1-based per-innings numbering
+  const inn1LastOver = inn1Points.length > 0 ? inn1Points[inn1Points.length - 1].over : 0;
+  const inn1WithDisplay = inn1Points.map(p => ({ ...p, displayOver: p.over }));
+  const inn2WithDisplay = inn2Points.map(p => ({ ...p, displayOver: p.over - inn1LastOver }));
+
+  const inn1Sorted = [...inn1WithDisplay].sort((a, b) => b.displayOver - a.displayOver);
+  const inn2Sorted = [...inn2WithDisplay].sort((a, b) => b.displayOver - a.displayOver);
 
   return (
     <div className="rounded-xl border border-border/60 overflow-hidden">
@@ -244,7 +252,7 @@ function InningsSection({ title, points, team1Color, team2Color }: {
               className="flex items-center gap-2 py-1 group hover:bg-muted/10 rounded -mx-1 px-1 transition-colors"
             >
               <span className="w-6 text-[11px] text-muted-foreground tabular-nums text-right shrink-0 font-medium">
-                {p.over}
+                {p.displayOver}
               </span>
 
               {/* Team 1 percentage */}
@@ -291,7 +299,9 @@ function WinProbTooltip({ active, payload, team1, team2 }: any) {
     <div className="bg-card text-card-foreground rounded-xl text-xs shadow-2xl border border-border/80 max-w-[300px] overflow-hidden">
       {/* Header */}
       <div className="px-3 py-2 bg-muted/30 border-b border-border/30">
-        <p className="font-semibold text-foreground text-[11px]">Over {d.over} | {team1}: {d.team1}% {'\u2022'} {team2}: {d.team2}%</p>
+        <p className="font-semibold text-foreground text-[11px]">
+          {d.innings === 2 ? '2nd Inn' : '1st Inn'} · Over {d.displayOver ?? d.over} | {team1}: {d.team1}% {'\u2022'} {team2}: {d.team2}%
+        </p>
       </div>
       {/* Wicket commentary */}
       {d.wicketCommentary && (() => {
