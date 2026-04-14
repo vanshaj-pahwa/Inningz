@@ -8,12 +8,18 @@ import {
   getBallMapData,
   getWinProbHistory,
   getInningsOverData,
+  getMatchups,
+  getVenueForecast,
+  getAllPlayersForecast,
 } from '@/app/actions';
 import type {
   PartnershipInnings,
   BallMapData,
   WinProbHistory,
   InningsOverData,
+  MatchupsData,
+  VenueData,
+  AllPlayersData,
 } from '@/app/actions';
 import BallMap from './graphs/ball-map';
 import WinProbabilityChart from './graphs/win-probability-chart';
@@ -21,8 +27,11 @@ import PartnershipsChart from './graphs/partnerships-chart';
 import OverByOverChart from './over-by-over-chart';
 import RunRateChart from './graphs/run-rate-chart';
 import WormChart from './graphs/worm-chart';
+import MatchupsSection from './report/matchups-section';
+import VenueSection from './report/venue-section';
+import AllPlayersSection from './report/all-players-section';
 
-type SectionId = 'winProb' | 'runRate' | 'worm' | 'overs' | 'partnerships' | 'ballMap';
+type SectionId = 'winProb' | 'runRate' | 'worm' | 'overs' | 'partnerships' | 'ballMap' | 'matchups' | 'venue' | 'players';
 
 const SECTIONS: { id: SectionId; num: string; label: string; subtitle: string }[] = [
   { id: 'winProb', num: '01', label: 'Win Probability', subtitle: 'How the match tilted, over by over.' },
@@ -31,6 +40,9 @@ const SECTIONS: { id: SectionId; num: string; label: string; subtitle: string }[
   { id: 'overs', num: '04', label: 'Over by Over', subtitle: 'Runs and wickets in each over.' },
   { id: 'partnerships', num: '05', label: 'Partnerships', subtitle: 'Who built it together.' },
   { id: 'ballMap', num: '06', label: 'Ball Map', subtitle: 'Every shot, every dismissal.' },
+  { id: 'matchups', num: '07', label: 'Matchups', subtitle: 'Head-to-heads that could swing the match.' },
+  { id: 'venue', num: '08', label: 'Venue', subtitle: 'What the ground tells us.' },
+  { id: 'players', num: '09', label: 'All Players', subtitle: 'The full squad in context.' },
 ];
 
 interface MatchGraphsProps {
@@ -47,6 +59,12 @@ export default function MatchGraphs({ matchId, initialTab }: MatchGraphsProps) {
   const [winProbLoading, setWinProbLoading] = useState(false);
   const [partnershipsLoading, setPartnershipsLoading] = useState(false);
   const [ballMapLoading, setBallMapLoading] = useState<Map<number, boolean>>(new Map());
+  const [matchupsData, setMatchupsData] = useState<MatchupsData | null>(null);
+  const [matchupsLoading, setMatchupsLoading] = useState(false);
+  const [venueData, setVenueData] = useState<VenueData | null>(null);
+  const [venueLoading, setVenueLoading] = useState(false);
+  const [allPlayersData, setAllPlayersData] = useState<AllPlayersData | null>(null);
+  const [allPlayersLoading, setAllPlayersLoading] = useState(false);
   const fetched = useRef<Set<string>>(new Set());
 
   const [selectedOversInn, setSelectedOversInn] = useState(1);
@@ -79,7 +97,6 @@ export default function MatchGraphs({ matchId, initialTab }: MatchGraphsProps) {
     });
     if (map.size > 0) {
       setOverData(map);
-      // default innings = first available
       const first = Array.from(map.keys())[0];
       setSelectedOversInn(first);
     }
@@ -99,6 +116,33 @@ export default function MatchGraphs({ matchId, initialTab }: MatchGraphsProps) {
     setPartnershipsLoading(false);
   }, [matchId]);
 
+  const fetchMatchups = useCallback(async () => {
+    if (fetched.current.has('matchups')) return;
+    fetched.current.add('matchups');
+    setMatchupsLoading(true);
+    const result = await getMatchups(matchId);
+    if (result.success && result.data) setMatchupsData(result.data);
+    setMatchupsLoading(false);
+  }, [matchId]);
+
+  const fetchVenue = useCallback(async () => {
+    if (fetched.current.has('venue')) return;
+    fetched.current.add('venue');
+    setVenueLoading(true);
+    const result = await getVenueForecast(matchId);
+    if (result.success && result.data) setVenueData(result.data);
+    setVenueLoading(false);
+  }, [matchId]);
+
+  const fetchAllPlayers = useCallback(async () => {
+    if (fetched.current.has('allPlayers')) return;
+    fetched.current.add('allPlayers');
+    setAllPlayersLoading(true);
+    const result = await getAllPlayersForecast(matchId);
+    if (result.success && result.data) setAllPlayersData(result.data);
+    setAllPlayersLoading(false);
+  }, [matchId]);
+
   const fetchBallMap = useCallback(async (inningsId: number) => {
     const key = `ballMap-${inningsId}`;
     if (fetched.current.has(key)) return;
@@ -115,7 +159,6 @@ export default function MatchGraphs({ matchId, initialTab }: MatchGraphsProps) {
     });
   }, [matchId]);
 
-  // Fetch ball map when its selected innings changes (after first section load)
   useEffect(() => {
     if (fetched.current.has('ballMap-section-visible')) {
       fetchBallMap(selectedBallMapInn);
@@ -236,7 +279,6 @@ export default function MatchGraphs({ matchId, initialTab }: MatchGraphsProps) {
           sectionRefs={sectionRefs}
           onFirstView={() => {
             fetched.current.add('ballMap-section-visible');
-            // Ensure we know how many innings exist before offering selectors
             fetchOverData();
             fetchBallMap(selectedBallMapInn);
           }}
@@ -261,6 +303,48 @@ export default function MatchGraphs({ matchId, initialTab }: MatchGraphsProps) {
             <BallMap data={ballMapData.get(selectedBallMapInn)!} />
           ) : (
             <EmptyState message="No ball map for this innings." />
+          )}
+        </GraphSection>
+
+        <GraphSection
+          id="matchups"
+          section={SECTIONS[6]}
+          sectionRefs={sectionRefs}
+          onFirstView={fetchMatchups}
+          loading={matchupsLoading}
+        >
+          {matchupsData && matchupsData.cards.length > 0 ? (
+            <MatchupsSection data={matchupsData} />
+          ) : (
+            <EmptyState message="No matchup insights for this match." />
+          )}
+        </GraphSection>
+
+        <GraphSection
+          id="venue"
+          section={SECTIONS[7]}
+          sectionRefs={sectionRefs}
+          onFirstView={fetchVenue}
+          loading={venueLoading}
+        >
+          {venueData ? (
+            <VenueSection data={venueData} />
+          ) : (
+            <EmptyState message="No venue info available." />
+          )}
+        </GraphSection>
+
+        <GraphSection
+          id="players"
+          section={SECTIONS[8]}
+          sectionRefs={sectionRefs}
+          onFirstView={fetchAllPlayers}
+          loading={allPlayersLoading}
+        >
+          {allPlayersData && allPlayersData.playersByRole.length > 0 ? (
+            <AllPlayersSection data={allPlayersData} />
+          ) : (
+            <EmptyState message="No player forecast available." />
           )}
         </GraphSection>
       </div>
@@ -292,7 +376,6 @@ function GraphSection({
   const localRef = useRef<HTMLElement>(null);
   const hasFired = useRef(false);
 
-  // Register ref
   useEffect(() => {
     if (localRef.current) {
       sectionRefs.current.set(id, localRef.current);
@@ -302,7 +385,6 @@ function GraphSection({
     };
   }, [id, sectionRefs]);
 
-  // Fire onFirstView when section enters viewport (with generous root margin)
   useEffect(() => {
     const el = localRef.current;
     if (!el) return;
@@ -328,7 +410,6 @@ function GraphSection({
       data-section={id}
       className="scroll-mt-24 py-10 md:py-14 border-b border-border/30 last:border-b-0"
     >
-      {/* Section header */}
       <div className="mb-6 md:mb-8 flex items-end justify-between gap-4">
         <div className="flex items-baseline gap-3 md:gap-5 min-w-0">
           <span
@@ -348,10 +429,8 @@ function GraphSection({
         </div>
       </div>
 
-      {/* Thin accent rule */}
       <div className="h-px bg-gradient-to-r from-cyan-500/40 via-border/50 to-transparent mb-5 md:mb-6" />
 
-      {/* Innings selector (if applicable) */}
       {innings && innings.length > 1 && onInningsChange && selectedInnings !== undefined && (
         <div className="flex flex-wrap gap-1.5 mb-4">
           {innings.map((inn) => (
@@ -371,7 +450,6 @@ function GraphSection({
         </div>
       )}
 
-      {/* Content */}
       <div className="glass-card p-3 md:p-5 overflow-hidden">
         {loading ? <GraphsSkeleton /> : children}
       </div>
