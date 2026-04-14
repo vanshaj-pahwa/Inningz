@@ -39,18 +39,18 @@ export default function BallMap({ data }: BallMapProps) {
       {/* Ball grid */}
       <div className="space-y-1">
         {sortedOvers.map(([overNum, balls]) => (
-          <div key={overNum} className="flex items-center gap-2 group">
-            <span className="w-7 text-[11px] text-muted-foreground/70 text-right shrink-0 tabular-nums font-medium group-hover:text-foreground transition-colors">
+          <div key={overNum} className="flex items-start gap-2 group min-w-0">
+            <span className="w-6 md:w-7 text-[11px] text-muted-foreground/70 text-right shrink-0 tabular-nums font-medium group-hover:text-foreground transition-colors pt-1.5">
               {overNum + 1}
             </span>
-            <div className="flex gap-1">
+            <div className="flex flex-wrap gap-1 min-w-0">
               {balls.map((ball, idx) => {
                 const style = getBallStyle(ball.ballLabel, ball.event);
                 return (
                   <div
                     key={idx}
                     className={cn(
-                      'w-8 h-8 rounded-lg text-[11px] font-bold flex items-center justify-center transition-transform hover:scale-110',
+                      'w-7 h-7 md:w-8 md:h-8 shrink-0 rounded-lg text-[11px] font-bold flex items-center justify-center transition-transform hover:scale-110',
                       style.bg, style.text, style.glow
                     )}
                     title={`${ball.overNum} - ${ball.ballLabel} (${ball.event})`}
