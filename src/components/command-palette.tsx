@@ -109,7 +109,11 @@ export default function CommandPaletteProvider({ children }: { children: React.R
         if (open) {
             setQuery('');
             setActiveIndex(0);
-            requestAnimationFrame(() => inputRef.current?.focus());
+            // Skip auto-focus on touch devices so the soft keyboard doesn't pop up
+            const isTouch = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
+            if (!isTouch) {
+                requestAnimationFrame(() => inputRef.current?.focus());
+            }
         }
     }, [open]);
 
