@@ -9,7 +9,7 @@ import { loadMoreCommentary as loadMoreCommentaryAction, getPlayerProfile, getPl
 import type { ScrapeCricbuzzUrlOutput, Commentary, PlayerProfile, PlayerHighlights } from '@/app/actions';
 import { useLiveScore } from '@/lib/data-layer';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { LoaderCircle, User, ArrowLeft, ChevronLeft, ChevronRight, Share2 } from "lucide-react";
+import { User, ArrowLeft, ChevronLeft, ChevronRight, Share2 } from "lucide-react";
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { cn } from '@/lib/utils';
@@ -28,6 +28,8 @@ import PointsTableDisplay from './points-table';
 import LiveStreamTab from './live-stream-tab';
 import MatchGraphs from './match-graphs';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
+import { MatchPageSkeleton, PlayerProfileSkeleton, HighlightsSkeleton } from './match-skeletons';
+import { CommandPaletteTrigger } from './command-palette';
 
 type LastEventType = {
     text: string;
@@ -128,6 +130,29 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
         threshold: 80,
         enabled: view !== 'graphs',
     });
+
+    // Keyboard shortcuts: 1-5 jump to tabs. Arrow keys are already handled by useSwipe.
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            if (e.metaKey || e.ctrlKey || e.altKey) return;
+            const target = e.target as HTMLElement | null;
+            if (target) {
+                const tag = target.tagName;
+                if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable) return;
+            }
+            if (document.querySelector('[role="dialog"][data-state="open"]')) return;
+
+            if (e.key >= '1' && e.key <= '9') {
+                const idx = parseInt(e.key, 10) - 1;
+                if (idx >= 0 && idx < views.length) {
+                    setView(views[idx]);
+                    e.preventDefault();
+                }
+            }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [views]);
 
     const [loadingMore, setLoadingMore] = useState(false);
     const [newCommentaryStartIndex, setNewCommentaryStartIndex] = useState<number | null>(null);
@@ -270,9 +295,24 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                 const wicketDiff = currentScore.wickets - prevScore.wickets;
                 const oversChanged = currentOvers !== null && prevOvers !== null && currentOvers > prevOvers;
 
-                if (wicketDiff > 0) eventToShow = { text: 'W', variant: 'destructive' };
-                else if (runDiff === 6) eventToShow = { text: '6', variant: 'six' };
-                else if (runDiff === 4) eventToShow = { text: '4', variant: 'four' };
+                if (wicketDiff > 0) {
+                    eventToShow = { text: 'W', variant: 'destructive' };
+                    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+                        navigator.vibrate([120, 60, 120]);
+                    }
+                }
+                else if (runDiff === 6) {
+                    eventToShow = { text: '6', variant: 'six' };
+                    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+                        navigator.vibrate(40);
+                    }
+                }
+                else if (runDiff === 4) {
+                    eventToShow = { text: '4', variant: 'four' };
+                    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+                        navigator.vibrate(25);
+                    }
+                }
                 else if (runDiff > 0 && runDiff < 4) eventToShow = { text: `+${runDiff}`, variant: 'default' };
                 else if (runDiff === 0 && wicketDiff === 0 && oversChanged) eventToShow = { text: 'DOT', variant: 'default' };
             }
@@ -294,12 +334,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
     }
 
     if (!data && liveLoading) {
-        return (
-            <div className="w-full flex items-center justify-center p-8 mt-16">
-                <LoaderCircle className="w-8 h-8 animate-spin text-primary" />
-                <p className="ml-4 text-muted-foreground">Fetching live score...</p>
-            </div>
-        )
+        return <MatchPageSkeleton />;
     }
 
     // Helper function to highlight "THATS OUT!!" in any commentary text
@@ -957,10 +992,12 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                 </button>
                             ))}
                         </div>
+                        <CommandPaletteTrigger />
                         <ThemeToggle />
                     </div>
                     {/* Mobile: theme toggle */}
-                    <div className="shrink-0 md:hidden">
+                    <div className="shrink-0 md:hidden flex items-center gap-1.5">
+                        <CommandPaletteTrigger />
                         <ThemeToggle />
                     </div>
                 </div>
@@ -1419,15 +1456,16 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                     <DialogHeader className="sr-only">
                         <DialogTitle>Player Profile</DialogTitle>
                     </DialogHeader>
-                    {profileLoading && (
-                        <div className="flex justify-center items-center p-12">
-                            <LoaderCircle className="w-8 h-8 animate-spin text-primary" />
-                            <p className="ml-4 text-muted-foreground">Loading player profile...</p>
-                        </div>
-                    )}
+                    {profileLoading && <PlayerProfileSkeleton />}
                     {selectedProfile && <PlayerProfileDisplay profile={selectedProfile} />}
                     {!profileLoading && !selectedProfile && selectedProfileId && (
-                        <div className="p-8 text-center text-muted-foreground">Failed to load player profile</div>
+                        <div className="flex flex-col items-center justify-center py-14 gap-3">
+                            <div className="w-12 h-12 rounded-full bg-muted/60 flex items-center justify-center">
+                                <User className="w-5 h-5 text-muted-foreground" />
+                            </div>
+                            <p className="text-sm font-medium">Couldn't load profile</p>
+                            <p className="text-xs text-muted-foreground">Please try again in a moment.</p>
+                        </div>
                     )}
                 </DialogContent>
             </Dialog>
@@ -1444,12 +1482,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                             )}
                         </DialogTitle>
                     </DialogHeader>
-                    {highlightsLoading && (
-                        <div className="flex justify-center items-center p-12">
-                            <LoaderCircle className="w-8 h-8 animate-spin text-primary" />
-                            <p className="ml-4 text-muted-foreground">Loading highlights...</p>
-                        </div>
-                    )}
+                    {highlightsLoading && <HighlightsSkeleton />}
                     {highlightsData && (
                         <div className="p-3 md:p-4">
                             <div className="space-y-0.5">
@@ -1503,7 +1536,15 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                     );
                                 })}
                                 {highlightsData.highlights.length === 0 && (
-                                    <p className="text-center text-muted-foreground py-8">No highlights available.</p>
+                                    <div className="flex flex-col items-center justify-center py-12 gap-3">
+                                        <div className="w-12 h-12 rounded-full bg-muted/60 flex items-center justify-center">
+                                            <span className="text-xl">🏏</span>
+                                        </div>
+                                        <p className="text-sm font-medium text-foreground">No highlights yet</p>
+                                        <p className="text-xs text-muted-foreground text-center max-w-[240px]">
+                                            Boundaries and wickets from this innings will show up here.
+                                        </p>
+                                    </div>
                                 )}
                             </div>
                         </div>

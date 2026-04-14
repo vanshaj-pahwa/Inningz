@@ -5,6 +5,7 @@ import { getMatchSquads, getPlayerProfile } from '@/app/actions';
 import type { MatchSquads, PlayerProfile, SquadPlayer } from '@/app/actions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoaderCircle } from 'lucide-react';
+import { SquadsSkeleton } from './match-skeletons';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import PlayerProfileDisplay from './player-profile';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
@@ -49,12 +50,7 @@ export default function MatchSquadsDisplay({ matchId }: { matchId: string }) {
     }, [selectedProfileId, selectedPlayerName]);
 
     if (loading && !squads) {
-        return (
-            <div className="flex justify-center items-center p-8">
-                <LoaderCircle className="w-8 h-8 animate-spin text-primary" />
-                <p className="ml-4 text-muted-foreground">Loading squads...</p>
-            </div>
-        );
+        return <SquadsSkeleton />;
     }
 
     if (error) {

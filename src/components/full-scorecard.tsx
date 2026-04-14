@@ -6,6 +6,7 @@ import type { FullScorecard, PlayerProfile } from '@/app/actions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { LoaderCircle } from 'lucide-react';
+import { ScorecardSkeleton } from './match-skeletons';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import PlayerProfileDisplay from './player-profile';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
@@ -61,12 +62,7 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
 
 
     if (loading && !scorecard) {
-        return (
-            <div className="flex justify-center items-center p-8">
-                <LoaderCircle className="w-8 h-8 animate-spin text-primary" />
-                <p className="ml-4 text-muted-foreground">Loading scorecard...</p>
-            </div>
-        );
+        return <ScorecardSkeleton />;
     }
 
     if (error) {
