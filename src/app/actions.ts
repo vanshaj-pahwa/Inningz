@@ -20,6 +20,21 @@ import {
     fetchPartnershipData as fetchPartnershipDataFlow,
     fetchBallMapData as fetchBallMapDataFlow,
     scrapeWinProbHistory as scrapeWinProbHistoryFlow,
+    scrapeMatchups as scrapeMatchupsFlow,
+    scrapeVenueForecast as scrapeVenueForecastFlow,
+    scrapeAllPlayersForecast as scrapeAllPlayersForecastFlow,
+    type MatchupsData as MatchupsDataType,
+    type VenueData as VenueDataType,
+    type AllPlayersData as AllPlayersDataType,
+    type ForecastCard as ForecastCardType,
+    type ForecastSubCard as ForecastSubCardType,
+    type ForecastStat as ForecastStatType,
+    type ForecastPlayer as ForecastPlayerType,
+    type ForecastPlayersByRole as ForecastPlayersByRoleType,
+    type ForecastPlayerBadge as ForecastPlayerBadgeType,
+    type ForecastPlayerStyle as ForecastPlayerStyleType,
+    type VenueRecentMatchRow as VenueRecentMatchRowType,
+    type VenueHeadingContent as VenueHeadingContentType,
     type ScrapeCricbuzzUrlOutput as ScrapeFlowOutput,
     type Commentary as CommentaryType,
     type LiveMatch as LiveMatchType,
@@ -94,6 +109,18 @@ export type BallMapBowler = BallMapBowlerType;
 export type BallMapData = BallMapDataType;
 export type WinProbPoint = WinProbPointType;
 export type WinProbHistory = WinProbHistoryType;
+export type MatchupsData = MatchupsDataType;
+export type VenueData = VenueDataType;
+export type AllPlayersData = AllPlayersDataType;
+export type ForecastCard = ForecastCardType;
+export type ForecastSubCard = ForecastSubCardType;
+export type ForecastStat = ForecastStatType;
+export type ForecastPlayer = ForecastPlayerType;
+export type ForecastPlayersByRole = ForecastPlayersByRoleType;
+export type ForecastPlayerBadge = ForecastPlayerBadgeType;
+export type ForecastPlayerStyle = ForecastPlayerStyleType;
+export type VenueRecentMatchRow = VenueRecentMatchRowType;
+export type VenueHeadingContent = VenueHeadingContentType;
 export type { MatchStats };
 export type StreamMatch = StreamMatchType;
 export type StreamDetail = StreamDetailType;
@@ -513,6 +540,39 @@ export async function getWinProbHistory(matchId: string): Promise<{ success: boo
     } catch (e) {
         const errorMessage = e instanceof Error ? e.message : 'An unexpected error occurred.';
         return { success: false, error: errorMessage };
+    }
+}
+
+export async function getMatchups(matchId: string): Promise<{ success: boolean; data?: MatchupsDataType; error?: string }> {
+    if (!matchId) return { success: false, error: 'Invalid Match ID' };
+    try {
+        const data = await scrapeMatchupsFlow(matchId);
+        if (!data) return { success: false, error: 'No matchup data available' };
+        return { success: true, data };
+    } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : 'An unexpected error occurred.' };
+    }
+}
+
+export async function getVenueForecast(matchId: string): Promise<{ success: boolean; data?: VenueDataType; error?: string }> {
+    if (!matchId) return { success: false, error: 'Invalid Match ID' };
+    try {
+        const data = await scrapeVenueForecastFlow(matchId);
+        if (!data) return { success: false, error: 'No venue data available' };
+        return { success: true, data };
+    } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : 'An unexpected error occurred.' };
+    }
+}
+
+export async function getAllPlayersForecast(matchId: string): Promise<{ success: boolean; data?: AllPlayersDataType; error?: string }> {
+    if (!matchId) return { success: false, error: 'Invalid Match ID' };
+    try {
+        const data = await scrapeAllPlayersForecastFlow(matchId);
+        if (!data) return { success: false, error: 'No player forecast data available' };
+        return { success: true, data };
+    } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : 'An unexpected error occurred.' };
     }
 }
 

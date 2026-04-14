@@ -4332,3 +4332,208 @@ export async function scrapeICCRankings(
     entries,
   });
 }
+
+// =====================================================================
+// Match Forecast (Matchups / Venue / All Players)
+// =====================================================================
+
+export type ForecastStat = { label: string; value: string };
+export type ForecastSubCard = { subCardHeading: string; stats: ForecastStat[] };
+export type ForecastCard = {
+  cardType: string;
+  cardHeading: string;
+  cardLabel?: string;
+  subCard: ForecastSubCard[];
+  playerOneImageId?: string;
+  playerTwoImageId?: string;
+};
+export type MatchupsData = {
+  id: number;
+  cards: ForecastCard[];
+};
+
+export type VenueHeadingContent = { heading: string; content: string };
+export type VenueRecentMatchRow = {
+  matchId: string;
+  label: string;
+  firstInnings: string;
+  secondInnings: string;
+  linkSlug: string;
+};
+export type VenueData = {
+  id: number;
+  groundName: string;
+  city: string;
+  country: string;
+  groundDetails: VenueHeadingContent[];
+  pitchDetails: VenueHeadingContent[];
+  runsExpected: VenueHeadingContent[];
+  averageScores?: {
+    heading: string;
+    label: string;
+    values: { heading: string; content: string }[];
+  };
+  recentMatches?: {
+    label: string;
+    headers: string[];
+    rows: VenueRecentMatchRow[];
+  };
+  cards: ForecastCard[];
+};
+
+export type ForecastPlayerBadge = { label: string; code: string; desc?: string };
+export type ForecastPlayerStyle = { label: string; code: string };
+export type ForecastPlayer = {
+  id: number;
+  name: string;
+  faceImageId?: number;
+  teamFlagId?: number;
+  teamName: string;
+  teamShortName: string;
+  badges: ForecastPlayerBadge[];
+  playerStyle: ForecastPlayerStyle[];
+  description?: string;
+  imageUrl?: string;
+};
+export type ForecastPlayersByRole = { role: string; players: ForecastPlayer[] };
+export type AllPlayersData = {
+  playersByRole: ForecastPlayersByRole[];
+};
+
+const FORECAST_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+
+async function fetchForecast<T>(path: string): Promise<T | null> {
+  try {
+    const response = await fetch(`https://www.cricbuzz.com/api/match-forecast/${path}`, {
+      headers: { 'User-Agent': FORECAST_UA },
+    });
+    if (!response.ok) return null;
+    return await response.json() as T;
+  } catch {
+    return null;
+  }
+}
+
+export async function scrapeMatchups(matchId: string): Promise<MatchupsData | null> {
+  const raw = await fetchForecast<any>(`match-ups/${matchId}`);
+  if (!raw || !Array.isArray(raw.cards)) return null;
+  const cards: ForecastCard[] = raw.cards
+    .filter((c: any) => c && c.cardHeading && Array.isArray(c.subCard))
+    .map((c: any) => ({
+      cardType: c.cardType || 'playerStatsCard',
+      cardHeading: String(c.cardHeading),
+      cardLabel: c.cardLabel ? String(c.cardLabel) : undefined,
+      playerOneImageId: c.playerOneImageId ? String(c.playerOneImageId) : undefined,
+      playerTwoImageId: c.playerTwoImageId ? String(c.playerTwoImageId) : undefined,
+      subCard: c.subCard.map((sc: any) => ({
+        subCardHeading: String(sc.subCardHeading || ''),
+        stats: Array.isArray(sc.stats)
+          ? sc.stats.map((s: any) => ({ label: String(s.label || ''), value: String(s.value || '') }))
+          : [],
+      })),
+    }));
+  return { id: raw.id, cards };
+}
+
+export async function scrapeVenueForecast(matchId: string): Promise<VenueData | null> {
+  const raw = await fetchForecast<any>(`venue/${matchId}`);
+  if (!raw || !raw.groundName) return null;
+  const toHC = (arr: any[]): VenueHeadingContent[] =>
+    Array.isArray(arr)
+      ? arr
+        .filter((x) => x && (x.heading || x.content))
+        .map((x) => ({ heading: String(x.heading || ''), content: String(x.content || '') }))
+      : [];
+
+  let recentMatches: VenueData['recentMatches'];
+  if (raw.recentMatches && Array.isArray(raw.recentMatches.rows)) {
+    recentMatches = {
+      label: String(raw.recentMatches.label || 'Recent'),
+      headers: Array.isArray(raw.recentMatches.headers) ? raw.recentMatches.headers.map(String) : [],
+      rows: raw.recentMatches.rows
+        .filter((r: any) => Array.isArray(r.values) && r.values.length >= 4)
+        .map((r: any) => ({
+          matchId: String(r.values[0] || ''),
+          label: String(r.values[1] || ''),
+          firstInnings: String(r.values[2] || ''),
+          secondInnings: String(r.values[3] || ''),
+          linkSlug: String(r.followUpLinkText || ''),
+        })),
+    };
+  }
+
+  let averageScores: VenueData['averageScores'];
+  if (raw.averageScores && Array.isArray(raw.averageScores.values)) {
+    averageScores = {
+      heading: String(raw.averageScores.heading || 'Average Scores'),
+      label: String(raw.averageScores.label || ''),
+      values: raw.averageScores.values
+        .filter((v: any) => v && (v.heading || v.content))
+        .map((v: any) => ({ heading: String(v.heading || ''), content: String(v.content || '') })),
+    };
+  }
+
+  const cards: ForecastCard[] = Array.isArray(raw.cards)
+    ? raw.cards
+      .filter((c: any) => c && c.cardHeading && Array.isArray(c.subCard))
+      .map((c: any) => ({
+        cardType: c.cardType || 'statsCard',
+        cardHeading: String(c.cardHeading),
+        cardLabel: c.cardLabel ? String(c.cardLabel) : undefined,
+        subCard: c.subCard.map((sc: any) => ({
+          subCardHeading: String(sc.subCardHeading || ''),
+          stats: Array.isArray(sc.stats)
+            ? sc.stats.map((s: any) => ({ label: String(s.label || ''), value: String(s.value || '') }))
+            : [],
+        })),
+      }))
+    : [];
+
+  return {
+    id: Number(raw.id) || 0,
+    groundName: String(raw.groundName),
+    city: String(raw.city || ''),
+    country: String(raw.country || ''),
+    groundDetails: toHC(raw.groundDetails),
+    pitchDetails: toHC(raw.pitchDetails),
+    runsExpected: toHC(raw.runsExpected),
+    averageScores,
+    recentMatches,
+    cards,
+  };
+}
+
+export async function scrapeAllPlayersForecast(matchId: string): Promise<AllPlayersData | null> {
+  const raw = await fetchForecast<any>(`all-players/${matchId}`);
+  if (!raw || !Array.isArray(raw.playersByRole)) return null;
+  const playersByRole: ForecastPlayersByRole[] = raw.playersByRole
+    .filter((g: any) => g && g.role && Array.isArray(g.players))
+    .map((g: any) => ({
+      role: String(g.role),
+      players: g.players
+        .filter((p: any) => p && p.name && p.isVisible !== false)
+        .map((p: any): ForecastPlayer => ({
+          id: Number(p.id) || 0,
+          name: String(p.name),
+          faceImageId: p.faceImageId ? Number(p.faceImageId) : undefined,
+          teamFlagId: p.teamFlagId ? Number(p.teamFlagId) : undefined,
+          teamName: String(p.teamName || ''),
+          teamShortName: String(p.teamShortName || ''),
+          badges: Array.isArray(p.badges)
+            ? p.badges.map((b: any) => ({
+              label: String(b.label || ''),
+              code: String(b.code || ''),
+              desc: b.desc ? String(b.desc) : undefined,
+            }))
+            : [],
+          playerStyle: Array.isArray(p.playerStyle)
+            ? p.playerStyle.map((s: any) => ({ label: String(s.label || ''), code: String(s.code || '') }))
+            : [],
+          description: p.description ? String(p.description) : undefined,
+          imageUrl: p.faceImageId
+            ? `https://static.cricbuzz.com/a/img/v1/225x225/i1/c${p.faceImageId}/player.jpg`
+            : undefined,
+        })),
+    }));
+  return { playersByRole };
+}
