@@ -43,6 +43,7 @@ export default function SeriesPage() {
   const [hasTrackedSeries, setHasTrackedSeries] = useState(false);
   const [topRunScorer, setTopRunScorer] = useState<{ name: string; value: string } | null>(null);
   const [topWicketTaker, setTopWicketTaker] = useState<{ name: string; value: string } | null>(null);
+  const [topPerformersLoading, setTopPerformersLoading] = useState(true);
   const headerRef = useRef<HTMLElement>(null);
   const todayRef = useRef<HTMLDivElement>(null);
   const hasScrolled = useRef(false);
@@ -93,6 +94,7 @@ export default function SeriesPage() {
 
     // Fetch series top performers
     const fetchTopPerformers = async () => {
+      setTopPerformersLoading(true);
       const [runsResult, wktsResult] = await Promise.all([
         getSeriesStats(seriesId, 'mostRuns').catch(() => null),
         getSeriesStats(seriesId, 'mostWickets').catch(() => null),
@@ -105,6 +107,7 @@ export default function SeriesPage() {
         const top = wktsResult.data.entries[0];
         setTopWicketTaker({ name: top.playerName, value: top.values['WKTS'] || top.values['Wkts'] || '' });
       }
+      setTopPerformersLoading(false);
     };
     fetchTopPerformers();
   }, [seriesId]);
@@ -283,7 +286,18 @@ export default function SeriesPage() {
           {view === 'matches' && (
             <div className="space-y-2 pb-2">
               {/* Top Performers */}
-              {(topRunScorer || topWicketTaker) && (
+              {topPerformersLoading ? (
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="min-w-0 px-3 py-1.5 sm:py-2 rounded-xl bg-orange-500/10 border border-orange-500/20 flex-1">
+                    <p className="text-[8px] sm:text-[9px] uppercase tracking-wider text-orange-400 font-semibold">Most Runs</p>
+                    <div className="skeleton h-3 sm:h-3.5 w-32 rounded mt-1" />
+                  </div>
+                  <div className="min-w-0 px-3 py-1.5 sm:py-2 rounded-xl bg-purple-500/10 border border-purple-500/20 flex-1">
+                    <p className="text-[8px] sm:text-[9px] uppercase tracking-wider text-purple-400 font-semibold">Most Wickets</p>
+                    <div className="skeleton h-3 sm:h-3.5 w-32 rounded mt-1" />
+                  </div>
+                </div>
+              ) : (topRunScorer || topWicketTaker) && (
                 <div className="flex flex-col sm:flex-row gap-2">
                   {topRunScorer && topRunScorer.value && (
                     <div className="min-w-0 px-3 py-1.5 sm:py-2 rounded-xl bg-orange-500/10 border border-orange-500/20 flex-1">

@@ -139,7 +139,7 @@ export default function CommandPaletteProvider({ children }: { children: React.R
                 kind: 'series',
                 title: s.name,
                 subtitle: `${s.dateRange} · ${s.category}`,
-                href: `/series/${s.seriesId}`,
+                href: `/series/${s.seriesId}/${s.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`,
                 group: 'Series',
             });
         });
@@ -153,7 +153,7 @@ export default function CommandPaletteProvider({ children }: { children: React.R
                     h.type === 'series' ? 'recent-series' : 'recent-player';
             const href =
                 h.type === 'match' ? `/match/${h.id}` :
-                    h.type === 'series' ? `/series/${h.id}` :
+                    h.type === 'series' ? `/series/${h.id}/${h.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}` :
                         `/compare?p1=${encodeURIComponent(h.id)}&name1=${encodeURIComponent(h.title)}`;
             out.push({
                 id: `hist-${h.type}-${h.id}`,
