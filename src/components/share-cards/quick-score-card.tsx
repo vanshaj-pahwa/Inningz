@@ -51,7 +51,7 @@ const QuickScoreCard = forwardRef<HTMLDivElement, QuickScoreCardProps>(
           position: 'relative',
           overflow: 'hidden',
           background: 'linear-gradient(145deg, #09090b 0%, #18181b 50%, #09090b 100%)',
-          fontFamily: '"DM Sans", system-ui, -apple-system, sans-serif',
+          fontFamily: 'var(--font-sans), "DM Sans", system-ui, -apple-system, sans-serif',
         }}
       >
         {/* Ambient glow effects */}
@@ -112,7 +112,7 @@ const QuickScoreCard = forwardRef<HTMLDivElement, QuickScoreCardProps>(
             color: '#fafafa',
             margin: 0,
             marginBottom: 48,
-            fontFamily: '"DM Serif Display", Georgia, serif',
+            fontFamily: 'var(--font-display), "DM Serif Display", Georgia, serif',
           }}>
             {title}
           </h1>
@@ -128,7 +128,7 @@ const QuickScoreCard = forwardRef<HTMLDivElement, QuickScoreCardProps>(
                   <span style={{ fontSize: 32, fontWeight: 600, color: '#a1a1aa', verticalAlign: 'baseline' }}>
                     {inning.teamShortName || inning.teamName}
                   </span>
-                  <span style={{ fontSize: 56, fontWeight: 700, color: '#71717a', fontFamily: '"DM Serif Display", Georgia, serif', marginLeft: 24, verticalAlign: 'baseline' }}>
+                  <span style={{ fontSize: 56, fontWeight: 700, color: '#71717a', fontFamily: 'var(--font-display), "DM Serif Display", Georgia, serif', marginLeft: 24, verticalAlign: 'baseline' }}>
                     {inning.score?.split('(')[0]?.trim()}
                   </span>
                 </p>
@@ -144,7 +144,7 @@ const QuickScoreCard = forwardRef<HTMLDivElement, QuickScoreCardProps>(
               </p>
             )}
             <p style={{ margin: 0, fontSize: 0, lineHeight: 1 }}>
-              <span style={{ fontSize: 150, fontWeight: 700, color: '#f59e0b', fontFamily: '"DM Serif Display", Georgia, serif', lineHeight: 1, display: 'inline-block' }}>
+              <span style={{ fontSize: 150, fontWeight: 700, color: '#f59e0b', fontFamily: 'var(--font-display), "DM Serif Display", Georgia, serif', lineHeight: 1, display: 'inline-block' }}>
                 {currentScore}
               </span>
               {overs && (
@@ -214,7 +214,7 @@ const QuickScoreCard = forwardRef<HTMLDivElement, QuickScoreCardProps>(
                 fontSize: 36,
                 fontWeight: 700,
                 color: '#06b6d4',
-                fontFamily: '"DM Serif Display", Georgia, serif',
+                fontFamily: 'var(--font-display), "DM Serif Display", Georgia, serif',
                 letterSpacing: '-0.02em',
                 verticalAlign: 'baseline',
               }}

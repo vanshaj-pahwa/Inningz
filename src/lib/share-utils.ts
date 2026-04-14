@@ -34,7 +34,8 @@ export async function shareImageFile(
   blob: Blob,
   filename: string,
   title: string,
-  text?: string
+  text?: string,
+  url?: string
 ): Promise<boolean> {
   if (!canShareFiles()) {
     return false;
@@ -42,11 +43,13 @@ export async function shareImageFile(
 
   try {
     const file = new File([blob], filename, { type: 'image/png' });
-    await navigator.share({
+    const payload: ShareData = {
       files: [file],
       title,
       text: text || title,
-    });
+    };
+    if (url) payload.url = url;
+    await navigator.share(payload);
     return true;
   } catch (error) {
     // User cancelled or share failed

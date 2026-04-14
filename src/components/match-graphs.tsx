@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, ReactNode } from 'react';
+import { Share2 } from 'lucide-react';
 import { GraphsSkeleton, MatchupsSkeleton, VenueSkeleton, AllPlayersSkeleton } from './match-skeletons';
 import { Skeleton } from './ui/skeleton';
 import { cn } from '@/lib/utils';
+import GraphShareDialog from './share-cards/graph-share-dialog';
 import {
   getPartnershipData,
   getBallMapData,
@@ -49,9 +51,19 @@ const SECTIONS: { id: SectionId; label: string; subtitle: string }[] = [
 interface MatchGraphsProps {
   matchId: string;
   initialTab?: string;
+  matchTitle?: string;
+  seriesName?: string;
 }
 
-export default function MatchGraphs({ matchId, initialTab }: MatchGraphsProps) {
+interface ShareState {
+  sectionLabel: string;
+  sectionSubtitle?: string;
+  inningsLabel?: string;
+  chart: ReactNode;
+}
+
+export default function MatchGraphs({ matchId, initialTab, matchTitle = '', seriesName }: MatchGraphsProps) {
+  const [shareState, setShareState] = useState<ShareState | null>(null);
   const [partnershipData, setPartnershipData] = useState<PartnershipInnings[] | null>(null);
   const [ballMapData, setBallMapData] = useState<Map<number, BallMapData>>(new Map());
   const [winProbData, setWinProbData] = useState<WinProbHistory | null>(null);
@@ -224,6 +236,11 @@ export default function MatchGraphs({ matchId, initialTab }: MatchGraphsProps) {
             sectionRefs={sectionRefs}
             onFirstView={fetchWinProb}
             loading={!tried.winProb || winProbLoading}
+            onShare={winProbData ? () => setShareState({
+              sectionLabel: SECTIONS[0].label,
+              sectionSubtitle: SECTIONS[0].subtitle,
+              chart: <WinProbabilityChart data={winProbData} />,
+            }) : undefined}
           >
             {winProbData && <WinProbabilityChart data={winProbData} />}
           </GraphSection>
@@ -236,6 +253,11 @@ export default function MatchGraphs({ matchId, initialTab }: MatchGraphsProps) {
             sectionRefs={sectionRefs}
             onFirstView={fetchOverData}
             loading={!tried.overData || overDataLoading}
+            onShare={overInnings.length > 0 ? () => setShareState({
+              sectionLabel: SECTIONS[1].label,
+              sectionSubtitle: SECTIONS[1].subtitle,
+              chart: <RunRateChart allInnings={overInnings} teamColorMap={teamColorMap} />,
+            }) : undefined}
           >
             {overInnings.length > 0 && <RunRateChart allInnings={overInnings} teamColorMap={teamColorMap} />}
           </GraphSection>
@@ -248,6 +270,11 @@ export default function MatchGraphs({ matchId, initialTab }: MatchGraphsProps) {
             sectionRefs={sectionRefs}
             onFirstView={fetchOverData}
             loading={!tried.overData || overDataLoading}
+            onShare={overInnings.length > 0 ? () => setShareState({
+              sectionLabel: SECTIONS[2].label,
+              sectionSubtitle: SECTIONS[2].subtitle,
+              chart: <WormChart allInnings={overInnings} teamColorMap={teamColorMap} />,
+            }) : undefined}
           >
             {overInnings.length > 0 && <WormChart allInnings={overInnings} teamColorMap={teamColorMap} />}
           </GraphSection>
@@ -266,6 +293,12 @@ export default function MatchGraphs({ matchId, initialTab }: MatchGraphsProps) {
             })) : undefined}
             selectedInnings={selectedOversInn}
             onInningsChange={setSelectedOversInn}
+            onShare={overData.has(selectedOversInn) ? () => setShareState({
+              sectionLabel: SECTIONS[3].label,
+              sectionSubtitle: SECTIONS[3].subtitle,
+              inningsLabel: inningsLabel(selectedOversInn, overData.get(selectedOversInn)?.teamName),
+              chart: <OverByOverChart data={overData.get(selectedOversInn)!} />,
+            }) : undefined}
           >
             {overData.has(selectedOversInn) && <OverByOverChart data={overData.get(selectedOversInn)!} />}
           </GraphSection>
@@ -284,6 +317,15 @@ export default function MatchGraphs({ matchId, initialTab }: MatchGraphsProps) {
             })) : undefined}
             selectedInnings={selectedPshipInn}
             onInningsChange={setSelectedPshipInn}
+            onShare={partnershipData && partnershipData.find((p) => p.inningsId === selectedPshipInn) ? () => {
+              const p = partnershipData.find((x) => x.inningsId === selectedPshipInn)!;
+              setShareState({
+                sectionLabel: SECTIONS[4].label,
+                sectionSubtitle: SECTIONS[4].subtitle,
+                inningsLabel: inningsLabel(selectedPshipInn, p.teamShortName || p.teamName),
+                chart: <PartnershipsChart data={p} />,
+              });
+            } : undefined}
           >
             {partnershipData && partnershipData.find((p) => p.inningsId === selectedPshipInn) && (
               <PartnershipsChart data={partnershipData.find((p) => p.inningsId === selectedPshipInn)!} />
@@ -317,6 +359,17 @@ export default function MatchGraphs({ matchId, initialTab }: MatchGraphsProps) {
             })()}
             selectedInnings={selectedBallMapInn}
             onInningsChange={setSelectedBallMapInn}
+            onShare={ballMapData.has(selectedBallMapInn) ? () => {
+              const teamName = overData.get(selectedBallMapInn)?.teamName
+                ?? partnershipData?.find((p) => p.inningsId === selectedBallMapInn)?.teamShortName
+                ?? partnershipData?.find((p) => p.inningsId === selectedBallMapInn)?.teamName;
+              setShareState({
+                sectionLabel: SECTIONS[5].label,
+                sectionSubtitle: SECTIONS[5].subtitle,
+                inningsLabel: inningsLabel(selectedBallMapInn, teamName),
+                chart: <BallMap data={ballMapData.get(selectedBallMapInn)!} />,
+              });
+            } : undefined}
           >
             {ballMapData.has(selectedBallMapInn) && <BallMap data={ballMapData.get(selectedBallMapInn)!} />}
           </GraphSection>
@@ -361,6 +414,17 @@ export default function MatchGraphs({ matchId, initialTab }: MatchGraphsProps) {
           </GraphSection>
         )}
       </div>
+
+      <GraphShareDialog
+        open={shareState !== null}
+        onOpenChange={(o) => { if (!o) setShareState(null); }}
+        matchTitle={matchTitle}
+        seriesName={seriesName}
+        sectionLabel={shareState?.sectionLabel ?? ''}
+        sectionSubtitle={shareState?.sectionSubtitle}
+        inningsLabel={shareState?.inningsLabel}
+        chart={shareState?.chart ?? null}
+      />
     </div>
   );
 }
@@ -381,11 +445,12 @@ interface GraphSectionProps {
   selectedInnings?: number;
   onInningsChange?: (id: number) => void;
   skeleton?: ReactNode;
+  onShare?: () => void;
 }
 
 function GraphSection({
   id, section, sectionRefs, onFirstView, loading,
-  children, innings, selectedInnings, onInningsChange, skeleton,
+  children, innings, selectedInnings, onInningsChange, skeleton, onShare,
 }: GraphSectionProps) {
   const localRef = useRef<HTMLElement>(null);
   const hasFired = useRef(false);
@@ -431,14 +496,26 @@ function GraphSection({
             <Skeleton className="h-3 md:h-4 w-64 md:w-80 rounded-md" />
           </div>
         ) : (
-          <>
-            <h2 className="font-display text-xl md:text-3xl text-foreground tracking-tight">
-              {section.label}
-            </h2>
-            <p className="text-xs md:text-sm text-muted-foreground mt-0.5">
-              {section.subtitle}
-            </p>
-          </>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="font-display text-xl md:text-3xl text-foreground tracking-tight">
+                {section.label}
+              </h2>
+              <p className="text-xs md:text-sm text-muted-foreground mt-0.5">
+                {section.subtitle}
+              </p>
+            </div>
+            {onShare && (
+              <button
+                onClick={onShare}
+                className="shrink-0 h-9 w-9 rounded-xl bg-muted/50 hover:bg-muted border border-border flex items-center justify-center transition-colors"
+                aria-label={`Share ${section.label}`}
+                title={`Share ${section.label}`}
+              >
+                <Share2 className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         )}
       </div>
 

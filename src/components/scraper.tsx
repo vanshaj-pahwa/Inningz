@@ -1457,7 +1457,14 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                 )}
                 {view === 'scorecard' && <FullScorecard matchId={matchId} />}
                 {view === 'squads' && <MatchSquadsDisplay matchId={matchId} />}
-                {view === 'graphs' && <MatchGraphs matchId={matchId} initialTab={graphsInitialTab} />}
+                {view === 'graphs' && (
+                    <MatchGraphs
+                        matchId={matchId}
+                        initialTab={graphsInitialTab}
+                        matchTitle={data?.title || ''}
+                        seriesName={data?.seriesName}
+                    />
+                )}
                 {view === 'table' && data?.seriesId && (
                     <PointsTableDisplay seriesId={data.seriesId} showTopPerformers seriesName={data.seriesName} />
                 )}

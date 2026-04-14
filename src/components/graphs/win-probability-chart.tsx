@@ -185,7 +185,7 @@ function OverByOverBars({ data, inningsBreakIndex, team1Color, team2Color }: { d
   const inn2Sorted = [...inn2WithDisplay].sort((a, b) => b.displayOver - a.displayOver);
 
   return (
-    <div className="rounded-xl border border-border/60 overflow-hidden">
+    <div data-hide-in-share className="rounded-xl border border-border/60 overflow-hidden">
       <button
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-muted/20 transition-colors"
