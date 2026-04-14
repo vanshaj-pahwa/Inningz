@@ -39,6 +39,35 @@ type LastEventType = {
 
 type View = 'live' | 'scorecard' | 'squads' | 'graphs' | 'table';
 
+function computeOverRuns(overSummary: string | undefined, apiOverRuns: number | undefined): number | undefined {
+    // 1. Prefer the authoritative API value when present.
+    if (apiOverRuns !== undefined && apiOverRuns !== null) return apiOverRuns;
+    if (!overSummary) return undefined;
+
+    // 2. Fallback: sum ball tokens from the summary string (handles wides/no-balls).
+    const ballsStr = overSummary.replace(/\(\d+\s*runs?\)/i, '').trim();
+    let runs = 0;
+    let hasValidBalls = false;
+    for (const ball of ballsStr.split(/\s+/)) {
+        const b = ball.trim();
+        if (!b || b.includes('(') || b.includes(')') || b.toLowerCase() === 'runs' || b.toLowerCase() === 'run') continue;
+        hasValidBalls = true;
+        if (b === 'W') continue;
+        if (b === '.' || b === '0') continue;
+        const num = parseInt(b, 10);
+        if (!isNaN(num)) runs += num;
+        else if (b.toLowerCase().includes('wd') || b.toLowerCase().includes('wide')) runs += 1;
+        else if (b.toLowerCase().includes('nb') || b.toLowerCase().includes('noball')) runs += 1;
+        else if (b.toLowerCase().includes('lb') || b.toLowerCase().includes('legbye')) runs += 1;
+        else if (b.toLowerCase().includes('b') && b.length <= 2) runs += 1;
+    }
+    if (hasValidBalls) return runs;
+
+    // 3. Last resort: parse any embedded "(X runs)" tail.
+    const embedded = overSummary.match(/\((\d+)\s*runs?\)/i);
+    return embedded ? parseInt(embedded[1], 10) : undefined;
+}
+
 function isLive(status: string): boolean {
     const s = status.toLowerCase();
     return s.includes('live') || s.includes('need') || s.includes('session') ||
@@ -668,30 +697,8 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                     <div className="my-3 p-2.5 md:p-4 rounded-2xl over-summary-gradient border border-primary/15">
                         {(() => {
                             const summaryStr = comment.overSummary || '';
-                            const runsMatch = summaryStr.match(/\((\d+)\s*runs?\)/i);
-                            let overRuns = runsMatch ? parseInt(runsMatch[1], 10) : comment.overRuns;
                             const ballsStr = summaryStr.replace(/\(\d+\s*runs?\)/i, '').trim();
-
-                            // Calculate total runs from ball values if not provided by API
-                            if (overRuns === undefined || overRuns === null) {
-                                let calculatedRuns = 0;
-                                let hasValidBalls = false;
-                                for (const ball of ballsStr.split(/\s+/)) {
-                                    const b = ball.trim();
-                                    if (!b || b.includes('(') || b.includes(')') || b.toLowerCase() === 'runs' || b.toLowerCase() === 'run') continue;
-                                    hasValidBalls = true;
-                                    if (b === 'W' || b.includes('W')) continue; // wicket = 0 runs
-                                    if (b === '.' || b === '0') continue;
-                                    const num = parseInt(b, 10);
-                                    if (!isNaN(num)) calculatedRuns += num;
-                                    // extras like wd, nb, lb contribute 1 run each as minimum
-                                    else if (b.toLowerCase().includes('wd') || b.toLowerCase().includes('wide')) calculatedRuns += 1;
-                                    else if (b.toLowerCase().includes('nb') || b.toLowerCase().includes('noball')) calculatedRuns += 1;
-                                    else if (b.toLowerCase().includes('lb') || b.toLowerCase().includes('legbye')) calculatedRuns += 1;
-                                    else if (b.toLowerCase().includes('b') && b.length <= 2) calculatedRuns += 1;
-                                }
-                                if (hasValidBalls) overRuns = calculatedRuns;
-                            }
+                            const overRuns = computeOverRuns(summaryStr, comment.overRuns);
 
                             return (
                                 <>
@@ -706,16 +713,15 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                 {ballsStr.split(/\s+/).map((ball, idx) => {
                                                     const ballStr = ball.trim();
                                                     if (!ballStr || ballStr.includes('(') || ballStr.includes(')') || ballStr.toLowerCase() === 'runs' || ballStr.toLowerCase() === 'run') return null;
-                                                    if (ballStr.toLowerCase().includes('wd') || ballStr.toLowerCase().includes('wide')) return null;
 
                                                     let ballClass = "w-6 h-6 rounded-full font-bold text-[10px] flex items-center justify-center";
                                                     let ballContent = ballStr;
 
                                                     if (ballStr === '6') ballClass += " bg-purple-600 text-white";
                                                     else if (ballStr === '4') ballClass += " bg-blue-600 text-white";
-                                                    else if (ballStr === 'W' || ballStr.includes('W')) ballClass += " bg-red-600 text-white";
-                                                    else if (ballStr.toLowerCase().startsWith('n') && ballStr.length <= 3) ballClass += " bg-orange-500 text-white text-[8px]";
+                                                    else if (ballStr.toLowerCase().includes('wd') || ballStr.toLowerCase().includes('wide')) { ballClass += " bg-amber-500 text-white text-[8px]"; ballContent = 'Wd'; }
                                                     else if (ballStr.toLowerCase().includes('nb') || ballStr.toLowerCase().includes('noball')) { ballClass += " bg-orange-500 text-white text-[8px]"; ballContent = 'Nb'; }
+                                                    else if (ballStr === 'W') ballClass += " bg-red-600 text-white";
                                                     else if (ballStr.toLowerCase().includes('lb') || ballStr.toLowerCase().includes('legbye')) { ballClass += " bg-zinc-500 text-white text-[8px]"; ballContent = 'Lb'; }
                                                     else if (ballStr.toLowerCase().includes('b') && ballStr.length <= 2) { ballClass += " bg-zinc-500 text-white text-[8px]"; ballContent = 'B'; }
                                                     else if (ballStr === '0' || ballStr === '.') { ballClass += " bg-muted text-muted-foreground"; ballContent = '\u2022'; }
@@ -748,16 +754,15 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                 {ballsStr.split(/\s+/).map((ball, idx) => {
                                                     const ballStr = ball.trim();
                                                     if (!ballStr || ballStr.includes('(') || ballStr.includes(')') || ballStr.toLowerCase() === 'runs' || ballStr.toLowerCase() === 'run') return null;
-                                                    if (ballStr.toLowerCase().includes('wd') || ballStr.toLowerCase().includes('wide')) return null;
 
                                                     let ballClass = "w-8 h-8 rounded-lg font-bold text-xs flex items-center justify-center";
                                                     let ballContent = ballStr;
 
                                                     if (ballStr === '6') ballClass += " bg-purple-600 text-white";
                                                     else if (ballStr === '4') ballClass += " bg-blue-600 text-white";
-                                                    else if (ballStr === 'W' || ballStr.includes('W')) ballClass += " bg-red-600 text-white";
-                                                    else if (ballStr.toLowerCase().startsWith('n') && ballStr.length <= 3) ballClass += " bg-orange-500 text-white text-[10px]";
+                                                    else if (ballStr.toLowerCase().includes('wd') || ballStr.toLowerCase().includes('wide')) { ballClass += " bg-amber-500 text-white text-[10px]"; ballContent = 'Wd'; }
                                                     else if (ballStr.toLowerCase().includes('nb') || ballStr.toLowerCase().includes('noball')) { ballClass += " bg-orange-500 text-white text-[10px]"; ballContent = 'Nb'; }
+                                                    else if (ballStr === 'W') ballClass += " bg-red-600 text-white";
                                                     else if (ballStr.toLowerCase().includes('lb') || ballStr.toLowerCase().includes('legbye')) { ballClass += " bg-zinc-500 text-white text-[10px]"; ballContent = 'Lb'; }
                                                     else if (ballStr.toLowerCase().includes('b') && ballStr.length <= 2) { ballClass += " bg-zinc-500 text-white text-[10px]"; ballContent = 'B'; }
                                                     else if (ballStr === '0' || ballStr === '.') { ballClass += " bg-muted text-muted-foreground"; ballContent = '\u2022'; }
@@ -1601,27 +1606,32 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                             </div>
 
                             {/* Ball summary */}
-                            {overSheetData.overSummary && (
-                                <div className="flex items-center gap-1.5 mb-5">
-                                    {overSheetData.overSummary.replace(/\(\d+\s*runs?\)/i, '').trim().split(/\s+/).map((ball, idx) => {
-                                        const b = ball.trim();
-                                        if (!b || b.includes('(') || b.includes(')') || b.toLowerCase() === 'runs' || b.toLowerCase() === 'run') return null;
-                                        let cls = 'w-7 h-7 rounded-full text-xs font-bold flex items-center justify-center';
-                                        if (b === 'W') cls += ' bg-red-500 text-white';
-                                        else if (b === '6') cls += ' bg-purple-600 text-white';
-                                        else if (b === '4') cls += ' bg-blue-500 text-white';
-                                        else if (b === '0' || b === '.') cls += ' bg-muted text-muted-foreground';
-                                        else if (b.toLowerCase().includes('wd') || b.toLowerCase().includes('n')) cls += ' bg-amber-500/80 text-white text-[10px]';
-                                        else cls += ' bg-emerald-600 text-white';
-                                        return <span key={idx} className={cls}>{b === '0' ? '\u2022' : b}</span>;
-                                    })}
-                                    {overSheetData.overRuns !== undefined && (
-                                        <span className="text-sm text-primary font-semibold ml-1 tabular-nums">
-                                            {overSheetData.overRuns} runs
-                                        </span>
-                                    )}
-                                </div>
-                            )}
+                            {overSheetData.overSummary && (() => {
+                                const sheetRuns = computeOverRuns(overSheetData.overSummary, overSheetData.overRuns);
+                                return (
+                                    <div className="flex items-center gap-1.5 mb-5 flex-wrap">
+                                        {overSheetData.overSummary.replace(/\(\d+\s*runs?\)/i, '').trim().split(/\s+/).map((ball, idx) => {
+                                            const b = ball.trim();
+                                            if (!b || b.includes('(') || b.includes(')') || b.toLowerCase() === 'runs' || b.toLowerCase() === 'run') return null;
+                                            let cls = 'w-7 h-7 rounded-full text-xs font-bold flex items-center justify-center shrink-0';
+                                            let content: string = b;
+                                            if (b.toLowerCase().includes('wd') || b.toLowerCase().includes('wide')) { cls += ' bg-amber-500 text-white text-[10px]'; content = 'Wd'; }
+                                            else if (b.toLowerCase().includes('nb') || b.toLowerCase().includes('noball')) { cls += ' bg-orange-500 text-white text-[10px]'; content = 'Nb'; }
+                                            else if (b === 'W') cls += ' bg-red-500 text-white';
+                                            else if (b === '6') cls += ' bg-purple-600 text-white';
+                                            else if (b === '4') cls += ' bg-blue-500 text-white';
+                                            else if (b === '0' || b === '.') { cls += ' bg-muted text-muted-foreground'; content = '\u2022'; }
+                                            else cls += ' bg-emerald-600 text-white';
+                                            return <span key={idx} className={cls}>{content}</span>;
+                                        })}
+                                        {sheetRuns !== undefined && (
+                                            <span className="text-sm text-primary font-semibold ml-1 tabular-nums">
+                                                {sheetRuns} {sheetRuns === 1 ? 'run' : 'runs'}
+                                            </span>
+                                        )}
+                                    </div>
+                                );
+                            })()}
 
                             {/* Batsmen & Bowler */}
                             {(overSheetData.overBatsmen?.length || overSheetData.overBowler) && (

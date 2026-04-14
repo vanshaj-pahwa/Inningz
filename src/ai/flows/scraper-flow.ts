@@ -2456,7 +2456,7 @@ export async function getScoreForMatchId(
         // Add over summary if this is an over-break (support both old and new API formats)
         if (c.overSeparator) {
           commentary.overSummary = c.overSeparator.o_summary || c.overSeparator.overSummary;
-          commentary.overRuns = c.overSeparator.runs;
+          commentary.overRuns = c.overSeparator.overRuns ?? c.overSeparator.runs;
           commentary.overNumber = c.overSeparator.overNum || c.overSeparator.overNumber;
           commentary.teamShortName = c.overSeparator.batTeamName || c.overSeparator.batTeamObj?.teamName;
           // Parse score from batTeamObj.teamScore if available (format: "ENG 174-6")
