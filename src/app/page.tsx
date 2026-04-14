@@ -10,6 +10,7 @@ import UpcomingMatches from "@/components/upcoming-matches";
 import SeriesSchedule from "@/components/series-schedule";
 import RecentHistory from "@/components/recent-history";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { CommandPaletteTrigger } from "@/components/command-palette";
 import { Flame, History, Calendar, Trophy, Medal, Home as HomeIcon } from "lucide-react";
 import HomeDashboard from "@/components/home-dashboard";
 
@@ -90,6 +91,7 @@ function HomeContent() {
 
                         {/* Actions */}
                         <div className="flex items-center gap-1.5">
+                            <CommandPaletteTrigger />
                             <Link
                                 href="/rankings"
                                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"

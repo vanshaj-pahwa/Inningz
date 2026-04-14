@@ -9,6 +9,7 @@ import { MatchesProvider } from '@/contexts/matches-context';
 import { RecentHistoryProvider } from '@/contexts/recent-history-context';
 import { DashboardPreferencesProvider } from '@/contexts/dashboard-preferences-context';
 import AppShell from '@/components/app-shell';
+import CommandPaletteProvider from '@/components/command-palette';
 
 const dmSerifDisplay = DM_Serif_Display({
     subsets: ['latin'],
@@ -80,9 +81,11 @@ export default function RootLayout({
             <MatchesProvider>
               <RecentHistoryProvider>
                 <DashboardPreferencesProvider>
-                  <AppShell>
-                    {children}
-                  </AppShell>
+                  <CommandPaletteProvider>
+                    <AppShell>
+                      {children}
+                    </AppShell>
+                  </CommandPaletteProvider>
                 </DashboardPreferencesProvider>
               </RecentHistoryProvider>
             </MatchesProvider>
