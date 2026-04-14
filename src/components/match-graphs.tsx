@@ -178,6 +178,20 @@ export default function MatchGraphs({ matchId, initialTab }: MatchGraphsProps) {
     }
   }, [selectedBallMapInn, fetchBallMap]);
 
+  // Kick off every section's fetch in parallel on mount so users don't
+  // pay a per-section round-trip as they scroll.
+  useEffect(() => {
+    fetched.current.add('ballMap-section-visible');
+    fetchWinProb();
+    fetchOverData();
+    fetchPartnerships();
+    fetchBallMap(selectedBallMapInn);
+    fetchMatchups();
+    fetchVenue();
+    fetchAllPlayers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matchId]);
+
   // Jump to initialTab on mount
   useEffect(() => {
     if (!initialTab) return;

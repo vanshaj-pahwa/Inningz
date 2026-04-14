@@ -1,6 +1,7 @@
 
 'use server';
 
+import { unstable_cache } from 'next/cache';
 import {
     getScoreForMatchId as getScoreForMatchIdFlow,
     scrapeLiveMatches as scrapeLiveMatchesFlow,
@@ -543,11 +544,43 @@ export async function getWinProbHistory(matchId: string): Promise<{ success: boo
     }
 }
 
+// These three forecast endpoints are effectively static per match once the
+// match card exists, so we cache them aggressively via the Next
+// data cache keyed by matchId.
+const getMatchupsCached = (matchId: string) => unstable_cache(
+    async () => {
+        const data = await scrapeMatchupsFlow(matchId);
+        if (!data) throw new Error('No matchup data available');
+        return data;
+    },
+    ['matchups', matchId],
+    { tags: [`matchups-${matchId}`], revalidate: 86400 },
+)();
+
+const getVenueForecastCached = (matchId: string) => unstable_cache(
+    async () => {
+        const data = await scrapeVenueForecastFlow(matchId);
+        if (!data) throw new Error('No venue data available');
+        return data;
+    },
+    ['venue-forecast', matchId],
+    { tags: [`venue-forecast-${matchId}`], revalidate: 86400 },
+)();
+
+const getAllPlayersForecastCached = (matchId: string) => unstable_cache(
+    async () => {
+        const data = await scrapeAllPlayersForecastFlow(matchId);
+        if (!data) throw new Error('No player forecast data available');
+        return data;
+    },
+    ['all-players-forecast', matchId],
+    { tags: [`all-players-forecast-${matchId}`], revalidate: 86400 },
+)();
+
 export async function getMatchups(matchId: string): Promise<{ success: boolean; data?: MatchupsDataType; error?: string }> {
     if (!matchId) return { success: false, error: 'Invalid Match ID' };
     try {
-        const data = await scrapeMatchupsFlow(matchId);
-        if (!data) return { success: false, error: 'No matchup data available' };
+        const data = await getMatchupsCached(matchId);
         return { success: true, data };
     } catch (e) {
         return { success: false, error: e instanceof Error ? e.message : 'An unexpected error occurred.' };
@@ -557,8 +590,7 @@ export async function getMatchups(matchId: string): Promise<{ success: boolean; 
 export async function getVenueForecast(matchId: string): Promise<{ success: boolean; data?: VenueDataType; error?: string }> {
     if (!matchId) return { success: false, error: 'Invalid Match ID' };
     try {
-        const data = await scrapeVenueForecastFlow(matchId);
-        if (!data) return { success: false, error: 'No venue data available' };
+        const data = await getVenueForecastCached(matchId);
         return { success: true, data };
     } catch (e) {
         return { success: false, error: e instanceof Error ? e.message : 'An unexpected error occurred.' };
@@ -568,8 +600,7 @@ export async function getVenueForecast(matchId: string): Promise<{ success: bool
 export async function getAllPlayersForecast(matchId: string): Promise<{ success: boolean; data?: AllPlayersDataType; error?: string }> {
     if (!matchId) return { success: false, error: 'Invalid Match ID' };
     try {
-        const data = await scrapeAllPlayersForecastFlow(matchId);
-        if (!data) return { success: false, error: 'No player forecast data available' };
+        const data = await getAllPlayersForecastCached(matchId);
         return { success: true, data };
     } catch (e) {
         return { success: false, error: e instanceof Error ? e.message : 'An unexpected error occurred.' };
