@@ -1030,7 +1030,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                     }
                                 `}
                             >
-                                {v.charAt(0).toUpperCase() + v.slice(1)}
+                                {VIEW_LABELS[v]}
                             </button>
                         ))}
                     </div>
