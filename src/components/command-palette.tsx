@@ -109,9 +109,9 @@ export default function CommandPaletteProvider({ children }: { children: React.R
         if (open) {
             setQuery('');
             setActiveIndex(0);
-            // Skip auto-focus on touch devices so the soft keyboard doesn't pop up
-            const isTouch = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
-            if (!isTouch) {
+            // Skip auto-focus on mobile viewports so the soft keyboard doesn't pop up
+            const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+            if (!isMobile) {
                 requestAnimationFrame(() => inputRef.current?.focus());
             }
         }
@@ -222,7 +222,14 @@ export default function CommandPaletteProvider({ children }: { children: React.R
         <CommandPaletteContext.Provider value={{ open: () => setOpen(true) }}>
             {children}
             <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent className="max-w-xl p-0 rounded-2xl overflow-hidden gap-0">
+            <DialogContent
+                className="max-w-xl p-0 rounded-2xl overflow-hidden gap-0"
+                onOpenAutoFocus={(e) => {
+                    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+                        e.preventDefault();
+                    }
+                }}
+            >
                 <DialogHeader className="sr-only">
                     <DialogTitle>Command palette</DialogTitle>
                 </DialogHeader>
