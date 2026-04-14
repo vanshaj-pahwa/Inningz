@@ -39,6 +39,14 @@ type LastEventType = {
 
 type View = 'live' | 'scorecard' | 'squads' | 'graphs' | 'table';
 
+const VIEW_LABELS: Record<View, string> = {
+    live: 'Live',
+    scorecard: 'Scorecard',
+    squads: 'Squads',
+    graphs: 'Report',
+    table: 'Table',
+};
+
 function computeOverRuns(overSummary: string | undefined, apiOverRuns: number | undefined): number | undefined {
     // 1. Prefer the authoritative API value when present.
     if (apiOverRuns !== undefined && apiOverRuns !== null) return apiOverRuns;
@@ -122,7 +130,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
 
     // Dynamic views based on data availability
     const views: View[] = useMemo(() => {
-        const baseViews: View[] = ['live', 'scorecard', 'squads', 'graphs'];
+        const baseViews: View[] = ['live', 'scorecard', 'graphs', 'squads'];
         if (data?.hasPointsTable && data?.seriesId) {
             baseViews.push('table');
         }
@@ -993,7 +1001,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                         }
                                     `}
                                 >
-                                    {v.charAt(0).toUpperCase() + v.slice(1)}
+                                    {VIEW_LABELS[v]}
                                 </button>
                             ))}
                         </div>
