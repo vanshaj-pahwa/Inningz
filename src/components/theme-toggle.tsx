@@ -167,17 +167,17 @@ export function ThemeToggle() {
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="icon" className="relative">
+        <Button variant="outline" size="icon" className="relative h-9 w-9 rounded-xl">
           {/* Light theme icon */}
-          <Sun className={`h-[1.2rem] w-[1.2rem] transition-all ${
+          <Sun className={`h-4 w-4 transition-all ${
             isLightTheme ? 'rotate-0 scale-100' : '-rotate-90 scale-0'
           }`} />
           {/* Dark/custom theme icon */}
-          <Moon className={`absolute h-[1.2rem] w-[1.2rem] transition-all ${
+          <Moon className={`absolute h-4 w-4 transition-all ${
             !isLightTheme && !isCustomTheme ? 'rotate-0 scale-100' : 'rotate-90 scale-0'
           }`} />
           {/* Custom theme icon */}
-          <Palette className={`absolute h-[1.2rem] w-[1.2rem] transition-all ${
+          <Palette className={`absolute h-4 w-4 transition-all ${
             isCustomTheme && currentTheme !== 'sepia' ? 'rotate-0 scale-100' : 'rotate-90 scale-0'
           }`} />
           <span className="sr-only">Toggle theme</span>
