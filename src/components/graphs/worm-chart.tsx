@@ -37,10 +37,21 @@ export default function WormChart({ allInnings, teamColorMap }: WormChartProps) 
       const o = inn.data.overs[i];
       if (o) {
         point[`inn${inn.inningsId}`] = o.cumulativeScore;
+        point[`inn${inn.inningsId}W`] = o.wickets || 0;
       }
     }
     chartData.push(point);
   }
+
+  const WicketDot = (color: string, key: string) => (props: any) => {
+    const { cx, cy, payload } = props;
+    if (cx == null || cy == null || !payload || !payload[key]) return <g />;
+    return (
+      <g>
+        <circle cx={cx} cy={cy} r={5} fill={color} stroke="#fff" strokeWidth={1.5} />
+      </g>
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -68,7 +79,7 @@ export default function WormChart({ allInnings, teamColorMap }: WormChartProps) 
                 dataKey={`inn${inn.inningsId}`}
                 stroke={COLORS[idx % COLORS.length]}
                 strokeWidth={2.5}
-                dot={false}
+                dot={WicketDot(COLORS[idx % COLORS.length], `inn${inn.inningsId}W`)}
                 activeDot={{ r: 4, strokeWidth: 0, fill: COLORS[idx % COLORS.length] }}
               />
             ))}
@@ -98,9 +109,11 @@ function WormTooltip({ active, payload, innings, colors }: any) {
       {innings.map((inn: any, idx: number) => {
         const val = d[`inn${inn.inningsId}`];
         if (val === undefined) return null;
+        const wkts = d[`inn${inn.inningsId}W`] || 0;
         return (
           <p key={inn.inningsId} className="tabular-nums">
             <span className="font-medium" style={{ color: c[idx % c.length] }}>{inn.data.teamName}</span>: {val}
+            {wkts > 0 && <span className="text-red-400 ml-1">· {wkts}W</span>}
           </p>
         );
       })}

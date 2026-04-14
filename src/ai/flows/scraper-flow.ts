@@ -2574,7 +2574,6 @@ export async function getScoreForMatchId(
       team1: { name: wp.team1.shortName || wp.team1.name, probability: wp.team1.percent },
       team2: { name: wp.team2.shortName || wp.team2.name, probability: wp.team2.percent },
     };
-    console.log('[getScoreForMatchId] Win probability extracted:', winProbability);
   }
 
   // Check if series has points table by querying the points table page

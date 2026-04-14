@@ -102,7 +102,8 @@ export default function WinProbabilityChart({ data }: WinProbabilityChartProps) 
             />
             <Tooltip
               content={<WinProbTooltip team1={data.team1Name} team2={data.team2Name} />}
-              allowEscapeViewBox={{ x: false, y: false }}
+              allowEscapeViewBox={{ x: true, y: false }}
+              wrapperStyle={{ zIndex: 20, pointerEvents: 'none' }}
             />
             {(filter === 'both' || filter === 'team1') && (
               <Line
@@ -290,13 +291,22 @@ function InningsSection({ title, points, team1Color, team2Color }: {
   );
 }
 
-function WinProbTooltip({ active, payload, team1, team2 }: any) {
+function WinProbTooltip({ active, payload, team1, team2, coordinate }: any) {
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
   if (!d) return null;
 
+  // Flip tooltip to the left of the cursor when it's hovering near the right
+  // half of the viewport so the card never clips off the right edge on mobile.
+  const vw = typeof window !== 'undefined' ? window.innerWidth : 400;
+  const flipLeft = coordinate && coordinate.x > vw / 2;
+  const flipStyle = flipLeft ? { transform: 'translateX(calc(-100% + 8px))' } : undefined;
+
   return (
-    <div className="bg-card text-card-foreground rounded-xl text-xs shadow-2xl border border-border/80 max-w-[300px] overflow-hidden">
+    <div
+      style={flipStyle}
+      className="bg-card text-card-foreground rounded-xl text-xs shadow-2xl border border-border/80 overflow-hidden w-[min(calc(100vw-3rem),260px)] break-words"
+    >
       {/* Header */}
       <div className="px-3 py-2 bg-muted/30 border-b border-border/30">
         <p className="font-semibold text-foreground text-[11px]">
