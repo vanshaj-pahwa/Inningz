@@ -40,6 +40,7 @@ export default function OverByOverChart({ data }: OverByOverChartProps) {
           Runs per Over
         </h4>
         <button
+          data-hide-in-share
           onClick={() => setShowCumulative(!showCumulative)}
           className={`
             text-[10px] md:text-xs px-2.5 py-1 rounded-full transition-colors

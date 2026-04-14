@@ -22,6 +22,7 @@ export default function PointsTableDisplay({ seriesId, onAvailabilityChange, sho
   const [error, setError] = useState<string | null>(null);
   const [topRunScorer, setTopRunScorer] = useState<{ name: string; value: string } | null>(null);
   const [topWicketTaker, setTopWicketTaker] = useState<{ name: string; value: string } | null>(null);
+  const [topPerformersLoading, setTopPerformersLoading] = useState(showTopPerformers);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -44,6 +45,7 @@ export default function PointsTableDisplay({ seriesId, onAvailabilityChange, sho
 
     // Fetch top performers only when needed
     if (!showTopPerformers) return;
+    setTopPerformersLoading(true);
     Promise.all([
       getSeriesStats(seriesId, 'mostRuns').catch(() => null),
       getSeriesStats(seriesId, 'mostWickets').catch(() => null),
@@ -56,6 +58,7 @@ export default function PointsTableDisplay({ seriesId, onAvailabilityChange, sho
         const top = wktsResult.data.entries[0];
         setTopWicketTaker({ name: top.playerName, value: top.values['WKTS'] || top.values['Wkts'] || '' });
       }
+      setTopPerformersLoading(false);
     });
   }, [seriesId]);
 
@@ -96,20 +99,35 @@ export default function PointsTableDisplay({ seriesId, onAvailabilityChange, sho
   return (
     <div className="space-y-6">
       {/* Top Performers */}
-      {showTopPerformers && (topRunScorer || topWicketTaker) && (
+      {showTopPerformers && (topPerformersLoading || topRunScorer || topWicketTaker) && (
         <div className="space-y-2.5">
           <div className="flex flex-col sm:flex-row gap-2">
-            {topRunScorer && topRunScorer.value && (
-              <div className="min-w-0 px-3 py-2 sm:py-2 rounded-xl bg-orange-500/10 border border-orange-500/20 flex-1">
-                <p className="text-[8px] sm:text-[9px] uppercase tracking-wider text-orange-400 font-semibold">Most Runs</p>
-                <p className="text-[11px] sm:text-xs font-medium truncate">{topRunScorer.name} <span className="text-muted-foreground">({topRunScorer.value})</span></p>
-              </div>
-            )}
-            {topWicketTaker && topWicketTaker.value && (
-              <div className="min-w-0 px-3 py-2 sm:py-2 rounded-xl bg-purple-500/10 border border-purple-500/20 flex-1">
-                <p className="text-[8px] sm:text-[9px] uppercase tracking-wider text-purple-400 font-semibold">Most Wickets</p>
-                <p className="text-[11px] sm:text-xs font-medium truncate">{topWicketTaker.name} <span className="text-muted-foreground">({topWicketTaker.value})</span></p>
-              </div>
+            {topPerformersLoading ? (
+              <>
+                <div className="min-w-0 px-3 py-2 sm:py-2 rounded-xl bg-orange-500/10 border border-orange-500/20 flex-1">
+                  <p className="text-[8px] sm:text-[9px] uppercase tracking-wider text-orange-400 font-semibold">Most Runs</p>
+                  <div className="skeleton h-3 sm:h-3.5 w-32 rounded mt-1" />
+                </div>
+                <div className="min-w-0 px-3 py-2 sm:py-2 rounded-xl bg-purple-500/10 border border-purple-500/20 flex-1">
+                  <p className="text-[8px] sm:text-[9px] uppercase tracking-wider text-purple-400 font-semibold">Most Wickets</p>
+                  <div className="skeleton h-3 sm:h-3.5 w-32 rounded mt-1" />
+                </div>
+              </>
+            ) : (
+              <>
+                {topRunScorer && topRunScorer.value && (
+                  <div className="min-w-0 px-3 py-2 sm:py-2 rounded-xl bg-orange-500/10 border border-orange-500/20 flex-1">
+                    <p className="text-[8px] sm:text-[9px] uppercase tracking-wider text-orange-400 font-semibold">Most Runs</p>
+                    <p className="text-[11px] sm:text-xs font-medium truncate">{topRunScorer.name} <span className="text-muted-foreground">({topRunScorer.value})</span></p>
+                  </div>
+                )}
+                {topWicketTaker && topWicketTaker.value && (
+                  <div className="min-w-0 px-3 py-2 sm:py-2 rounded-xl bg-purple-500/10 border border-purple-500/20 flex-1">
+                    <p className="text-[8px] sm:text-[9px] uppercase tracking-wider text-purple-400 font-semibold">Most Wickets</p>
+                    <p className="text-[11px] sm:text-xs font-medium truncate">{topWicketTaker.name} <span className="text-muted-foreground">({topWicketTaker.value})</span></p>
+                  </div>
+                )}
+              </>
             )}
           </div>
           <div className="flex justify-end">

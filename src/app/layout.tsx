@@ -29,6 +29,10 @@ const jetbrainsMono = JetBrains_Mono({
     weight: ['400', '500', '700']
 });
 
+// Pin serverless functions to Mumbai so scrapes
+// skip the trans-continental round-trip. Single biggest report-tab latency fix.
+export const preferredRegion = ['bom1'];
+
 export const metadata: Metadata = {
   title: 'Inningz',
   description: 'Live Cricket Scores & Analytics',
