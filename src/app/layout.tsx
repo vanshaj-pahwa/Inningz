@@ -8,7 +8,7 @@ import { DataLayerProvider } from '@/contexts/data-layer-context';
 import { MatchesProvider } from '@/contexts/matches-context';
 import { RecentHistoryProvider } from '@/contexts/recent-history-context';
 import { DashboardPreferencesProvider } from '@/contexts/dashboard-preferences-context';
-import { MatchAlertsProvider } from '@/contexts/match-alerts-context';
+
 import AppShell from '@/components/app-shell';
 import CommandPaletteProvider from '@/components/command-palette';
 
@@ -86,13 +86,11 @@ export default function RootLayout({
             <MatchesProvider>
               <RecentHistoryProvider>
                 <DashboardPreferencesProvider>
-                  <MatchAlertsProvider>
-                    <CommandPaletteProvider>
-                      <AppShell>
-                        {children}
-                      </AppShell>
-                    </CommandPaletteProvider>
-                  </MatchAlertsProvider>
+                  <CommandPaletteProvider>
+                    <AppShell>
+                      {children}
+                    </AppShell>
+                  </CommandPaletteProvider>
                 </DashboardPreferencesProvider>
               </RecentHistoryProvider>
             </MatchesProvider>
