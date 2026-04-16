@@ -256,6 +256,18 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
         }
     };
 
+    // Update browser tab title with live score
+    useEffect(() => {
+        if (!data) return;
+        const score = data.score && data.score !== 'N/A' ? data.score : '';
+        if (score) {
+            document.title = `${score} | Inningz`;
+        } else if (data.title) {
+            document.title = `${data.title} | Inningz`;
+        }
+        return () => { document.title = 'Inningz'; };
+    }, [data?.score, data?.title]);
+
     // Track match in recent history
     useEffect(() => {
         if (data && !hasTrackedMatch.current) {
