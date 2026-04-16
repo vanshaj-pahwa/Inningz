@@ -18,6 +18,7 @@ import PlayerProfileDisplay from './player-profile';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import MatchSquadsDisplay from './match-squads';
 import { ThemeToggle } from './theme-toggle';
+import { AlertToggle } from './alert-toggle';
 import WinProbability from './win-probability';
 import QuickScoreWidget from './quick-score-widget';
 import { useRecentHistoryContext } from '@/contexts/recent-history-context';
@@ -1018,11 +1019,13 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                             ))}
                         </div>
                         <CommandPaletteTrigger />
+                        <AlertToggle />
                         <ThemeToggle />
                     </div>
                     {/* Mobile: theme toggle */}
                     <div className="shrink-0 md:hidden flex items-center gap-1.5">
                         <CommandPaletteTrigger />
+                        <AlertToggle />
                         <ThemeToggle />
                     </div>
                 </div>

@@ -10,6 +10,7 @@ import UpcomingMatches from "@/components/upcoming-matches";
 import SeriesSchedule from "@/components/series-schedule";
 import RecentHistory from "@/components/recent-history";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { AlertToggle } from "@/components/alert-toggle";
 import { CommandPaletteTrigger } from "@/components/command-palette";
 import { Flame, History, Calendar, Trophy, Medal, Home as HomeIcon } from "lucide-react";
 import HomeDashboard from "@/components/home-dashboard";
@@ -99,6 +100,7 @@ function HomeContent() {
                                 <Medal className="w-4 h-4" />
                                 <span className="hidden sm:inline">Rankings</span>
                             </Link>
+                            <AlertToggle />
                             <ThemeToggle />
                         </div>
                     </div>
