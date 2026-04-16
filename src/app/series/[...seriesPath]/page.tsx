@@ -72,8 +72,8 @@ export default function SeriesPage() {
       return true;
     };
 
-    // Wait 5s for all cards to fully render, then scroll
-    const timer = setTimeout(() => check(), 5000);
+    // Wait for cards to render, then scroll
+    const timer = setTimeout(() => check(), 2500);
     return () => clearTimeout(timer);
   }, [loading, matches.length, view]);
 
