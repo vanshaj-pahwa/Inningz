@@ -7,7 +7,7 @@ import { getSeriesMatches, getSeriesStats } from '@/app/actions';
 import type { LiveMatch, SeriesStatCategory } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ArrowLeft, Filter, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Filter, ChevronDown, X } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import SeriesStatsDisplay from '@/components/series-stats';
 import PointsTableDisplay from '@/components/points-table';
@@ -47,6 +47,37 @@ export default function SeriesPage() {
   const headerRef = useRef<HTMLElement>(null);
   const todayRef = useRef<HTMLDivElement>(null);
   const hasScrolled = useRef(false);
+  const dateFilterInitialized = useRef(false);
+
+  const todayDateKey = new Date().toLocaleDateString('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
+  }).toUpperCase().replace(',', '');
+
+  // Default date filter to today if today's matches exist alongside other dates
+  useEffect(() => {
+    if (loading || matches.length === 0 || dateFilterInitialized.current) return;
+    dateFilterInitialized.current = true;
+    const dateKeys = new Set<string>();
+    let hasToday = false;
+    for (const m of matches) {
+      if (!m.startDate) continue;
+      const ms = m.startDate < 10000000000 ? m.startDate * 1000 : m.startDate;
+      const d = new Date(ms);
+      if (isNaN(d.getTime())) continue;
+      const key = d.toLocaleDateString('en-US', {
+        weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
+      }).toUpperCase().replace(',', '');
+      dateKeys.add(key);
+      if (key === todayDateKey) hasToday = true;
+    }
+    if (hasToday && dateKeys.size > 1) setDateFilter(todayDateKey);
+  }, [loading, matches, todayDateKey]);
+
+  const hasActiveFilter = dateFilter !== 'all' || teamFilter !== 'all';
+  const resetFilters = () => {
+    setDateFilter('all');
+    setTeamFilter('all');
+  };
 
   // Auto-scroll to today's date group — wait until the ref element has actual height (cards rendered)
   useEffect(() => {
@@ -316,6 +347,17 @@ export default function SeriesPage() {
               {/* Filters */}
               {!loading && !error && matches.length > 0 && (
                 <div className="flex justify-end gap-2">
+                  {hasActiveFilter && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={resetFilters}
+                      className="rounded-xl gap-1.5 h-7 sm:h-8 text-[11px] sm:text-xs px-2.5 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                      Reset
+                    </Button>
+                  )}
                   {availableDates.length > 1 && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
