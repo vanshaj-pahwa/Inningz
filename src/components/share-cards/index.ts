@@ -5,3 +5,6 @@ export type { QuickScoreCardProps } from './quick-score-card';
 export { default as StatShareDialog } from './stat-share-dialog';
 export { default as StatShareCard } from './stat-share-card';
 export type { StatShareCardProps } from './stat-share-card';
+export { default as PointsTableShareDialog } from './points-table-share-dialog';
+export { default as PointsTableShareCard } from './points-table-share-card';
+export type { PointsTableShareCardProps } from './points-table-share-card';

@@ -7,7 +7,9 @@ import { getSeriesPointsTable, getSeriesStats } from '@/app/actions';
 import type { PointsTableData, PointsTableGroup, PointsTableTeam } from '@/app/actions';
 import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { TableProperties, ChevronDown, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { TableProperties, ChevronDown, ChevronRight, Share2 } from "lucide-react";
+import PointsTableShareDialog from '@/components/share-cards/points-table-share-dialog';
 
 interface PointsTableProps {
   seriesId: string;
@@ -23,6 +25,7 @@ export default function PointsTableDisplay({ seriesId, onAvailabilityChange, sho
   const [topRunScorer, setTopRunScorer] = useState<{ name: string; value: string } | null>(null);
   const [topWicketTaker, setTopWicketTaker] = useState<{ name: string; value: string } | null>(null);
   const [topPerformersLoading, setTopPerformersLoading] = useState(showTopPerformers);
+  const [shareOpen, setShareOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -142,9 +145,31 @@ export default function PointsTableDisplay({ seriesId, onAvailabilityChange, sho
         </div>
       )}
 
+      <div className="flex justify-end">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShareOpen(true)}
+          className="rounded-xl gap-1.5 h-7 sm:h-8 text-[11px] sm:text-xs px-2.5"
+        >
+          <Share2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+          Share
+        </Button>
+      </div>
+
       {data.groups.map((group, groupIdx) => (
         <GroupTable key={groupIdx} group={group} showGroupName={data.groups.length > 1} />
       ))}
+
+      <PointsTableShareDialog
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        cardData={{
+          seriesName: data.seriesName || seriesName || 'Series',
+          matchType: data.matchType,
+          groups: data.groups,
+        }}
+      />
     </div>
   );
 }
@@ -236,6 +261,7 @@ function TeamRow({
 }) {
   const router = useRouter();
   const isQualified = team.teamQualifyStatus === 'Q';
+  const isEliminated = team.teamQualifyStatus === 'E';
   const hasMatches = team.matches.length > 0;
 
   return (
@@ -244,7 +270,7 @@ function TeamRow({
         onClick={hasMatches ? onToggle : undefined}
         className={`
           border-b border-border/30 transition-colors
-          ${isQualified ? 'bg-primary/5' : 'hover:bg-muted/30'}
+          ${isQualified ? 'bg-primary/5' : isEliminated ? 'bg-red-500/[0.04] opacity-70' : 'hover:bg-muted/30'}
           ${hasMatches ? 'cursor-pointer' : ''}
           ${isExpanded ? 'bg-muted/20' : ''}
         `}
@@ -273,6 +299,9 @@ function TeamRow({
             </span>
             {isQualified && (
               <span className="text-[8px] sm:text-[10px] font-bold text-primary bg-primary/10 px-1 sm:px-1.5 py-0.5 rounded">Q</span>
+            )}
+            {isEliminated && (
+              <span className="text-[8px] sm:text-[10px] font-bold text-red-400 border border-red-400/40 px-1 sm:px-1.5 py-0.5 rounded">E</span>
             )}
           </div>
         </td>
