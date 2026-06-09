@@ -2302,7 +2302,8 @@ export async function getScoreForMatchId(
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
         },
       });
-      if (paginationResponse.ok) {
+      const contentType = paginationResponse.headers.get('content-type');
+      if (paginationResponse.ok && contentType && contentType.includes('application/json')) {
         const paginationData = await paginationResponse.json();
         if (Array.isArray(paginationData) && paginationData.length > 0) {
           // Merge: use mainCommentary for the latest balls, then add any pagination items
