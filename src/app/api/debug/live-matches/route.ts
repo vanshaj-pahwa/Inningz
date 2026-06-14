@@ -3,6 +3,7 @@ import { getLiveMatches } from '@/app/actions';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+export const preferredRegion = ['bom1'];
 
 export async function GET() {
     const result = await getLiveMatches();
