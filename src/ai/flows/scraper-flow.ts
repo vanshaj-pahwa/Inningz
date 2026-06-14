@@ -1566,10 +1566,14 @@ function getMatchTypeFromSeries(seriesName: string, title: string): 'Internation
 }
 
 export async function scrapeUpcomingMatches(): Promise<LiveMatch[]> {
-  const response = await fetch('https://www.cricbuzz.com/cricket-match/live-scores/upcoming-matches', {
+  const bust = Math.floor(Date.now() / 60_000);
+  const response = await fetch(`https://www.cricbuzz.com/cricket-match/live-scores/upcoming-matches?_=${bust}`, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache',
     },
+    cache: 'no-store',
   });
   if (!response.ok) {
     throw new Error(`Failed to fetch upcoming matches: ${response.statusText}`);
@@ -1697,10 +1701,14 @@ export async function scrapeUpcomingMatches(): Promise<LiveMatch[]> {
 }
 
 export async function scrapeRecentMatches(): Promise<LiveMatch[]> {
-  const response = await fetch('https://www.cricbuzz.com/cricket-match/live-scores/recent-matches', {
+  const bust = Math.floor(Date.now() / 60_000);
+  const response = await fetch(`https://www.cricbuzz.com/cricket-match/live-scores/recent-matches?_=${bust}`, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache',
     },
+    cache: 'no-store',
   });
   if (!response.ok) {
     throw new Error(`Failed to fetch recent matches: ${response.statusText}`);
@@ -1912,10 +1920,14 @@ function extractMatchesFromRSCPayload(html: string): LiveMatch[] {
 }
 
 export async function scrapeLiveMatches(): Promise<LiveMatch[]> {
-  const response = await fetch('https://www.cricbuzz.com/cricket-match/live-scores', {
+  const bust = Math.floor(Date.now() / 30_000);
+  const response = await fetch(`https://www.cricbuzz.com/cricket-match/live-scores?_=${bust}`, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache',
     },
+    cache: 'no-store',
   });
   if (!response.ok) {
     throw new Error(`Failed to fetch live matches: ${response.statusText}`);
