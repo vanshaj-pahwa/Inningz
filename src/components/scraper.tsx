@@ -9,10 +9,11 @@ import { loadMoreCommentary as loadMoreCommentaryAction, getPlayerProfile, getPl
 import type { ScrapeCricbuzzUrlOutput, Commentary, PlayerProfile, PlayerHighlights } from '@/app/actions';
 import { useLiveScore } from '@/lib/data-layer';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { User, ArrowLeft, ChevronLeft, ChevronRight, Share2 } from "lucide-react";
+import { User, ArrowLeft, ChevronLeft, ChevronRight, Share2, Trophy } from "lucide-react";
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { cn } from '@/lib/utils';
+import { hasInAppHistory } from '@/lib/nav-history';
 import FullScorecard from './full-scorecard';
 import PlayerProfileDisplay from './player-profile';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
@@ -97,6 +98,15 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
     const [lastTimestamp, setLastTimestamp] = useState<number | null>(null);
     const [statShareOpen, setStatShareOpen] = useState(false);
     const [statShareData, setStatShareData] = useState<{ headline?: string; text: string; snippetType?: string } | null>(null);
+    const [canGoBack, setCanGoBack] = useState(false);
+
+    // If the user landed on this page directly (no in-app pathname change yet),
+    // show "Back to Home" instead of an icon. The counter is incremented in
+    // AppShell during render, so by the time this effect runs it reflects
+    // whether any navigation happened in this tab.
+    useEffect(() => {
+        setCanGoBack(hasInAppHistory());
+    }, []);
     const [overSheetOpen, setOverSheetOpen] = useState(false);
     const [overSheetData, setOverSheetData] = useState<Commentary | null>(null);
     const [graphsInitialTab, setGraphsInitialTab] = useState<string | undefined>(undefined);
@@ -968,9 +978,27 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
             <div className="flex flex-col gap-2 mb-4 md:mb-6 py-3 md:py-4 gradient-border">
                 {/* Desktop: single row | Mobile: title row */}
                 <div className="flex items-start gap-2 md:gap-4">
-                    <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8 md:h-9 md:w-9 rounded-xl hover:bg-muted mt-0.5" onClick={() => router.back()}>
-                        <ArrowLeft className="h-4 w-4" />
-                    </Button>
+                    {canGoBack ? (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="shrink-0 h-8 w-8 md:h-9 md:w-9 rounded-xl hover:bg-muted mt-0.5"
+                            onClick={() => router.back()}
+                            aria-label="Go back"
+                        >
+                            <ArrowLeft className="h-4 w-4" />
+                        </Button>
+                    ) : (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="shrink-0 h-8 md:h-9 px-2 md:px-3 rounded-xl hover:bg-muted mt-0.5 gap-1.5"
+                            onClick={() => router.push('/')}
+                        >
+                            <ArrowLeft className="h-4 w-4" />
+                            <span className="text-xs md:text-sm">Back to Home</span>
+                        </Button>
+                    )}
                     <div className="flex-1 min-w-0">
                         <h1 className="text-base md:text-2xl font-display tracking-tight text-foreground leading-tight line-clamp-2 md:truncate">
                             {data?.title}
@@ -1144,13 +1172,22 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                         </span>
 
                                         {/* Status + Rates row */}
-                                        <div className="mt-3 flex items-center justify-between gap-4 flex-wrap">
-                                            <div className="flex items-center gap-2">
+                                        <div className="mt-5 md:mt-6 flex items-center justify-between gap-4 flex-wrap">
+                                            <div className="flex items-center gap-2 min-w-0">
                                                 {data?.status && (
-                                                    <>
-                                                        <div className="w-2 h-2 rounded-full bg-red-500 live-pulse" />
-                                                        <p className="text-sm font-semibold text-foreground/80">{data.status}</p>
-                                                    </>
+                                                    isLive(data.status) ? (
+                                                        <>
+                                                            <div className="w-2 h-2 rounded-full bg-red-500 live-pulse" />
+                                                            <p className="text-sm font-semibold text-foreground/80">{data.status}</p>
+                                                        </>
+                                                    ) : (
+                                                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 max-w-full">
+                                                            <Trophy className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                                                            <span className="text-xs md:text-sm font-semibold text-amber-300 truncate">
+                                                                {data.status}
+                                                            </span>
+                                                        </div>
+                                                    )
                                                 )}
                                             </div>
                                             <div className="flex items-center gap-2">

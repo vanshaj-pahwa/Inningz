@@ -32,9 +32,9 @@ export default function RecentHistory({ onPlayerClick, className }: RecentHistor
   return (
     <div className={cn('', className)}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-2 md:mb-3">
         <h3 className="text-xs md:text-sm font-bold uppercase tracking-widest text-foreground">
-          Recent
+          Recently Viewed
         </h3>
         <button
           onClick={clearHistory}
@@ -44,8 +44,8 @@ export default function RecentHistory({ onPlayerClick, className }: RecentHistor
         </button>
       </div>
 
-      {/* Horizontal scroll list */}
-      <div className="flex gap-2 overflow-x-auto pt-1 pb-1 scrollbar-hide -mx-4 px-4">
+      {/* Horizontal scroll list — mirrors FavoritesSection */}
+      <div className="flex gap-2 md:gap-3 overflow-x-auto pt-2 pb-2 scrollbar-hide -mx-4 px-4">
         {history.map((item) => (
           <div
             key={`${item.type}-${item.id}`}
@@ -79,13 +79,13 @@ export default function RecentHistory({ onPlayerClick, className }: RecentHistor
                 removeItem(item.id, item.type);
               }}
               className={cn(
-                'absolute -top-1.5 -right-1.5 p-0.5 rounded-full z-10',
+                'absolute -top-1.5 md:-top-2 -right-1.5 md:-right-2 p-0.5 md:p-1 rounded-full z-10',
                 'bg-muted border border-border',
-                'opacity-0 group-hover:opacity-100 transition-opacity',
+                'md:opacity-0 md:group-hover:opacity-100 transition-opacity',
                 'hover:bg-destructive hover:border-destructive'
               )}
             >
-              <X className="w-2.5 h-2.5" />
+              <X className="w-2 md:w-2.5 h-2 md:h-2.5" />
             </button>
           </div>
         ))}

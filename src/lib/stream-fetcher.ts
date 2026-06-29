@@ -58,7 +58,6 @@ const DEFAULT_HEADERS: Record<string, string> = {
 export async function fetchStreamMatchList(): Promise<StreamMatch[]> {
   try {
     const url = `${STREAM_API_BASE}/wefeed-h5-bff/live/match-list-v5?sportType=cricket`;
-    console.log('[StreamFetcher] Fetching match list from:', url);
 
     const response = await fetch(url, { headers: DEFAULT_HEADERS });
 
@@ -75,7 +74,6 @@ export async function fetchStreamMatchList(): Promise<StreamMatch[]> {
     }
 
     const cricketMatches = json.data.list.filter((m: any) => m.type === 'cricket');
-    console.log('[StreamFetcher] Found', cricketMatches.length, 'cricket matches');
 
     return cricketMatches.map((m: any) => ({
       id: m.id || '',

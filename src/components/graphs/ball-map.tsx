@@ -36,7 +36,6 @@ export default function BallMap({ data }: BallMapProps) {
         <span className="text-sm text-muted-foreground">{data.scoreDetails.overs} overs</span>
       </div>
 
-      {/* Ball grid */}
       <div className="space-y-1">
         {sortedOvers.map(([overNum, balls]) => (
           <div key={overNum} className="flex items-start gap-2 group min-w-0">

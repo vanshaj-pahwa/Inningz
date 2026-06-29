@@ -529,6 +529,9 @@ export type WinProbPoint = {
   team1Prob: number;
   team2Name: string;
   team2Prob: number;
+  // Test-match draw/tie probability (cricbuzz emits a `draw` field per point).
+  // 0 (or absent) for limited-overs formats where a draw isn't possible.
+  drawProb?: number;
   isTeam1Wicket: boolean;
   isTeam2Wicket: boolean;
   wicketCommentary?: string;
@@ -2573,7 +2576,6 @@ export async function getScoreForMatchId(
     const timestamps = commentaryArray.filter((c: any) => c.timestamp).map((c: any) => c.timestamp);
     if (timestamps.length > 0) {
       oldestTimestamp = Math.min(...timestamps);
-      console.log('[getScoreForMatchId] Initial fetch - min timestamp:', oldestTimestamp, 'max timestamp:', Math.max(...timestamps), 'commentary count:', commentaryArray.length);
     }
   }
 
@@ -4144,6 +4146,9 @@ export async function scrapeWinProbHistory(matchId: string): Promise<WinProbHist
     const innings = parseInt(innM[1], 10);
     const isT1Wicket = /[\\]*"isTeam1Wicket[\\]*":\s*true/.test(obj);
     const isT2Wicket = /[\\]*"isTeam2Wicket[\\]*":\s*true/.test(obj);
+    // Test matches carry a `draw` field on every point. Absent for limited-overs.
+    const drawM = obj.match(/[\\]*"draw[\\]*":\s*(\d+)/);
+    const drawProb = drawM ? parseInt(drawM[1], 10) : undefined;
 
     // Extract wicket commentary if available
     let wicketCommentary: string | undefined;
@@ -4183,6 +4188,7 @@ export async function scrapeWinProbHistory(matchId: string): Promise<WinProbHist
       team1Prob: t1Prob,
       team2Name: team2Name || 'Team 2',
       team2Prob: t2Prob,
+      drawProb,
       isTeam1Wicket: isT1Wicket,
       isTeam2Wicket: isT2Wicket,
       wicketCommentary,

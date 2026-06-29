@@ -1,0 +1,51 @@
+name: Refresh screenshots
+
+# Recapture the README screenshots from the live site every 7 days and
+# commit them if anything changed. Can also be run manually from the Actions tab.
+on:
+  schedule:
+    - cron: "0 6 * * 1" # every Monday 06:00 UTC
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "Base URL to screenshot (defaults to production)"
+        required: false
+        default: "https://inningz.vercel.app"
+
+permissions:
+  contents: write
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Capture screenshots
+        env:
+          INNINGZ_URL: ${{ github.event.inputs.url || 'https://inningz.vercel.app' }}
+        run: node scripts/screenshots.mjs
+
+      - name: Commit updated screenshots
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/screenshots
+          if git diff --staged --quiet; then
+            echo "No screenshot changes."
+          else
+            git commit -m "chore: refresh README screenshots"
+            git push
+          fi

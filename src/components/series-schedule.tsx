@@ -202,7 +202,7 @@ export default function SeriesScheduleComponent() {
   );
 }
 
-function SeriesCard({ series, index }: { series: CricketSeries; index: number }) {
+export function SeriesCard({ series, index }: { series: CricketSeries; index: number }) {
   const { addFavorite, removeFavorite, isFavorite } = useDashboardPreferences();
   // Build the full series path for both linking and favorites
   const seriesSlug = series.seriesUrl.replace(/^\/cricket-series\/\d+\//, '').replace(/\/matches$/, '');

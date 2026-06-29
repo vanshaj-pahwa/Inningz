@@ -13,10 +13,13 @@ import {
 } from 'recharts';
 import type { WinProbHistory } from '@/app/actions';
 import { cn } from '@/lib/utils';
+import ChartZoomModal from './chart-zoom-modal';
 
 interface WinProbabilityChartProps {
   data: WinProbHistory;
 }
+
+const DRAW_COLOR = '#9CA3AF'; // neutral grey for draw/tie
 
 export default function WinProbabilityChart({ data }: WinProbabilityChartProps) {
   const TEAM1_COLOR = data.team1Color || '#E6A937';
@@ -26,6 +29,10 @@ export default function WinProbabilityChart({ data }: WinProbabilityChartProps) 
   if (!data.points.length) {
     return <p className="text-xs text-muted-foreground">No win probability data available</p>;
   }
+
+  // Test matches: cricbuzz emits a non-zero `drawProb` on at least some points.
+  // Show the draw series only when we actually see meaningful draw probability.
+  const hasDrawSeries = data.points.some(p => (p.drawProb ?? 0) > 0);
 
   // Detect innings break via the `innings` field (backend sends continuous over numbers)
   const firstInn2Idx = data.points.findIndex(p => p.innings === 2);
@@ -41,6 +48,7 @@ export default function WinProbabilityChart({ data }: WinProbabilityChartProps) 
       innings: p.innings,
       team1: p.team1Prob,
       team2: p.team2Prob,
+      draw: p.drawProb ?? 0,
       isTeam1Wicket: p.isTeam1Wicket,
       isTeam2Wicket: p.isTeam2Wicket,
       wicketCommentary: p.wicketCommentary,
@@ -76,81 +84,94 @@ export default function WinProbabilityChart({ data }: WinProbabilityChartProps) 
       </div>
 
       {/* Chart */}
-      <div className="rounded-xl bg-muted/20 p-2 pt-4">
-        <ResponsiveContainer width="100%" height={280}>
-          <LineChart data={indexedData} margin={{ top: 10, right: 10, left: 0, bottom: 25 }}>
-            <CartesianGrid strokeDasharray="4 4" stroke="hsl(var(--border) / 0.5)" />
-            <ReferenceLine y={50} stroke="hsl(var(--border))" strokeDasharray="2 2" />
-            {inningsBreakIndex > 0 && (
-              <ReferenceLine x={inningsBreakIndex} stroke="hsl(var(--border))" strokeWidth={1} />
-            )}
-            <XAxis
-              dataKey="idx"
-              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-              tickFormatter={(idx: number) => indexedData[idx]?.overLabel || ''}
-              interval="preserveStartEnd"
-              axisLine={{ stroke: 'hsl(var(--border) / 0.5)' }}
-              tickLine={false}
-            />
-            <YAxis
-              domain={[0, 100]}
-              ticks={[0, 25, 50, 75, 100]}
-              tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-              axisLine={false}
-              tickLine={false}
-              width={35}
-            />
-            <Tooltip
-              content={<WinProbTooltip team1={data.team1Name} team2={data.team2Name} />}
-              allowEscapeViewBox={{ x: true, y: false }}
-              wrapperStyle={{ zIndex: 20, pointerEvents: 'none' }}
-            />
-            {(filter === 'both' || filter === 'team1') && (
-              <Line
-                type="monotone"
-                dataKey="team1"
-                stroke={TEAM1_COLOR}
-                strokeWidth={2.5}
-                dot={(props: any) => {
-                  const { cx, cy, payload } = props;
-                  if (!payload.isTeam1Wicket) return <circle key={`t1-${payload.over}`} r={0} />;
-                  return <circle key={`t1w-${payload.over}`} cx={cx} cy={cy} r={4} fill={TEAM1_COLOR} stroke="white" strokeWidth={1.5} />;
-                }}
-                activeDot={{ r: 5, strokeWidth: 2, stroke: TEAM1_COLOR, fill: 'hsl(var(--card))' }}
+      <ChartZoomModal title="Win Probability" renderChart={(height) => (
+        <>
+          <ResponsiveContainer width="100%" height={height}>
+            <LineChart data={indexedData} margin={{ top: 10, right: 10, left: 0, bottom: 25 }}>
+              <CartesianGrid strokeDasharray="4 4" stroke="hsl(var(--border) / 0.5)" />
+              <ReferenceLine y={50} stroke="hsl(var(--border))" strokeDasharray="2 2" />
+              {inningsBreakIndex > 0 && (
+                <ReferenceLine x={inningsBreakIndex} stroke="hsl(var(--border))" strokeWidth={1} />
+              )}
+              <XAxis
+                dataKey="idx"
+                tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                tickFormatter={(idx: number) => indexedData[idx]?.overLabel || ''}
+                interval="preserveStartEnd"
+                axisLine={{ stroke: 'hsl(var(--border) / 0.5)' }}
+                tickLine={false}
               />
-            )}
-            {(filter === 'both' || filter === 'team2') && (
-              <Line
-                type="monotone"
-                dataKey="team2"
-                stroke={TEAM2_COLOR}
-                strokeWidth={2.5}
-                dot={(props: any) => {
-                  const { cx, cy, payload } = props;
-                  if (!payload.isTeam2Wicket) return <circle key={`t2-${payload.over}`} r={0} />;
-                  return <circle key={`t2w-${payload.over}`} cx={cx} cy={cy} r={4} fill={TEAM2_COLOR} stroke="white" strokeWidth={1.5} />;
-                }}
-                activeDot={{ r: 5, strokeWidth: 2, stroke: TEAM2_COLOR, fill: 'hsl(var(--card))' }}
+              <YAxis
+                domain={[0, 100]}
+                ticks={[0, 25, 50, 75, 100]}
+                tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                axisLine={false}
+                tickLine={false}
+                width={35}
               />
-            )}
-          </LineChart>
-        </ResponsiveContainer>
+              <Tooltip
+                content={<WinProbTooltip team1={data.team1Name} team2={data.team2Name} hasDrawSeries={hasDrawSeries} />}
+                allowEscapeViewBox={{ x: true, y: false }}
+                wrapperStyle={{ zIndex: 20, pointerEvents: 'none' }}
+              />
+              {(filter === 'both' || filter === 'team1') && (
+                <Line
+                  type="monotone"
+                  dataKey="team1"
+                  stroke={TEAM1_COLOR}
+                  strokeWidth={2.5}
+                  dot={(props: any) => {
+                    const { cx, cy, payload } = props;
+                    if (!payload.isTeam1Wicket) return <circle key={`t1-${payload.over}`} r={0} />;
+                    return <circle key={`t1w-${payload.over}`} cx={cx} cy={cy} r={4} fill={TEAM1_COLOR} stroke="white" strokeWidth={1.5} />;
+                  }}
+                  activeDot={{ r: 5, strokeWidth: 2, stroke: TEAM1_COLOR, fill: 'hsl(var(--card))' }}
+                />
+              )}
+              {(filter === 'both' || filter === 'team2') && (
+                <Line
+                  type="monotone"
+                  dataKey="team2"
+                  stroke={TEAM2_COLOR}
+                  strokeWidth={2.5}
+                  dot={(props: any) => {
+                    const { cx, cy, payload } = props;
+                    if (!payload.isTeam2Wicket) return <circle key={`t2-${payload.over}`} r={0} />;
+                    return <circle key={`t2w-${payload.over}`} cx={cx} cy={cy} r={4} fill={TEAM2_COLOR} stroke="white" strokeWidth={1.5} />;
+                  }}
+                  activeDot={{ r: 5, strokeWidth: 2, stroke: TEAM2_COLOR, fill: 'hsl(var(--card))' }}
+                />
+              )}
+              {hasDrawSeries && filter === 'both' && (
+                <Line
+                  type="monotone"
+                  dataKey="draw"
+                  stroke={DRAW_COLOR}
+                  strokeWidth={2}
+                  strokeDasharray="4 3"
+                  dot={false}
+                  activeDot={{ r: 4, strokeWidth: 2, stroke: DRAW_COLOR, fill: 'hsl(var(--card))' }}
+                />
+              )}
+            </LineChart>
+          </ResponsiveContainer>
 
-        {/* Innings labels */}
-        <div className="flex justify-around text-[10px] text-muted-foreground -mt-4 pb-1">
-          {inningsBreakIndex > 0 ? (
-            <>
-              <span>1st Inn ({data.team1Name})</span>
-              <span>2nd Inn ({data.team2Name})</span>
-            </>
-          ) : (
-            <span>Overs</span>
-          )}
-        </div>
-      </div>
+          {/* Innings labels */}
+          <div className="flex justify-around text-[10px] text-muted-foreground -mt-4 pb-1">
+            {inningsBreakIndex > 0 ? (
+              <>
+                <span>1st Inn ({data.team1Name})</span>
+                <span>2nd Inn ({data.team2Name})</span>
+              </>
+            ) : (
+              <span>Overs</span>
+            )}
+          </div>
+        </>
+      )} />
 
       {/* Legend */}
-      <div className="flex gap-5 items-center text-xs">
+      <div className="flex flex-wrap gap-x-5 gap-y-2 items-center text-xs">
         <span className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: TEAM1_COLOR }} />
           {data.team1Name}
@@ -159,15 +180,21 @@ export default function WinProbabilityChart({ data }: WinProbabilityChartProps) 
           <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: TEAM2_COLOR }} />
           {data.team2Name}
         </span>
+        {hasDrawSeries && (
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: DRAW_COLOR }} />
+            Draw / Tie
+          </span>
+        )}
       </div>
 
       {/* Over-by-over bars */}
-      <OverByOverBars data={data} inningsBreakIndex={inningsBreakIndex} team1Color={TEAM1_COLOR} team2Color={TEAM2_COLOR} />
+      <OverByOverBars data={data} inningsBreakIndex={inningsBreakIndex} team1Color={TEAM1_COLOR} team2Color={TEAM2_COLOR} hasDrawSeries={hasDrawSeries} />
     </div>
   );
 }
 
-function OverByOverBars({ data, inningsBreakIndex, team1Color, team2Color }: { data: WinProbHistory; inningsBreakIndex: number; team1Color: string; team2Color: string }) {
+function OverByOverBars({ data, inningsBreakIndex, team1Color, team2Color, hasDrawSeries }: { data: WinProbHistory; inningsBreakIndex: number; team1Color: string; team2Color: string; hasDrawSeries: boolean }) {
   const [expanded, setExpanded] = useState(false);
 
   const inn1Points = inningsBreakIndex > 0
@@ -203,7 +230,7 @@ function OverByOverBars({ data, inningsBreakIndex, team1Color, team2Color }: { d
       {expanded && (
         <div className="border-t border-border/40">
           {/* Legend */}
-          <div className="flex items-center gap-4 px-4 py-2 text-[10px] text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-4 py-2 text-[10px] text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full" style={{ backgroundColor: team1Color }} />
               {data.team1Name}
@@ -212,6 +239,12 @@ function OverByOverBars({ data, inningsBreakIndex, team1Color, team2Color }: { d
               <span className="w-2 h-2 rounded-full" style={{ backgroundColor: team2Color }} />
               {data.team2Name}
             </span>
+            {hasDrawSeries && (
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: DRAW_COLOR }} />
+                Draw / Tie
+              </span>
+            )}
           </div>
 
           {inn1Sorted.length > 0 && (
@@ -220,6 +253,7 @@ function OverByOverBars({ data, inningsBreakIndex, team1Color, team2Color }: { d
               points={inn1Sorted}
               team1Color={team1Color}
               team2Color={team2Color}
+              hasDrawSeries={hasDrawSeries}
             />
           )}
           {inn2Sorted.length > 0 && (
@@ -228,6 +262,7 @@ function OverByOverBars({ data, inningsBreakIndex, team1Color, team2Color }: { d
               points={inn2Sorted}
               team1Color={team1Color}
               team2Color={team2Color}
+              hasDrawSeries={hasDrawSeries}
             />
           )}
         </div>
@@ -236,8 +271,8 @@ function OverByOverBars({ data, inningsBreakIndex, team1Color, team2Color }: { d
   );
 }
 
-function InningsSection({ title, points, team1Color, team2Color }: {
-  title: string; points: any[]; team1Color: string; team2Color: string;
+function InningsSection({ title, points, team1Color, team2Color, hasDrawSeries }: {
+  title: string; points: any[]; team1Color: string; team2Color: string; hasDrawSeries: boolean;
 }) {
   return (
     <div>
@@ -246,7 +281,14 @@ function InningsSection({ title, points, team1Color, team2Color }: {
       </div>
       <div className="px-4 py-2 space-y-0.5">
         {points.map(p => {
-          const leader = p.team1Prob >= p.team2Prob ? 'team1' : 'team2';
+          const drawProb = (p.drawProb ?? 0);
+          const showDraw = hasDrawSeries && drawProb > 0;
+          // Leader picked from the three series so the color stays meaningful for Tests too.
+          const maxProb = Math.max(p.team1Prob, p.team2Prob, drawProb);
+          const leader: 'team1' | 'team2' | 'draw' =
+            maxProb === drawProb && showDraw ? 'draw' :
+              p.team1Prob >= p.team2Prob ? 'team1' : 'team2';
+
           return (
             <div
               key={`${p.innings}-${p.over}`}
@@ -264,17 +306,34 @@ function InningsSection({ title, points, team1Color, team2Color }: {
                 {p.team1Prob}%
               </span>
 
-              {/* Bar */}
+              {/* Bar (3 segments when draw probability is present) */}
               <div className="flex-1 flex items-center h-2 gap-px">
                 <div
                   className="h-full rounded-l-sm transition-all"
                   style={{ width: `${p.team1Prob}%`, backgroundColor: team1Color, opacity: leader === 'team1' ? 1 : 0.4 }}
                 />
+                {showDraw && (
+                  <div
+                    className="h-full transition-all"
+                    style={{ width: `${drawProb}%`, backgroundColor: DRAW_COLOR, opacity: leader === 'draw' ? 1 : 0.4 }}
+                  />
+                )}
                 <div
                   className="h-full rounded-r-sm transition-all"
                   style={{ width: `${p.team2Prob}%`, backgroundColor: team2Color, opacity: leader === 'team2' ? 1 : 0.4 }}
                 />
               </div>
+
+              {/* Draw % (only when relevant) */}
+              {showDraw && (
+                <span
+                  className="w-8 text-[11px] tabular-nums text-center shrink-0 font-semibold"
+                  style={{ color: leader === 'draw' ? DRAW_COLOR : 'hsl(var(--muted-foreground))' }}
+                  title="Draw / Tie probability"
+                >
+                  {drawProb}%
+                </span>
+              )}
 
               {/* Team 2 percentage */}
               <span
@@ -291,10 +350,11 @@ function InningsSection({ title, points, team1Color, team2Color }: {
   );
 }
 
-function WinProbTooltip({ active, payload, team1, team2, coordinate }: any) {
+function WinProbTooltip({ active, payload, team1, team2, hasDrawSeries, coordinate }: any) {
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload;
   if (!d) return null;
+  const showDraw = hasDrawSeries && (d.draw ?? 0) > 0;
 
   // Flip tooltip to the left of the cursor when it's hovering near the right
   // half of the viewport so the card never clips off the right edge on mobile.
@@ -311,6 +371,7 @@ function WinProbTooltip({ active, payload, team1, team2, coordinate }: any) {
       <div className="px-3 py-2 bg-muted/30 border-b border-border/30">
         <p className="font-semibold text-foreground text-[11px]">
           {d.innings === 2 ? '2nd Inn' : '1st Inn'} · Over {d.displayOver ?? d.over} | {team1}: {d.team1}% {'\u2022'} {team2}: {d.team2}%
+          {showDraw && <> {'•'} Draw: {d.draw}%</>}
         </p>
       </div>
       {/* Wicket commentary */}

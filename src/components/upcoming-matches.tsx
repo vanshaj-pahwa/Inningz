@@ -169,18 +169,15 @@ export default function UpcomingMatches() {
                   style={{ '--stagger-index': index } as React.CSSProperties}
                 >
                   <div className="glass-card card-hover p-5 h-full">
-                    {/* Top row */}
-                    <div className="flex items-center justify-between mb-4">
-                      {activeFilter === 'all' && (
-                        <span className="flex items-center gap-1.5 text-xs font-medium">
+                    {/* Top row: category chip only (match title shown via teams below) */}
+                    {activeFilter === 'all' && (
+                      <div className="mb-3">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-medium">
                           <span className={`w-1.5 h-1.5 rounded-full ${categoryColors[category]}`} />
                           <span className={categoryTextColors[category]}>{category.charAt(0).toUpperCase() + category.slice(1)}</span>
                         </span>
-                      )}
-                      <span className="text-xs text-muted-foreground">
-                        {match.title.split(',').slice(0, 1).join('')}
-                      </span>
-                    </div>
+                      </div>
+                    )}
 
                     {/* Teams */}
                     <div className="space-y-3">

@@ -1,9 +1,16 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import SplashScreen from './splash-screen';
+import { recordNavigation } from '@/lib/nav-history';
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  // Track in-app navigation synchronously during render so child useEffects
+  // (e.g. the match page back button) see an up-to-date count when they mount.
+  recordNavigation(pathname);
+
   const [showSplash, setShowSplash] = useState(true);
 
   const handleComplete = useCallback(() => {
