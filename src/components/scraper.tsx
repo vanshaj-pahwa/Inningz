@@ -17,6 +17,7 @@ import { hasInAppHistory } from '@/lib/nav-history';
 import FullScorecard from './full-scorecard';
 import PlayerProfileDisplay from './player-profile';
 import AnimatedScore from './animated-score';
+import { motion } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import MatchSquadsDisplay from './match-squads';
 import { ThemeToggle } from './theme-toggle';
@@ -1081,7 +1082,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
 
             <div>
                 {view === 'live' && (
-                    <div className="space-y-4">
+                    <motion.div className="space-y-4" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}>
                         {/* Countdown Timer */}
                         {timeLeft && data?.batsmen.length === 0 && (
                             <div className="glass-card p-8 md:p-12 text-center">
@@ -1505,22 +1506,37 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                 </div>
                             )}
                         </div>
-                    </div>
+                    </motion.div>
                 )}
-                {view === 'scorecard' && <FullScorecard matchId={matchId} />}
-                {view === 'squads' && <MatchSquadsDisplay matchId={matchId} />}
+                {view === 'scorecard' && (
+                    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}>
+                        <FullScorecard matchId={matchId} />
+                    </motion.div>
+                )}
+                {view === 'squads' && (
+                    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}>
+                        <MatchSquadsDisplay matchId={matchId} />
+                    </motion.div>
+                )}
                 {/* Always-mounted so the 6 Report-tab fetches start in the background
                     as soon as the match page loads. Hidden via CSS when not active. */}
-                <div className={view === 'graphs' ? '' : 'hidden'}>
+                <motion.div
+                    initial={false}
+                    animate={{ opacity: view === 'graphs' ? 1 : 0 }}
+                    transition={{ duration: 0.22 }}
+                    style={{ display: view === 'graphs' ? 'block' : 'none' }}
+                >
                     <MatchGraphs
                         matchId={matchId}
                         initialTab={graphsInitialTab}
                         matchTitle={data?.title || ''}
                         seriesName={data?.seriesName}
                     />
-                </div>
+                </motion.div>
                 {view === 'table' && data?.seriesId && (
-                    <PointsTableDisplay seriesId={data.seriesId} showTopPerformers seriesName={data.seriesName} />
+                    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}>
+                        <PointsTableDisplay seriesId={data.seriesId} showTopPerformers seriesName={data.seriesName} />
+                    </motion.div>
                 )}
             </div>
 

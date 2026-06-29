@@ -3,6 +3,7 @@
 import { useRecentHistoryContext } from '@/contexts/recent-history-context';
 import type { RecentItem } from '@/hooks/use-recent-history';
 import { useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -46,9 +47,15 @@ export default function RecentHistory({ onPlayerClick, className }: RecentHistor
 
       {/* Horizontal scroll list — mirrors FavoritesSection */}
       <div className="flex gap-2 md:gap-3 overflow-x-auto pt-2 pb-2 scrollbar-hide -mx-4 px-4">
+        <AnimatePresence mode="popLayout" initial={false}>
         {history.map((item) => (
-          <div
+          <motion.div
             key={`${item.type}-${item.id}`}
+            layout
+            initial={{ opacity: 0, scale: 0.85 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.85 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 28 }}
             className="group flex-shrink-0 relative"
           >
             <button
@@ -87,8 +94,9 @@ export default function RecentHistory({ onPlayerClick, className }: RecentHistor
             >
               <X className="w-2 md:w-2.5 h-2 md:h-2.5" />
             </button>
-          </div>
+          </motion.div>
         ))}
+        </AnimatePresence>
       </div>
     </div>
   );

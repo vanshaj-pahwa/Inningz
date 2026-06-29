@@ -3,6 +3,7 @@
 import { useDashboardPreferences } from '@/contexts/dashboard-preferences-context';
 import type { FavoriteItem } from '@/types/dashboard-preferences';
 import Link from 'next/link';
+import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -29,9 +30,21 @@ export default function FavoritesSection({ className }: FavoritesSectionProps) {
 
       {/* Horizontal scroll list */}
       <div className="flex gap-2 md:gap-3 overflow-x-auto pt-2 pb-2 scrollbar-hide -mx-4 px-4">
-        {favorites.map((item) => (
-          <FavoriteCard key={item.id} item={item} onRemove={removeFavorite} />
-        ))}
+        <AnimatePresence mode="popLayout" initial={false}>
+          {favorites.map((item) => (
+            <motion.div
+              key={item.id}
+              layout
+              initial={{ opacity: 0, scale: 0.85 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.85 }}
+              transition={{ type: 'spring', stiffness: 380, damping: 28 }}
+              className="shrink-0"
+            >
+              <FavoriteCard item={item} onRemove={removeFavorite} />
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
     </div>
   );

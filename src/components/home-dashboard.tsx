@@ -16,6 +16,7 @@ import RecentHistory from '@/components/recent-history';
 import FavoritesSection from '@/components/favorites-section';
 import { SeriesCard } from '@/components/series-schedule';
 import { usePlayerProfile } from '@/contexts/player-profile-context';
+import { motion } from 'framer-motion';
 import { ArrowRight, Tv } from 'lucide-react';
 
 type RankingCategory = 'batting' | 'bowling' | 'all-rounder';
@@ -469,7 +470,11 @@ function CompactMatchRow({ match, variant }: { match: LiveMatch; variant: 'recen
 
   return (
     <Link href={`/match/${match.matchId}`} className="block">
-      <div className="glass-card card-hover p-3 overflow-hidden h-full">
+      <motion.div
+        whileHover={{ y: -3 }}
+        transition={{ type: 'spring', stiffness: 320, damping: 22 }}
+        className="glass-card p-3 overflow-hidden h-full hover:border-primary/30"
+      >
         <p className="text-[10px] text-muted-foreground/80 truncate mb-1.5">
           {match.seriesName || match.title}
         </p>
@@ -500,7 +505,7 @@ function CompactMatchRow({ match, variant }: { match: LiveMatch; variant: 'recen
             </p>
           )
         )}
-      </div>
+      </motion.div>
     </Link>
   );
 }
@@ -514,7 +519,11 @@ function LiveMatchCard({ match, isLive }: { match: LiveMatch; isLive: boolean })
 
   return (
     <Link href={`/match/${match.matchId}`} className="block">
-      <div className={`glass-card card-hover p-3 md:p-4 overflow-hidden ${isLive ? 'ring-1 ring-red-500/20' : ''}`}>
+      <motion.div
+        whileHover={{ y: -4 }}
+        transition={{ type: 'spring', stiffness: 320, damping: 22 }}
+        className={`glass-card p-3 md:p-4 overflow-hidden hover:border-primary/30 ${isLive ? 'ring-1 ring-red-500/20' : ''}`}
+      >
         <div className="flex items-center justify-between gap-2 mb-2 md:mb-3">
           <p className="text-[10px] md:text-xs text-muted-foreground truncate flex-1">
             {match.seriesName || match.title}
@@ -550,7 +559,7 @@ function LiveMatchCard({ match, isLive }: { match: LiveMatch; isLive: boolean })
             </p>
           </div>
         )}
-      </div>
+      </motion.div>
     </Link>
   );
 }
