@@ -4,6 +4,7 @@
 import { Suspense, useCallback, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { motion, LayoutGroup } from "framer-motion";
 import LiveMatches from "@/components/live-matches";
 import RecentMatches from "@/components/recent-matches";
 import UpcomingMatches from "@/components/upcoming-matches";
@@ -66,29 +67,31 @@ function HomeContent() {
                         </h1>
 
                         {/* Desktop: inline nav tabs */}
-                        <nav className="hidden md:flex items-center gap-1 p-1 rounded-xl" style={{ background: 'rgba(120, 120, 128, 0.12)' }}>
-                            {tabs.map((tab) => {
-                                const Icon = tab.icon;
-                                const isActive = view === tab.value;
-                                return (
-                                    <button
-                                        key={tab.value}
-                                        onClick={() => switchView(tab.value)}
-                                        className={`
-                                            flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium
-                                            transition-all duration-200 ease-out
-                                            ${isActive
-                                                ? 'active-tab'
-                                                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                                            }
-                                        `}
-                                    >
-                                        <Icon className={`w-4 h-4 ${isActive && tab.value === 'live' ? 'animate-pulse' : ''}`} />
-                                        <span>{tab.label}</span>
-                                    </button>
-                                );
-                            })}
-                        </nav>
+                        <LayoutGroup id="desktop-nav">
+                            <nav className="hidden md:flex items-center gap-1 p-1 rounded-xl" style={{ background: 'rgba(120, 120, 128, 0.12)' }}>
+                                {tabs.map((tab) => {
+                                    const Icon = tab.icon;
+                                    const isActive = view === tab.value;
+                                    return (
+                                        <button
+                                            key={tab.value}
+                                            onClick={() => switchView(tab.value)}
+                                            className={`relative flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-150 ${isActive ? 'active-tab' : 'text-muted-foreground hover:text-foreground'}`}
+                                        >
+                                            {isActive && (
+                                                <motion.span
+                                                    layoutId="desktop-nav-active"
+                                                    transition={{ type: 'spring', stiffness: 360, damping: 30 }}
+                                                    className="absolute inset-0 rounded-lg bg-primary/15 ring-1 ring-primary/30"
+                                                />
+                                            )}
+                                            <Icon className={`relative z-10 w-4 h-4 ${isActive && tab.value === 'live' ? 'animate-pulse' : ''}`} />
+                                            <span className="relative z-10">{tab.label}</span>
+                                        </button>
+                                    );
+                                })}
+                            </nav>
+                        </LayoutGroup>
 
                         {/* Actions */}
                         <div className="flex items-center gap-1.5">
@@ -105,31 +108,33 @@ function HomeContent() {
                     </div>
 
                     {/* Mobile: iOS-style segmented control */}
-                    <nav className="md:hidden pb-3">
-                        <div className="flex p-1 rounded-lg bg-muted">
-                            {tabs.map((tab) => {
-                                const Icon = tab.icon;
-                                const isActive = view === tab.value;
-                                return (
-                                    <button
-                                        key={tab.value}
-                                        onClick={() => switchView(tab.value)}
-                                        className={`
-                                            flex-1 flex flex-col items-center justify-center gap-0.5 py-2 rounded-md text-[10px] font-medium
-                                            transition-all duration-200
-                                            ${isActive
-                                                ? 'bg-primary text-white'
-                                                : 'text-muted-foreground'
-                                            }
-                                        `}
-                                    >
-                                        <Icon className={`w-4 h-4 ${isActive && tab.value === 'live' ? 'animate-pulse' : ''}`} />
-                                        <span>{tab.label}</span>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </nav>
+                    <LayoutGroup id="mobile-nav">
+                        <nav className="md:hidden pb-3">
+                            <div className="flex p-1 rounded-lg bg-muted">
+                                {tabs.map((tab) => {
+                                    const Icon = tab.icon;
+                                    const isActive = view === tab.value;
+                                    return (
+                                        <button
+                                            key={tab.value}
+                                            onClick={() => switchView(tab.value)}
+                                            className={`relative flex-1 flex flex-col items-center justify-center gap-0.5 py-2 rounded-md text-[10px] font-medium transition-colors duration-150 ${isActive ? 'text-white' : 'text-muted-foreground'}`}
+                                        >
+                                            {isActive && (
+                                                <motion.span
+                                                    layoutId="mobile-nav-active"
+                                                    transition={{ type: 'spring', stiffness: 360, damping: 30 }}
+                                                    className="absolute inset-0 rounded-md bg-primary"
+                                                />
+                                            )}
+                                            <Icon className={`relative z-10 w-4 h-4 ${isActive && tab.value === 'live' ? 'animate-pulse' : ''}`} />
+                                            <span className="relative z-10">{tab.label}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </nav>
+                    </LayoutGroup>
                 </div>
             </header>
 

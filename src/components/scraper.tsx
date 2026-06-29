@@ -1509,14 +1509,16 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                 )}
                 {view === 'scorecard' && <FullScorecard matchId={matchId} />}
                 {view === 'squads' && <MatchSquadsDisplay matchId={matchId} />}
-                {view === 'graphs' && (
+                {/* Always-mounted so the 6 Report-tab fetches start in the background
+                    as soon as the match page loads. Hidden via CSS when not active. */}
+                <div className={view === 'graphs' ? '' : 'hidden'}>
                     <MatchGraphs
                         matchId={matchId}
                         initialTab={graphsInitialTab}
                         matchTitle={data?.title || ''}
                         seriesName={data?.seriesName}
                     />
-                )}
+                </div>
                 {view === 'table' && data?.seriesId && (
                     <PointsTableDisplay seriesId={data.seriesId} showTopPerformers seriesName={data.seriesName} />
                 )}

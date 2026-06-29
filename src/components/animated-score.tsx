@@ -8,84 +8,113 @@ interface AnimatedScoreProps {
     className?: string;
 }
 
-// Counts up the runs portion of a score string when it changes,
-// and briefly flashes when a wicket is taken.
+// Animates the runs and the overs portions of a score string when they change.
 // Supports score strings with or without a team prefix:
 //   "153/9 (20.0 ov)", "284-8 (50 ov)", "421", "ZIM 249/2 (61.0 ov)".
 export default function AnimatedScore({ value, className }: AnimatedScoreProps) {
     const parsed = parseScore(value);
-    const targetRuns = parsed.runs ?? 0;
 
-    const [displayRuns, setDisplayRuns] = useState(targetRuns);
-    const prevRunsRef = useRef(targetRuns);
-    const prevWktsRef = useRef(parsed.wickets);
-    const spanRef = useRef<HTMLSpanElement>(null);
-
-    useEffect(() => {
-        if (parsed.runs === null) return;
-        const prev = prevRunsRef.current;
-        if (parsed.runs === prev) return;
-
-        const obj = { n: prev };
-        const tween = gsap.to(obj, {
-            n: parsed.runs,
-            duration: Math.min(1.2, Math.max(0.4, Math.abs(parsed.runs - prev) * 0.05)),
-            ease: 'power2.out',
-            snap: { n: 1 },
-            onUpdate: () => setDisplayRuns(Math.round(obj.n)),
-        });
-
-        if (spanRef.current) {
-            const isWicket = parsed.wickets > prevWktsRef.current;
-            gsap.fromTo(
-                spanRef.current,
-                { textShadow: '0 0 0 rgba(0,0,0,0)', scale: 1 },
-                {
-                    textShadow: isWicket
-                        ? '0 0 28px rgba(248,113,113,0.7)'
-                        : '0 0 22px rgba(251,191,36,0.6)',
-                    scale: 1.04,
-                    duration: 0.18,
-                    ease: 'power2.out',
-                    yoyo: true,
-                    repeat: 1,
-                }
-            );
-        }
-
-        prevRunsRef.current = parsed.runs;
-        prevWktsRef.current = parsed.wickets;
-
-        return () => { tween.kill(); };
-    }, [parsed.runs, parsed.wickets]);
-
-    // No numeric runs found (e.g. "Yet to bat", undefined) — render raw, no animation.
     if (parsed.runs === null) {
         return <span className={className}>{value ?? ''}</span>;
     }
 
     return (
-        <span ref={spanRef} className={className} style={{ display: 'inline-block', willChange: 'transform' }}>
-            {parsed.prefix}<span className="tabular-nums">{displayRuns}</span>{parsed.rest}
+        <span className={className}>
+            {parsed.prefix}
+            <AnimatedNumber value={parsed.runs} format={(n) => String(Math.round(n))} />
+            {parsed.wktsText}
+            {parsed.overs !== null && (
+                <>
+                    {' ('}
+                    <AnimatedNumber value={parsed.overs} format={(n) => formatOvers(n, parsed.oversHasDecimal)} />
+                    {' ov)'}
+                </>
+            )}
+            {parsed.trailing}
         </span>
     );
+}
+
+// Generic GSAP-driven number tween. Snaps on decrease (e.g. balls 5 → 0 over boundary).
+function AnimatedNumber({
+    value,
+    format,
+}: {
+    value: number;
+    format: (n: number) => string;
+}) {
+    const [display, setDisplay] = useState(value);
+    const prevRef = useRef(value);
+
+    useEffect(() => {
+        const prev = prevRef.current;
+        if (value === prev) return;
+
+        // Snap on decrease — over boundary resets balls, no reverse count-down please.
+        if (value < prev) {
+            setDisplay(value);
+            prevRef.current = value;
+            return;
+        }
+
+        const obj = { n: prev };
+        const tween = gsap.to(obj, {
+            n: value,
+            duration: Math.min(2.4, Math.max(0.9, Math.abs(value - prev) * 0.12)),
+            ease: 'power2.out',
+            onUpdate: () => setDisplay(obj.n),
+        });
+
+        prevRef.current = value;
+        return () => { tween.kill(); };
+    }, [value]);
+
+    return <span className="tabular-nums">{format(display)}</span>;
 }
 
 interface ParsedScore {
     prefix: string;
     runs: number | null;
     wickets: number;
-    rest: string;
+    wktsText: string;
+    overs: number | null;
+    oversHasDecimal: boolean;
+    trailing: string;
 }
 
 function parseScore(s?: string): ParsedScore {
-    if (!s) return { prefix: '', runs: null, wickets: 0, rest: '' };
-    // Optional team-prefix like "ZIM " or "BAN ", then runs, then optional /wkts or -wkts, then anything.
-    const m = s.match(/^([A-Z][A-Za-z]+\s+)?(\d+)([/-](\d+))?(.*)$/);
-    if (!m) return { prefix: '', runs: null, wickets: 0, rest: s };
+    const empty: ParsedScore = {
+        prefix: '', runs: null, wickets: 0, wktsText: '',
+        overs: null, oversHasDecimal: false, trailing: '',
+    };
+    if (!s) return empty;
+
+    // Match [team prefix] <runs>[/wkts | -wkts] [ (overs[.balls] ov) ] [trailing]
+    const m = s.match(/^([A-Z][A-Za-z]+\s+)?(\d+)([\/-]\d+)?\s*(?:\(([\d.]+)\s*ov\))?(.*)$/);
+    if (!m) return { ...empty, trailing: s };
+
     const prefix = m[1] ?? '';
     const runs = parseInt(m[2], 10);
-    const wickets = m[4] ? parseInt(m[4], 10) : 0;
-    const rest = (m[3] ?? '') + (m[5] ?? '');
-    return { prefix, runs, wickets, rest };
+    const wktsText = m[3] ?? '';
+    const wickets = m[3] ? parseInt(m[3].slice(1), 10) : 0;
+    const oversRaw = m[4];
+    const trailing = m[5] ?? '';
+
+    let overs: number | null = null;
+    let oversHasDecimal = false;
+    if (oversRaw) {
+        overs = parseFloat(oversRaw);
+        oversHasDecimal = oversRaw.includes('.');
+    }
+
+    return { prefix, runs, wickets, wktsText, overs, oversHasDecimal, trailing };
+}
+
+function formatOvers(n: number, hasDecimal: boolean): string {
+    if (!hasDecimal) return String(Math.floor(n));
+    // Cricket overs use a single decimal digit (21.4, not 21.40).
+    // Floor the ball portion so 21.45 doesn't briefly display as 21.5.
+    const overs = Math.floor(n);
+    const balls = Math.min(5, Math.floor((n - overs) * 10));
+    return `${overs}.${balls}`;
 }

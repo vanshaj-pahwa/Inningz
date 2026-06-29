@@ -2,6 +2,12 @@
 
 import { useState, useEffect, useRef, useCallback, ReactNode } from 'react';
 import { Share2 } from 'lucide-react';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+if (typeof window !== 'undefined') {
+  gsap.registerPlugin(ScrollTrigger);
+}
 import { GraphsSkeleton, MatchupsSkeleton, VenueSkeleton, AllPlayersSkeleton } from './match-skeletons';
 import { Skeleton } from './ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -166,6 +172,17 @@ export default function MatchGraphs({ matchId, initialTab, matchTitle = '', seri
     setAllPlayersLoading(false);
     setTried((t) => ({ ...t, allPlayers: true }));
   }, [matchId]);
+
+  // Eagerly fire every data fetch as soon as the Report tab mounts, in parallel.
+  // The IntersectionObserver per section is now belt-and-suspenders only.
+  useEffect(() => {
+    fetchWinProb();
+    fetchOverData();
+    fetchPartnerships();
+    fetchMatchups();
+    fetchVenue();
+    fetchAllPlayers();
+  }, [fetchWinProb, fetchOverData, fetchPartnerships, fetchMatchups, fetchVenue, fetchAllPlayers]);
 
   const fetchBallMap = useCallback(async (inningsId: number) => {
     const key = `ballMap-${inningsId}`;
@@ -467,6 +484,8 @@ function GraphSection({
   useEffect(() => {
     const el = localRef.current;
     if (!el) return;
+    // Generous rootMargin so charts start fetching ~1 viewport ahead — by the time
+    // the user scrolls them in, the data is already there and the reveal can play.
     const obs = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -477,11 +496,27 @@ function GraphSection({
           }
         });
       },
-      { rootMargin: '300px 0px 300px 0px' }
+      { rootMargin: '900px 0px 900px 0px' }
     );
     obs.observe(el);
     return () => obs.disconnect();
   }, [onFirstView]);
+
+  // Subtle slide-up on scroll-in. No opacity drop so sections remain visible
+  // even if ScrollTrigger doesn't fire (timing, tab switch, layout shifts).
+  useEffect(() => {
+    const el = localRef.current;
+    if (!el) return;
+    const ctx = gsap.context(() => {
+      gsap.from(el, {
+        scrollTrigger: { trigger: el, start: 'top 92%', once: true },
+        y: 22,
+        duration: 0.5,
+        ease: 'power3.out',
+      });
+    }, el);
+    return () => ctx.revert();
+  }, []);
 
   return (
     <section

@@ -211,7 +211,21 @@ export default function HomeDashboard() {
             <FormatSwitcher value={rankingFormat} onChange={setRankingFormat} />
           }
         />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4">
+        {/* Mobile: horizontal scroll; Desktop: 3-col grid */}
+        <div className="md:hidden -mx-4 px-4 flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 no-scrollbar">
+          {(['batting', 'bowling', 'all-rounder'] as RankingCategory[]).map((cat) => (
+            <div key={cat} className="snap-start shrink-0 w-[85%] xs:w-[80%]">
+              <RankingsWidget
+                category={cat}
+                format={rankingFormat}
+                data={rankings[cat]}
+                loading={rankingsLoading}
+              />
+            </div>
+          ))}
+          <div className="shrink-0 w-1" />
+        </div>
+        <div className="hidden md:grid grid-cols-3 gap-4">
           {(['batting', 'bowling', 'all-rounder'] as RankingCategory[]).map((cat) => (
             <RankingsWidget
               key={cat}
@@ -466,7 +480,7 @@ function CompactMatchRow({ match, variant }: { match: LiveMatch; variant: 'recen
                 {t.name}
               </span>
               {t.score && (
-                <span className="font-mono text-[12px] tabular-nums text-foreground shrink-0">
+                <span className="font-display text-sm tabular-nums text-foreground shrink-0">
                   {t.score}
                 </span>
               )}
