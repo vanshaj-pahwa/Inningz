@@ -16,7 +16,7 @@ export default function PlayerProfileDisplay({ profile }: { profile: PlayerProfi
     return (
         <div className="w-full bg-background">
             {/* Header Section */}
-            <div className="relative bg-gradient-to-r from-green-900 to-zinc-950 overflow-hidden">
+            <div className="relative bg-gradient-to-r from-green-900 to-zinc-950 overflow-hidden rounded-t-2xl">
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent"></div>
                 <div className="relative max-w-7xl mx-auto px-4 py-6 md:px-12 md:py-8">
                     <div className="flex items-center gap-4 md:gap-6">
@@ -317,12 +317,12 @@ function ICCRankingsCard({ rankings }: { rankings?: PlayerProfile['rankings'] })
                 <h3 className="text-sm font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
                     ICC Rankings
                 </h3>
-                <div className="flex items-center bg-muted rounded-full p-0.5">
+                <div className="flex items-center bg-muted rounded-full p-0.5 shrink-0">
                     {tabs.map((t) => (
                         <button
                             key={t.key}
                             onClick={() => setTab(t.key)}
-                            className={`px-2.5 py-0.5 text-[11px] rounded-full transition-all ${
+                            className={`px-2.5 py-0.5 text-[11px] rounded-full transition-all whitespace-nowrap ${
                                 tab === t.key
                                     ? 'bg-green-600 text-white font-semibold shadow-sm'
                                     : 'text-zinc-500 dark:text-zinc-400 hover:text-foreground'

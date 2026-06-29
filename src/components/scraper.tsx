@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { hasInAppHistory } from '@/lib/nav-history';
 import FullScorecard from './full-scorecard';
 import PlayerProfileDisplay from './player-profile';
+import AnimatedScore from './animated-score';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import MatchSquadsDisplay from './match-squads';
 import { ThemeToggle } from './theme-toggle';
@@ -1167,9 +1168,10 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
 
                                     {/* Current Score - the hero */}
                                     <div>
-                                        <span className="text-4xl md:text-5xl lg:text-6xl font-display tracking-tight stat-amber score-breathe score-glow-effect">
-                                            {data?.score}
-                                        </span>
+                                        <AnimatedScore
+                                            value={data?.score}
+                                            className="text-4xl md:text-5xl lg:text-6xl font-display tracking-tight stat-amber score-breathe score-glow-effect"
+                                        />
 
                                         {/* Status + Rates row */}
                                         <div className="mt-5 md:mt-6 flex items-center justify-between gap-4 flex-wrap">

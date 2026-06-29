@@ -15,6 +15,7 @@ import { useDashboardPreferences } from '@/contexts/dashboard-preferences-contex
 import RecentHistory from '@/components/recent-history';
 import FavoritesSection from '@/components/favorites-section';
 import { SeriesCard } from '@/components/series-schedule';
+import { usePlayerProfile } from '@/contexts/player-profile-context';
 import { ArrowRight, Tv } from 'lucide-react';
 
 type RankingCategory = 'batting' | 'bowling' | 'all-rounder';
@@ -375,11 +376,14 @@ function RankingsWidget({
 
 function RankingRow({ entry, accentBg }: { entry: RankingEntry; accentBg: string }) {
   const rank = entry.rank.replace(/[^0-9]/g, '') || entry.rank;
+  const { openPlayer } = usePlayerProfile();
   return (
     <li>
-      <Link
-        href={entry.profileId ? `/player/${entry.profileId}` : '/rankings'}
-        className="flex items-center gap-2.5 py-1 px-1 rounded-lg hover:bg-muted/40 transition-colors -mx-1"
+      <button
+        type="button"
+        onClick={() => entry.profileId && openPlayer(entry.profileId, entry.playerName)}
+        disabled={!entry.profileId}
+        className="w-full flex items-center gap-2.5 py-1 px-1 rounded-lg hover:bg-muted/40 transition-colors -mx-1 text-left disabled:cursor-default disabled:hover:bg-transparent"
       >
         <span className={`shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-[11px] font-mono font-bold ${accentBg}`}>
           {rank}
@@ -407,7 +411,7 @@ function RankingRow({ entry, accentBg }: { entry: RankingEntry; accentBg: string
         <span className="font-mono tabular-nums text-xs md:text-sm font-bold text-foreground shrink-0">
           {entry.rating}
         </span>
-      </Link>
+      </button>
     </li>
   );
 }

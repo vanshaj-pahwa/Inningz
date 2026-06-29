@@ -8,6 +8,7 @@ import { DataLayerProvider } from '@/contexts/data-layer-context';
 import { MatchesProvider } from '@/contexts/matches-context';
 import { RecentHistoryProvider } from '@/contexts/recent-history-context';
 import { DashboardPreferencesProvider } from '@/contexts/dashboard-preferences-context';
+import { PlayerProfileProvider } from '@/contexts/player-profile-context';
 
 import AppShell from '@/components/app-shell';
 import CommandPaletteProvider from '@/components/command-palette';
@@ -86,11 +87,13 @@ export default function RootLayout({
             <MatchesProvider>
               <RecentHistoryProvider>
                 <DashboardPreferencesProvider>
-                  <CommandPaletteProvider>
-                    <AppShell>
-                      {children}
-                    </AppShell>
-                  </CommandPaletteProvider>
+                  <PlayerProfileProvider>
+                    <CommandPaletteProvider>
+                      <AppShell>
+                        {children}
+                      </AppShell>
+                    </CommandPaletteProvider>
+                  </PlayerProfileProvider>
                 </DashboardPreferencesProvider>
               </RecentHistoryProvider>
             </MatchesProvider>
