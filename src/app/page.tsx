@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Suspense, useCallback, useState } from "react";
+import { Suspense, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, LayoutGroup } from "framer-motion";
@@ -40,11 +40,9 @@ function HomeContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const tabParam = searchParams.get('tab') as View | null;
-    const initialView: View = tabParam && validViews.includes(tabParam) ? tabParam : 'home';
-    const [view, setView] = useState<View>(initialView);
+    const view: View = tabParam && validViews.includes(tabParam) ? tabParam : 'home';
 
     const switchView = useCallback((newView: View) => {
-        setView(newView);
         const params = new URLSearchParams(searchParams.toString());
         if (newView === 'home') {
             params.delete('tab');
