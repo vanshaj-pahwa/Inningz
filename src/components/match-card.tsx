@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { MapPin } from 'lucide-react';
-import { formatScore, formatStartTime } from '@/lib/utils';
+import { formatScore, formatStartTime, buildVenueHref } from '@/lib/utils';
 import type { LiveMatch } from '@/app/actions';
 
 const CATEGORY_DOT: Record<string, string> = {
@@ -60,10 +60,19 @@ export default function MatchCard({
     : (match.status && status !== 'status not available' ? match.status : null);
   const footerColor = live ? 'text-red-400' : (complete || upcoming) ? 'text-amber-400' : 'text-muted-foreground';
   const venue = match.venue && match.venue !== 'N/A' && match.venue.trim() ? match.venue : null;
+  const venueHref = buildVenueHref(match.venueUrl);
 
   return (
-    <Link href={`/match/${match.matchId}`} className="block h-full">
-      <div className={`surface-card card-hover p-4 md:p-5 h-full ${live ? 'ring-1 ring-red-500/20' : ''}`}>
+    <div className={`surface-card card-hover p-4 md:p-5 h-full relative ${live ? 'ring-1 ring-red-500/20' : ''}`}>
+      {/* Stretched link makes the whole card go to the match, without wrapping the
+          venue link (an <a> inside an <a> is invalid). Content is pointer-events-none
+          so clicks fall through to this overlay; the venue link re-enables its own. */}
+      <Link
+        href={`/match/${match.matchId}`}
+        className="absolute inset-0 z-0 rounded-2xl"
+        aria-label={match.title || 'Match details'}
+      />
+      <div className="relative z-[1] pointer-events-none">
         {(showLabel || live) && (
           <div className="flex items-center justify-between gap-2 mb-3 md:mb-4">
             {header === 'category' ? (
@@ -108,14 +117,24 @@ export default function MatchCard({
               <p className={`text-xs font-medium truncate ${footerColor}`}>{footer}</p>
             )}
             {venue && (
-              <p className="flex items-center gap-1 text-[11px] text-muted-foreground min-w-0">
-                <MapPin className="w-3 h-3 shrink-0" />
-                <span className="truncate">{venue}</span>
-              </p>
+              venueHref ? (
+                <Link
+                  href={venueHref}
+                  className="pointer-events-auto relative z-[2] inline-flex items-center gap-1 max-w-full text-[11px] text-muted-foreground hover:text-foreground hover:underline transition-colors"
+                >
+                  <MapPin className="w-3 h-3 shrink-0" />
+                  <span className="truncate">{venue}</span>
+                </Link>
+              ) : (
+                <p className="flex items-center gap-1 text-[11px] text-muted-foreground min-w-0">
+                  <MapPin className="w-3 h-3 shrink-0" />
+                  <span className="truncate">{venue}</span>
+                </p>
+              )
             )}
           </div>
         )}
       </div>
-    </Link>
+    </div>
   );
 }

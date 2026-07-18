@@ -9,10 +9,10 @@ import { loadMoreCommentary as loadMoreCommentaryAction, getPlayerProfile, getPl
 import type { ScrapeCricbuzzUrlOutput, Commentary, PlayerProfile, PlayerHighlights } from '@/app/actions';
 import { useLiveScore } from '@/lib/data-layer';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { User, ArrowLeft, ChevronLeft, ChevronRight, ChevronUp, Share2, Trophy } from "lucide-react";
+import { User, ArrowLeft, ChevronLeft, ChevronRight, ChevronUp, Share2, Trophy, MapPin } from "lucide-react";
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { cn } from '@/lib/utils';
+import { cn, buildVenueHref } from '@/lib/utils';
 import { hasInAppHistory } from '@/lib/nav-history';
 import FullScorecard from './full-scorecard';
 import PlayerProfileDisplay from './player-profile';
@@ -1083,16 +1083,35 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                             {data?.title}
                         </h1>
                         <div className="text-[10px] md:text-xs text-muted-foreground mt-1 space-y-0.5">
-                            {data?.venue && data.venue !== 'N/A' && data.venue.trim() !== '' && <p className="truncate">{data.venue}</p>}
-                            {data?.toss && data.toss !== 'N/A' && data.toss.trim() !== '' && <p className="truncate">{data.toss}</p>}
-                            {data?.matchStartTimestamp && (
-                                <p className="truncate">
-                                    {new Date(data.matchStartTimestamp).toLocaleDateString('en-US', {
+                            {(() => {
+                                const hasVenue = data?.venue && data.venue !== 'N/A' && data.venue.trim() !== '';
+                                const venueHref = hasVenue ? buildVenueHref(data.venueUrl) : null;
+                                const dateStr = data?.matchStartTimestamp
+                                    ? new Date(data.matchStartTimestamp).toLocaleDateString('en-US', {
                                         weekday: 'short', year: 'numeric', month: 'short', day: 'numeric',
                                         hour: '2-digit', minute: '2-digit', timeZoneName: 'short'
-                                    }).replace(/GMT\+5:30/, 'IST').replace(/GMT([+-]\d{1,2}):?(\d{2})?/, 'GMT$1')}
-                                </p>
-                            )}
+                                    }).replace(/GMT\+5:30/, 'IST').replace(/GMT([+-]\d{1,2}):?(\d{2})?/, 'GMT$1')
+                                    : null;
+                                if (!hasVenue && !dateStr) return null;
+                                return (
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                        {hasVenue && (venueHref ? (
+                                            <Link href={venueHref} className="inline-flex items-center gap-1 min-w-0 hover:text-foreground hover:underline transition-colors">
+                                                <MapPin className="w-3 h-3 shrink-0" />
+                                                <span className="truncate">{data.venue}</span>
+                                            </Link>
+                                        ) : (
+                                            <span className="inline-flex items-center gap-1 min-w-0">
+                                                <MapPin className="w-3 h-3 shrink-0" />
+                                                <span className="truncate">{data.venue}</span>
+                                            </span>
+                                        ))}
+                                        {hasVenue && dateStr && <span className="opacity-40 shrink-0">•</span>}
+                                        {dateStr && <span className="truncate shrink-0">{dateStr}</span>}
+                                    </div>
+                                );
+                            })()}
+                            {data?.toss && data.toss !== 'N/A' && data.toss.trim() !== '' && <p className="truncate">{data.toss}</p>}
                         </div>
                     </div>
                     {/* Desktop: tabs + theme toggle inline with title */}

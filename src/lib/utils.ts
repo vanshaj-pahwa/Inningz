@@ -35,6 +35,15 @@ export function formatStartTime(startDate?: number): string | null {
   return `${dateStr}, ${time}`;
 }
 
+// Build the internal venue-page href from a scraped venue URL
+// (e.g. "/cricket-series/11284/t20-blast-2026/venues/20/edgbaston" -> "/venue/cricket-series/.../edgbaston").
+export function buildVenueHref(venueUrl?: string): string | null {
+  if (!venueUrl) return null;
+  const path = venueUrl.replace(/^https?:\/\/[^/]+/, '').replace(/^\//, '');
+  if (!path.includes('/venues/')) return null;
+  return `/venue/${path}`;
+}
+
 // Build the internal series-page href from a source series URL + name.
 // e.g. "/cricket-series/10532/india-tour-of-england-2026/matches" -> "/series/10532/india-tour-of-england-2026"
 export function buildSeriesHref(seriesName?: string, seriesUrl?: string): string | null {

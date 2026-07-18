@@ -23,7 +23,9 @@ import {
     scrapeWinProbHistory as scrapeWinProbHistoryFlow,
     scrapeMatchups as scrapeMatchupsFlow,
     scrapeVenueForecast as scrapeVenueForecastFlow,
+    scrapeVenue as scrapeVenueFlow,
     scrapeAllPlayersForecast as scrapeAllPlayersForecastFlow,
+    type VenuePageData as VenuePageDataType,
     type MatchupsData as MatchupsDataType,
     type VenueData as VenueDataType,
     type AllPlayersData as AllPlayersDataType,
@@ -79,6 +81,7 @@ import {
     type StreamSource as StreamSourceType,
 } from '@/lib/stream-fetcher';
 
+export type VenuePageData = VenuePageDataType;
 export type ScrapeCricbuzzUrlOutput = ScrapeFlowOutput;
 export type Commentary = CommentaryType;
 export type LiveMatch = LiveMatchType;
@@ -358,6 +361,16 @@ export async function getUpcomingMatches(): Promise<{ success: boolean; matches?
     try {
         const matches = await scrapeUpcomingMatchesFlow();
         return { success: true, matches };
+    } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : 'An unexpected error occurred.';
+        return { success: false, error: errorMessage };
+    }
+}
+
+export async function getVenue(venuePath: string): Promise<{ success: boolean; data?: VenuePageData; error?: string; }> {
+    try {
+        const data = await scrapeVenueFlow(venuePath);
+        return { success: true, data };
     } catch (e) {
         const errorMessage = e instanceof Error ? e.message : 'An unexpected error occurred.';
         return { success: false, error: errorMessage };

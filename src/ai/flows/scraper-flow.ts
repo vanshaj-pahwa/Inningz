@@ -70,6 +70,7 @@ const ScrapeCricbuzzUrlOutputSchema = z.object({
   recentOvers: z.string(),
   toss: z.string(),
   venue: z.string().optional(),
+  venueUrl: z.string().optional(),
   date: z.string().optional(),
   oldestCommentaryTimestamp: z.number().optional(),
   matchStartTimestamp: z.number().optional(),
@@ -104,6 +105,7 @@ const LiveMatchSchema = z.object({
   seriesName: z.string().optional(),
   seriesUrl: z.string().optional(),
   venue: z.string().optional(),
+  venueUrl: z.string().optional(),
   startDate: z.number().optional(),
   winProbability: z.object({
     team1: z.object({
@@ -1646,13 +1648,15 @@ export async function scrapeUpcomingMatches(): Promise<LiveMatch[]> {
       // Extract venue and date/time from the info div below the match link
       const $infoDiv = $matchContainer.find('.gap-9.py-2, .gap-9.py-0\\.5').first();
       let venue = '';
+      let venueUrl = '';
       let dateTime = '';
-      
+
       if ($infoDiv.length > 0) {
         // Extract venue
         const venueLink = $infoDiv.find('a[href*="/venues/"]');
         if (venueLink.length > 0) {
           venue = venueLink.attr('title') || venueLink.text().trim();
+          venueUrl = venueLink.attr('href') || '';
         }
         
         // Extract date & time
@@ -1716,6 +1720,7 @@ export async function scrapeUpcomingMatches(): Promise<LiveMatch[]> {
           seriesName,
           seriesUrl,
           venue: venue || undefined,
+          venueUrl: venueUrl || undefined,
           startDate: startMeta?.startDate,
         });
       }
@@ -1747,6 +1752,123 @@ export async function scrapeUpcomingMatches(): Promise<LiveMatch[]> {
   }
 
   return result;
+}
+
+export interface VenueFact {
+  label: string;
+  value: string;
+}
+export interface VenueMatchRow {
+  matchId: string;
+  teams: string;
+  date?: string;
+}
+export interface VenueMatchGroup {
+  series: string;
+  matches: VenueMatchRow[];
+}
+export interface VenueStatGroup {
+  format: string;
+  rows: VenueFact[];
+}
+export interface VenuePageData {
+  name: string;
+  location?: string;
+  imageUrl?: string;
+  facts: VenueFact[];
+  matchGroups: VenueMatchGroup[];
+  statGroups: VenueStatGroup[];
+}
+
+// Scrapes a venue page (series-scoped path, e.g. "/cricket-series/11284/t20-blast-2026/venues/20/edgbaston").
+export async function scrapeVenue(venuePath: string): Promise<VenuePageData> {
+  const path = venuePath.startsWith('/') ? venuePath : `/${venuePath}`;
+  const bust = Math.floor(Date.now() / 3_600_000);
+  const res = await fetch(`https://www.cricbuzz.com${path}?_=${bust}`, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+    },
+    cache: 'no-store',
+  });
+  if (!res.ok) throw new Error(`Failed to fetch venue: ${res.statusText}`);
+  const html = await res.text();
+  const $ = cheerio.load(html);
+
+  const rawTitle = $('title').text().replace(/\s*details.*$/i, '').replace(/\s*-\s*Cricbuzz.*$/i, '').trim();
+  const name = (rawTitle.split(',')[0] || rawTitle).trim();
+
+  // Facts: label/value grid rows (rendered twice for mobile/desktop, so dedupe by label).
+  const facts: VenueFact[] = [];
+  const factSeen = new Set<string>();
+  $('.facts-row-grid').each((_, e) => {
+    const d = $(e).children('div');
+    const label = $(d[0]).text().trim();
+    const value = $(d[1]).text().trim();
+    if (!label || !value || factSeen.has(label)) return;
+    factSeen.add(label);
+    facts.push({ label, value });
+  });
+  const location = facts.find((f) => f.label.toLowerCase() === 'location')?.value;
+
+  // Hero image lives in an <img srcSet> that references the venue's own slug.
+  const venueSlug = path.split('/').filter(Boolean).pop() || '';
+  let imageUrl: string | undefined;
+  $('img').each((_, e) => {
+    const ss = $(e).attr('srcset') || $(e).attr('srcSet') || $(e).attr('src') || '';
+    if (ss.includes('/img/v1/i1/c') && venueSlug && ss.includes(venueSlug)) {
+      // Bump the thumbnail (540x303) up to a crisp 1080p variant.
+      imageUrl = ss.split(/[\s,]/)[0].replace('/img/v1/i1/', '/img/v1/1920x1080/i1/');
+      return false;
+    }
+  });
+
+  // Section headers (`<a title="…">`) each own the rows that follow them.
+  const matchGroups: VenueMatchGroup[] = [];
+  const statGroups: VenueStatGroup[] = [];
+  const groupSeen = new Set<string>();
+  $('a[title]').each((_, a) => {
+    const title = ($(a).attr('title') || '').trim();
+    const section = $(a).parent();
+
+    const matchTitle = title.match(/^(.*?)\s+matches scheduled at this venue$/i)?.[1];
+    if (matchTitle) {
+      if (groupSeen.has('m:' + matchTitle)) return;
+      const matches: VenueMatchRow[] = [];
+      const seen = new Set<string>();
+      section.find('a[href*="/live-cricket-scores/"], a[href*="/cricket-scores/"]').each((_, m) => {
+        const href = $(m).attr('href') || '';
+        const id = href.match(/\/(?:live-)?cricket-scores\/(\d+)\//)?.[1];
+        if (!id || seen.has(id)) return;
+        seen.add(id);
+        const teams = $(m).text().replace(/\s+/g, ' ').trim();
+        const date = $(m).closest('.flex').children('div').first().text().replace(/\s+/g, ' ').trim();
+        matches.push({ matchId: id, teams, date: date || undefined });
+      });
+      if (matches.length) {
+        groupSeen.add('m:' + matchTitle);
+        matchGroups.push({ series: matchTitle, matches });
+      }
+      return;
+    }
+
+    const statFormat = title.match(/^STATS\s*-\s*(.+)$/i)?.[1];
+    if (statFormat) {
+      if (groupSeen.has('s:' + statFormat)) return;
+      const rows: VenueFact[] = [];
+      section.find('.grid.grid-cols-2').each((_, r) => {
+        const d = $(r).children('div');
+        const label = $(d[0]).text().trim();
+        const value = $(d[1]).text().trim();
+        if (label && value) rows.push({ label, value });
+      });
+      if (rows.length) {
+        groupSeen.add('s:' + statFormat);
+        statGroups.push({ format: statFormat.trim(), rows });
+      }
+    }
+  });
+
+  return { name, location, imageUrl, facts, matchGroups, statGroups };
 }
 
 export async function scrapeRecentMatches(): Promise<LiveMatch[]> {
@@ -2289,6 +2411,31 @@ function extractAwardPlayer(players: any): z.infer<typeof AwardPlayerSchema> | u
   };
 }
 
+// Some lightweight score payloads omit venue details. The match page always
+// carries a single venue anchor (name + link), so fall back to it when needed.
+async function fetchVenueFromMatchPage(
+  matchId: string
+): Promise<{ venue: string; venueUrl: string } | undefined> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const res = await fetch(`https://www.cricbuzz.com/live-cricket-scores/${matchId}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+      },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+    if (!res.ok) return undefined;
+    const html = await res.text();
+    const m = html.match(/<a\s+title="([^"]+)"\s+href="(\/cricket-series\/\d+\/[^"]+\/venues\/\d+\/[^"]+)"/i);
+    if (!m) return undefined;
+    return { venue: m[1], venueUrl: m[2] };
+  } catch {
+    return undefined;
+  }
+}
+
 export async function getScoreForMatchId(
   matchId: string
 ): Promise<ScrapeCricbuzzUrlOutput> {
@@ -2599,7 +2746,20 @@ export async function getScoreForMatchId(
   const toss = matchHeader?.tossResults?.tossWinnerName ? `${matchHeader.tossResults.tossWinnerName} won the toss and elected to ${matchHeader.tossResults.decision}` : "N/A";
   
   // Extract venue and date
-  const venue = matchHeader?.venueInfo ? `${matchHeader.venueInfo.ground}, ${matchHeader.venueInfo.city}` : undefined;
+  let venue = matchHeader?.venueInfo ? `${matchHeader.venueInfo.ground}, ${matchHeader.venueInfo.city}` : undefined;
+  // Venue pages are series-scoped but accept placeholder slugs, so the
+  // venue id + series id are enough to build a working link.
+  let venueUrl = matchHeader?.venueInfo?.id && matchHeader?.seriesId
+    ? `/cricket-series/${matchHeader.seriesId}/series/venues/${matchHeader.venueInfo.id}/${String(matchHeader.venueInfo.ground || 'venue').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`
+    : undefined;
+  // Lighter payloads sometimes lack venueInfo entirely; recover it from the match page.
+  if (!venue) {
+    const fromPage = await fetchVenueFromMatchPage(matchId);
+    if (fromPage) {
+      venue = fromPage.venue;
+      venueUrl = fromPage.venueUrl;
+    }
+  }
   const matchDate = matchHeader?.matchStartTimestamp ? (() => {
     const date = new Date(matchHeader.matchStartTimestamp);
     const formatter = new Intl.DateTimeFormat('en-US', { 
@@ -2671,6 +2831,7 @@ export async function getScoreForMatchId(
     recentOvers,
     toss,
     venue,
+    venueUrl,
     date: matchDate,
     oldestCommentaryTimestamp: oldestTimestamp,
     matchStartTimestamp: matchHeader?.matchStartTimestamp,
