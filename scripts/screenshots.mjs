@@ -235,7 +235,8 @@ async function main() {
         await mp.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => { });
         await mp.evaluate(() => Promise.all(Array.from(document.images).map(img => img.complete && img.naturalWidth > 0 ? null : new Promise(r => { img.addEventListener('load', r, { once: true }); img.addEventListener('error', r, { once: true }); setTimeout(r, 8000); }))));
         await mp.waitForTimeout(4000);
-        await mp.screenshot({ path: join(OUT, 'mobile-home.png'), fullPage: true });
+        // Viewport-only (phone-screen framing), not the tall full page.
+        await mp.screenshot({ path: join(OUT, 'mobile-home.png') });
         log('mobile-home.png');
         await mob.close();
     } catch (e) { log('mobile-home failed:', e.message); }
@@ -278,11 +279,25 @@ async function main() {
         });
         await glassMob.addInitScript(forceGlass);
         const gmp = await glassMob.newPage();
-        await gmp.goto(BASE + '/', { waitUntil: 'networkidle', timeout: 90_000 }).catch(() => gmp.goto(BASE + '/', { waitUntil: 'load', timeout: 90_000 }));
+        const gmGo = (path) => gmp.goto(BASE + path, { waitUntil: 'networkidle', timeout: 90_000 }).catch(() => gmp.goto(BASE + path, { waitUntil: 'load', timeout: 90_000 }));
+
+        // Viewport-only (phone-screen framing), not the tall full page.
+        await gmGo('/');
         await gmp.waitForTimeout(4500);
-        await autoScrollAndSettle(gmp, 3500);
-        await gmp.screenshot({ path: join(OUT, 'liquid-glass-mobile-home.png'), fullPage: true });
+        await autoScrollAndSettle(gmp, 3000);
+        await gmp.evaluate(() => window.scrollTo(0, 0));
+        await gmp.waitForTimeout(600);
+        await gmp.screenshot({ path: join(OUT, 'liquid-glass-mobile-home.png') });
         log('liquid-glass-mobile-home.png');
+
+        await gmGo(`/match/${MATCHES.test}`);
+        await gmp.waitForTimeout(5000);
+        await autoScrollAndSettle(gmp, 4000);
+        await gmp.evaluate(() => window.scrollTo(0, 0));
+        await gmp.waitForTimeout(600);
+        await gmp.screenshot({ path: join(OUT, 'liquid-glass-mobile-match.png') });
+        log('liquid-glass-mobile-match.png');
+
         await glassMob.close();
     } catch (e) { log('liquid-glass mobile failed:', e.message); }
 

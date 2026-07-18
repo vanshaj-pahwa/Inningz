@@ -558,7 +558,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                         )}
                     </div>
                     {comment.text && (
-                        <div className="text-xs text-foreground/70 leading-relaxed [&_b]:text-foreground [&_b]:font-semibold" dangerouslySetInnerHTML={{ __html: formatCommentaryHtml(comment.text) }} />
+                        <div className="text-xs text-foreground/90 leading-relaxed [&_b]:text-foreground [&_b]:font-semibold" dangerouslySetInnerHTML={{ __html: formatCommentaryHtml(comment.text) }} />
                     )}
                 </div>
             );
@@ -717,8 +717,8 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                     <div className={cn(
                         'text-xs leading-relaxed',
                         isShortText
-                            ? 'text-center font-medium text-muted-foreground/70 italic'
-                            : 'text-foreground/70 [&_b]:text-foreground [&_b]:font-semibold'
+                            ? 'text-center font-medium text-muted-foreground italic'
+                            : 'text-foreground/90 [&_b]:text-foreground [&_b]:font-semibold'
                     )} dangerouslySetInnerHTML={{ __html: formatCommentaryHtml(comment.text) }} />
                 </div>
             );
