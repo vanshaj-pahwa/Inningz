@@ -1139,6 +1139,9 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                 live={data ? isLive(data.status) : false}
                 hasHero={view === 'live'}
                 heroRef={scoreHeroRef}
+                batsmen={data?.batsmen}
+                bowler={data?.bowlers?.find((b) => b.onStrike) ?? data?.bowlers?.[0] ?? null}
+                showBatting={view === 'live' && (data?.batsmen?.length ?? 0) > 0}
             />
 
             <div>
