@@ -2,14 +2,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { getUpcomingMatches } from '@/app/actions';
 import type { LiveMatch } from '@/app/actions';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import MatchCard from "./match-card";
 import SeriesDivider from "./series-divider";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Calendar, MapPin } from "lucide-react";
+import { Calendar } from "lucide-react";
 
 interface GroupedMatches {
   [seriesName: string]: LiveMatch[];
@@ -24,22 +23,6 @@ const filters: { value: MatchFilter; label: string }[] = [
   { value: 'domestic', label: 'Domestic' },
   { value: 'women', label: 'Women' },
 ];
-
-const categoryColors: Record<MatchFilter, string> = {
-  international: 'bg-blue-500',
-  league: 'bg-purple-500',
-  domestic: 'bg-orange-500',
-  women: 'bg-pink-500',
-  all: '',
-};
-
-const categoryTextColors: Record<MatchFilter, string> = {
-  international: 'text-blue-400',
-  league: 'text-purple-400',
-  domestic: 'text-orange-400',
-  women: 'text-pink-400',
-  all: '',
-};
 
 export default function UpcomingMatches() {
   const [matches, setMatches] = useState<LiveMatch[]>([]);
@@ -156,58 +139,15 @@ export default function UpcomingMatches() {
 
           {/* Match Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {seriesMatches.map((match, index) => {
-              const category = getMatchCategory(match);
-
-              return (
-                <Link
-                  key={match.matchId}
-                  href={`/match/${match.matchId}`}
-                  className="stagger-in"
-                  style={{ '--stagger-index': index } as React.CSSProperties}
-                >
-                  <div className="surface-card card-hover p-5 h-full">
-                    {/* Top row: category chip only (match title shown via teams below) */}
-                    {activeFilter === 'all' && (
-                      <div className="mb-3">
-                        <span className="inline-flex items-center gap-1.5 text-xs font-medium">
-                          <span className={`w-1.5 h-1.5 rounded-full ${categoryColors[category]}`} />
-                          <span className={categoryTextColors[category]}>{category.charAt(0).toUpperCase() + category.slice(1)}</span>
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Teams */}
-                    <div className="space-y-3">
-                      {match.teams.map((team, idx) => (
-                        <div key={idx} className="flex items-center gap-3">
-                          <span className="text-sm font-semibold text-foreground">
-                            {team.name}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Venue */}
-                    {match.venue && match.venue !== 'N/A' && (
-                      <div className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <MapPin className="w-3 h-3" />
-                        <span className="truncate">{match.venue}</span>
-                      </div>
-                    )}
-
-                    {/* Status */}
-                    {match.status && match.status.toLowerCase() !== 'status not available' && (
-                      <div className="mt-3 pt-3 border-t border-border/50">
-                        <p className="text-xs font-medium text-amber-400">
-                          {match.status}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </Link>
-              );
-            })}
+            {seriesMatches.map((match, index) => (
+              <div
+                key={match.matchId}
+                className="stagger-in h-full"
+                style={{ '--stagger-index': index } as React.CSSProperties}
+              >
+                <MatchCard match={match} header={activeFilter === 'all' ? 'category' : 'none'} />
+              </div>
+            ))}
           </div>
         </section>
       ))}

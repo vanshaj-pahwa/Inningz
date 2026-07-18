@@ -147,9 +147,9 @@ export default function HomeDashboard() {
           ) : recentMatches.length > 0 ? (
             <>
               <SectionHeader title="Recent" href="/?tab=recent" hrefLabel="See all" />
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {recentMatches.map((m) => (
-                  <CompactMatchRow key={m.matchId} match={m} variant="recent" />
+                  <MatchCard key={m.matchId} match={m} header="series" />
                 ))}
               </div>
             </>
@@ -165,9 +165,9 @@ export default function HomeDashboard() {
           ) : upcomingMatches.length > 0 ? (
             <>
               <SectionHeader title="Upcoming" href="/?tab=upcoming" hrefLabel="See all" />
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {upcomingMatches.map((m) => (
-                  <CompactMatchRow key={m.matchId} match={m} variant="upcoming" />
+                  <MatchCard key={m.matchId} match={m} header="series" />
                 ))}
               </div>
             </>
@@ -420,91 +420,6 @@ function RankingRow({ entry, accentBg }: { entry: RankingEntry; accentBg: string
   );
 }
 
-// ============================================================================
-// Compact match row (used in 3-col area for recent + upcoming)
-// ============================================================================
-
-function formatStartTime(startDate?: number): string | null {
-  if (!startDate) return null;
-  const ms = startDate < 10_000_000_000 ? startDate * 1000 : startDate;
-  const d = new Date(ms);
-  if (isNaN(d.getTime())) return null;
-  const now = new Date();
-  const sameYear = d.getFullYear() === now.getFullYear();
-  const sameDay = d.toDateString() === now.toDateString();
-  const tomorrow = new Date(now);
-  tomorrow.setDate(now.getDate() + 1);
-  const isTomorrow = d.toDateString() === tomorrow.toDateString();
-  const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-  if (sameDay) return `Today, ${time}`;
-  if (isTomorrow) return `Tomorrow, ${time}`;
-  const dateStr = d.toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    ...(sameYear ? {} : { year: 'numeric' }),
-  });
-  return `${dateStr}, ${time}`;
-}
-
-function CompactMatchRow({ match, variant }: { match: LiveMatch; variant: 'recent' | 'upcoming' }) {
-  const status = match.status?.toLowerCase() ?? '';
-  const isUpcoming = variant === 'upcoming';
-  const statusColor = isUpcoming
-    ? 'text-amber-400'
-    : (status.includes('won') || status.includes('drawn') || status.includes('tied') ? 'text-amber-400' : 'text-muted-foreground');
-
-  const startsAt = isUpcoming ? formatStartTime(match.startDate) : null;
-  const upcomingWhen = startsAt
-    ? `Starts ${startsAt}`
-    : (match.status && match.status.toLowerCase() !== 'status not available' ? match.status : null);
-  const upcomingFooter = upcomingWhen || (match.venue && match.venue !== 'N/A' ? match.venue : null);
-
-  return (
-    <Link href={`/match/${match.matchId}`} className="block">
-      <motion.div
-        whileHover={{ y: -3 }}
-        transition={{ type: 'spring', stiffness: 320, damping: 22 }}
-        className="surface-card p-3 overflow-hidden h-full hover:border-primary/30"
-      >
-        <p className="text-[10px] text-muted-foreground/80 truncate mb-1.5">
-          {match.seriesName || match.title}
-        </p>
-        <div className="space-y-1">
-          {match.teams.map((t, i) => (
-            <div key={i} className="flex items-center justify-between gap-2">
-              <span className="text-[12px] font-semibold text-foreground truncate flex-1">
-                {t.name}
-              </span>
-              {t.score && (
-                <span className="font-display text-sm tabular-nums text-foreground shrink-0">
-                  {formatScore(t.score)}
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-        {isUpcoming ? (
-          upcomingFooter && (
-            <p className={`mt-2 pt-1.5 border-t border-border/40 text-[10px] font-medium truncate ${statusColor}`}>
-              {upcomingFooter}
-            </p>
-          )
-        ) : (
-          match.status && match.status.toLowerCase() !== 'status not available' && (
-            <p className={`mt-2 pt-1.5 border-t border-border/40 text-[10px] font-medium truncate ${statusColor}`}>
-              {match.status}
-            </p>
-          )
-        )}
-      </motion.div>
-    </Link>
-  );
-}
-
-// ============================================================================
-// Original Live card (kept — full-size for the hero row)
-// ============================================================================
 
 
 // ============================================================================

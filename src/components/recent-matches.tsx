@@ -2,15 +2,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { getRecentMatches } from '@/app/actions';
 import type { LiveMatch } from '@/app/actions';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import MatchCard from "./match-card";
 import SeriesDivider from "./series-divider";
-import { formatScore } from "@/lib/utils";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { History, Filter } from "lucide-react";
+import { History } from "lucide-react";
 
 interface GroupedMatches {
   [seriesName: string]: LiveMatch[];
@@ -25,22 +23,6 @@ const filters: { value: MatchFilter; label: string }[] = [
   { value: 'domestic', label: 'Domestic' },
   { value: 'women', label: 'Women' },
 ];
-
-const categoryColors: Record<MatchFilter, string> = {
-  international: 'bg-blue-500',
-  league: 'bg-purple-500',
-  domestic: 'bg-orange-500',
-  women: 'bg-pink-500',
-  all: '',
-};
-
-const categoryTextColors: Record<MatchFilter, string> = {
-  international: 'text-blue-400',
-  league: 'text-purple-400',
-  domestic: 'text-orange-400',
-  women: 'text-pink-400',
-  all: '',
-};
 
 export default function RecentMatches() {
   const [matches, setMatches] = useState<LiveMatch[]>([]);
@@ -93,8 +75,6 @@ export default function RecentMatches() {
     acc[seriesName].push(match);
     return acc;
   }, {} as GroupedMatches);
-
-  const isComplete = (status: string) => status.toLowerCase().includes('won');
 
   if (loading) {
     return (
@@ -159,66 +139,15 @@ export default function RecentMatches() {
 
           {/* Match Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {seriesMatches.map((match, index) => {
-              const matchIsComplete = isComplete(match.status);
-              const category = getMatchCategory(match);
-
-              return (
-                <Link
-                  key={match.matchId}
-                  href={`/match/${match.matchId}`}
-                  className="stagger-in"
-                  style={{ '--stagger-index': index } as React.CSSProperties}
-                >
-                  <div className="surface-card card-hover p-5 h-full">
-                    {/* Category badge */}
-                    <div className="flex items-center justify-between mb-4">
-                      {activeFilter === 'all' && (
-                        <span className="flex items-center gap-1.5 text-xs font-medium">
-                          <span className={`w-1.5 h-1.5 rounded-full ${categoryColors[category]}`} />
-                          <span className={categoryTextColors[category]}>{category.charAt(0).toUpperCase() + category.slice(1)}</span>
-                        </span>
-                      )}
-                      <span className="text-xs text-muted-foreground">
-                        {match.title.split(',').slice(0, 1).join('')}
-                      </span>
-                    </div>
-
-                    {/* Teams and Scores */}
-                    <div className="space-y-3">
-                      {match.teams.map((team, idx) => (
-                        <div key={idx} className="flex items-center justify-between gap-3">
-                          <span className="text-sm font-semibold truncate text-foreground">
-                            {team.name}
-                          </span>
-                          {team.score && (
-                            <span className="font-display text-lg tabular-nums text-foreground flex-shrink-0">
-                              {formatScore(team.score)}
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Status */}
-                    {match.status && match.status.toLowerCase() !== 'status not available' && (
-                      <div className="mt-4 pt-3 border-t border-border/50">
-                        <p className={`text-xs font-medium leading-relaxed ${matchIsComplete ? 'text-amber-400' : 'text-muted-foreground'}`}>
-                          {match.status}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Venue */}
-                    {match.venue && (
-                      <p className="text-xs text-muted-foreground mt-2 truncate">
-                        {match.venue}
-                      </p>
-                    )}
-                  </div>
-                </Link>
-              );
-            })}
+            {seriesMatches.map((match, index) => (
+              <div
+                key={match.matchId}
+                className="stagger-in h-full"
+                style={{ '--stagger-index': index } as React.CSSProperties}
+              >
+                <MatchCard match={match} header={activeFilter === 'all' ? 'category' : 'none'} />
+              </div>
+            ))}
           </div>
         </section>
       ))}

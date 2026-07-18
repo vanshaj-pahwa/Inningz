@@ -36,8 +36,12 @@ interface MatchStickyBarProps<V extends string> {
   showBatting?: boolean;
 }
 
-// Last word of a player's name, e.g. "James Vince" -> "Vince".
-const lastName = (n?: string) => (n ?? '').split(' ').filter(Boolean).pop() || (n ?? '');
+// Cricket-scorecard short form: first initial + surname, e.g. "James Vince" -> "J Vince".
+const shortName = (n?: string) => {
+  const parts = (n ?? '').split(' ').filter(Boolean);
+  if (parts.length <= 1) return parts[0] ?? '';
+  return `${parts[0][0]} ${parts[parts.length - 1]}`;
+};
 
 // Sticky Match header: pinned tabs + a non-dismissible compact scoreboard. The score reveals
 // once the hero scrolls behind the bar, and stays visible on non-Live tabs.
@@ -121,14 +125,14 @@ export default function MatchStickyBar<V extends string>({
                     key={i}
                     className={`whitespace-nowrap ${b.onStrike ? 'text-foreground font-semibold' : 'text-muted-foreground'}`}
                   >
-                    {lastName(b.name)}
+                    {shortName(b.name)}
                     {b.onStrike ? '*' : ''} <span className="tabular-nums">{b.runs}({b.balls})</span>
                   </span>
                 ))}
               </div>
               {bowler && (
                 <span className="shrink-0 whitespace-nowrap text-muted-foreground tabular-nums">
-                  {lastName(bowler.name)} {bowler.overs}-{bowler.maidens}-{bowler.runs}-{bowler.wickets}
+                  {shortName(bowler.name)} {bowler.overs}-{bowler.maidens}-{bowler.runs}-{bowler.wickets}
                 </span>
               )}
             </div>

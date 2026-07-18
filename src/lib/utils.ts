@@ -11,6 +11,30 @@ export function formatScore(score?: string): string {
   return score.replace(/(\d+)-(\d+)/, '$1/$2');
 }
 
+// Localized start time for an upcoming match, e.g. "Today, 3:30 PM" / "Tomorrow, 7:15 PM" / "Sat, Jul 26, 3:00 PM".
+export function formatStartTime(startDate?: number): string | null {
+  if (!startDate) return null;
+  const ms = startDate < 10_000_000_000 ? startDate * 1000 : startDate;
+  const d = new Date(ms);
+  if (isNaN(d.getTime())) return null;
+  const now = new Date();
+  const sameYear = d.getFullYear() === now.getFullYear();
+  const sameDay = d.toDateString() === now.toDateString();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  const isTomorrow = d.toDateString() === tomorrow.toDateString();
+  const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  if (sameDay) return `Today, ${time}`;
+  if (isTomorrow) return `Tomorrow, ${time}`;
+  const dateStr = d.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    ...(sameYear ? {} : { year: 'numeric' }),
+  });
+  return `${dateStr}, ${time}`;
+}
+
 // Build the internal series-page href from a source series URL + name.
 // e.g. "/cricket-series/10532/india-tour-of-england-2026/matches" -> "/series/10532/india-tour-of-england-2026"
 export function buildSeriesHref(seriesName?: string, seriesUrl?: string): string | null {

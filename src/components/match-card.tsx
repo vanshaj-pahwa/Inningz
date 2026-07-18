@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { formatScore } from '@/lib/utils';
+import { MapPin } from 'lucide-react';
+import { formatScore, formatStartTime } from '@/lib/utils';
 import type { LiveMatch } from '@/app/actions';
 
 const CATEGORY_DOT: Record<string, string> = {
@@ -50,6 +51,16 @@ export default function MatchCard({
   const category = getCategory(match);
   const showLabel = header !== 'none';
 
+  // Footer line: upcoming matches show their localized start time, everything else
+  // shows the scraped status (live state or result).
+  const startsAt = formatStartTime(match.startDate);
+  const upcoming = !live && !complete && !!startsAt;
+  const footer =
+    upcoming ? `Starts ${startsAt}`
+    : (match.status && status !== 'status not available' ? match.status : null);
+  const footerColor = live ? 'text-red-400' : (complete || upcoming) ? 'text-amber-400' : 'text-muted-foreground';
+  const venue = match.venue && match.venue !== 'N/A' && match.venue.trim() ? match.venue : null;
+
   return (
     <Link href={`/match/${match.matchId}`} className="block h-full">
       <div className={`surface-card card-hover p-4 md:p-5 h-full ${live ? 'ring-1 ring-red-500/20' : ''}`}>
@@ -91,11 +102,17 @@ export default function MatchCard({
           ))}
         </div>
 
-        {match.status && status !== 'status not available' && (
-          <div className="mt-3 md:mt-4 pt-2.5 md:pt-3 border-t border-border/50">
-            <p className={`text-xs font-medium truncate ${live ? 'text-red-400' : complete ? 'text-amber-400' : 'text-muted-foreground'}`}>
-              {match.status}
-            </p>
+        {(footer || venue) && (
+          <div className="mt-3 md:mt-4 pt-2.5 md:pt-3 border-t border-border/50 space-y-1">
+            {footer && (
+              <p className={`text-xs font-medium truncate ${footerColor}`}>{footer}</p>
+            )}
+            {venue && (
+              <p className="flex items-center gap-1 text-[11px] text-muted-foreground min-w-0">
+                <MapPin className="w-3 h-3 shrink-0" />
+                <span className="truncate">{venue}</span>
+              </p>
+            )}
           </div>
         )}
       </div>

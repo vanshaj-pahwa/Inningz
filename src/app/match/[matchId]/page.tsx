@@ -28,7 +28,7 @@ export default function MatchPage() {
   }
 
   return (
-    <main className="min-h-screen py-4">
+    <main className="min-h-screen pt-4">
       <ScoreDisplay matchId={matchId} />
     </main>
   );
