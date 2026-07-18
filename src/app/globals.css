@@ -119,6 +119,30 @@
     --ring: 25 95% 53%;
   }
 
+  /* Liquid Glass - minimal deep-graphite palette; translucent glass surfaces. */
+  .liquid-glass {
+    --background: 224 28% 6%;      /* deep cool graphite */
+    --foreground: 210 25% 97%;
+    --card: 224 22% 11%;           /* solid fallback under the glass fills */
+    --card-foreground: 210 25% 97%;
+    --popover: 224 26% 10%;
+    --popover-foreground: 210 25% 97%;
+    --primary: 205 100% 62%;       /* single soft-blue accent */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 222 16% 18%;
+    --secondary-foreground: 210 25% 97%;
+    --muted: 222 16% 18%;
+    --muted-foreground: 218 14% 64%;
+    --accent: 205 100% 62%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 222 16% 15%;
+    --input: 222 16% 15%;
+    --ring: 205 100% 62%;
+    --radius: 1.25rem;             /* rounder, concentric geometry */
+  }
+
   /* Sepia Theme - Vintage cricket nostalgia */
   .sepia {
     --background: 35 30% 92%; /* Warm cream */
@@ -160,6 +184,7 @@
       padding-bottom: calc(3.75rem + env(safe-area-inset-bottom));
     }
   }
+
 }
 
 @layer utilities {
@@ -176,7 +201,7 @@
   .surface-card {
     @apply rounded-2xl bg-white border border-neutral-200;
   }
-  .dark .surface-card {
+  .dark .surface-card, .liquid-glass .surface-card {
     @apply bg-neutral-900 border-neutral-800;
   }
   .midnight .surface-card {
@@ -203,9 +228,11 @@
     color: #059669; /* emerald-600 for light themes */
   }
   .dark .win-prob-leader,
+  .liquid-glass .win-prob-leader,
   .midnight .win-prob-leader,
   .pitch .win-prob-leader,
-  .sunset .win-prob-leader {
+  .sunset .win-prob-leader,
+  .liquid-glass .win-prob-leader {
     color: #34d399; /* emerald-400 for dark themes */
   }
 
@@ -213,9 +240,11 @@
     color: #e11d48; /* rose-600 for light themes */
   }
   .dark .win-prob-trailing,
+  .liquid-glass .win-prob-trailing,
   .midnight .win-prob-trailing,
   .pitch .win-prob-trailing,
-  .sunset .win-prob-trailing {
+  .sunset .win-prob-trailing,
+  .liquid-glass .win-prob-trailing {
     color: #fb7185; /* rose-400 for dark themes */
   }
 
@@ -248,6 +277,7 @@
     background-color: hsl(var(--primary) / 0.15);
   }
   .dark .over-badge-bg,
+  .liquid-glass .over-badge-bg,
   .midnight .over-badge-bg,
   .pitch .over-badge-bg,
   .sunset .over-badge-bg {
@@ -297,6 +327,7 @@
     color: #16a34a; /* green-600 */
   }
   .dark .stat-green,
+  .liquid-glass .stat-green,
   .midnight .stat-green,
   .pitch .stat-green,
   .sunset .stat-green {
@@ -307,6 +338,7 @@
     color: #059669; /* emerald-600 */
   }
   .dark .stat-emerald,
+  .liquid-glass .stat-emerald,
   .midnight .stat-emerald,
   .pitch .stat-emerald,
   .sunset .stat-emerald {
@@ -317,6 +349,7 @@
     color: #ea580c; /* orange-600 */
   }
   .dark .stat-orange,
+  .liquid-glass .stat-orange,
   .midnight .stat-orange,
   .pitch .stat-orange,
   .sunset .stat-orange {
@@ -327,6 +360,7 @@
     color: #2563eb; /* blue-600 */
   }
   .dark .stat-blue,
+  .liquid-glass .stat-blue,
   .midnight .stat-blue,
   .pitch .stat-blue,
   .sunset .stat-blue {
@@ -337,6 +371,7 @@
     color: #9333ea; /* purple-600 */
   }
   .dark .stat-purple,
+  .liquid-glass .stat-purple,
   .midnight .stat-purple,
   .pitch .stat-purple,
   .sunset .stat-purple {
@@ -347,6 +382,7 @@
     color: #d97706; /* amber-600 */
   }
   .dark .stat-amber,
+  .liquid-glass .stat-amber,
   .midnight .stat-amber,
   .pitch .stat-amber,
   .sunset .stat-amber {
@@ -357,6 +393,7 @@
     color: #dc2626; /* red-600 */
   }
   .dark .stat-red,
+  .liquid-glass .stat-red,
   .midnight .stat-red,
   .pitch .stat-red,
   .sunset .stat-red {
@@ -369,6 +406,7 @@
     border-bottom: 1px solid rgba(187, 247, 208, 0.5); /* green-200/50 */
   }
   .dark .mini-sc-batting-header,
+  .liquid-glass .mini-sc-batting-header,
   .midnight .mini-sc-batting-header,
   .pitch .mini-sc-batting-header,
   .sunset .mini-sc-batting-header {
@@ -380,6 +418,7 @@
     color: #166534; /* green-800 */
   }
   .dark .mini-sc-batting-text,
+  .liquid-glass .mini-sc-batting-text,
   .midnight .mini-sc-batting-text,
   .pitch .mini-sc-batting-text,
   .sunset .mini-sc-batting-text {
@@ -392,6 +431,7 @@
     border-bottom: 1px solid rgba(254, 215, 170, 0.5); /* orange-200/50 */
   }
   .dark .mini-sc-bowling-header,
+  .liquid-glass .mini-sc-bowling-header,
   .midnight .mini-sc-bowling-header,
   .pitch .mini-sc-bowling-header,
   .sunset .mini-sc-bowling-header {
@@ -403,6 +443,7 @@
     color: #9a3412; /* orange-800 */
   }
   .dark .mini-sc-bowling-text,
+  .liquid-glass .mini-sc-bowling-text,
   .midnight .mini-sc-bowling-text,
   .pitch .mini-sc-bowling-text,
   .sunset .mini-sc-bowling-text {
@@ -414,6 +455,7 @@
     background-color: rgba(220, 252, 231, 0.5); /* green-50/50 */
   }
   .dark .row-highlight-batting-50,
+  .liquid-glass .row-highlight-batting-50,
   .midnight .row-highlight-batting-50,
   .pitch .row-highlight-batting-50,
   .sunset .row-highlight-batting-50 {
@@ -424,6 +466,7 @@
     background-color: rgba(209, 250, 229, 0.3); /* emerald-50/30 */
   }
   .dark .row-highlight-batting-30,
+  .liquid-glass .row-highlight-batting-30,
   .midnight .row-highlight-batting-30,
   .pitch .row-highlight-batting-30,
   .sunset .row-highlight-batting-30 {
@@ -434,6 +477,7 @@
     background-color: rgba(255, 237, 213, 0.5); /* orange-50/50 */
   }
   .dark .row-highlight-bowling-3,
+  .liquid-glass .row-highlight-bowling-3,
   .midnight .row-highlight-bowling-3,
   .pitch .row-highlight-bowling-3,
   .sunset .row-highlight-bowling-3 {
@@ -444,6 +488,7 @@
     background-color: rgba(255, 251, 235, 0.3); /* amber-50/30 */
   }
   .dark .row-highlight-bowling-2,
+  .liquid-glass .row-highlight-bowling-2,
   .midnight .row-highlight-bowling-2,
   .pitch .row-highlight-bowling-2,
   .sunset .row-highlight-bowling-2 {
@@ -532,6 +577,7 @@
     /* No glow in light themes */
   }
   .dark .score-glow-effect,
+  .liquid-glass .score-glow-effect,
   .midnight .score-glow-effect,
   .pitch .score-glow-effect,
   .sunset .score-glow-effect {
@@ -577,7 +623,7 @@
     height: 0.5px;
     background: rgba(0, 0, 0, 0.15);
   }
-  .dark .gradient-border::after {
+  .dark .gradient-border::after, .liquid-glass .gradient-border::after {
     background: rgba(255, 255, 255, 0.1);
   }
 
@@ -606,7 +652,7 @@
     @apply rounded-xl animate-pulse;
     background: rgba(120, 120, 128, 0.12);
   }
-  .dark .skeleton {
+  .dark .skeleton, .liquid-glass .skeleton {
     background: rgba(120, 120, 128, 0.2);
   }
   .midnight .skeleton {
@@ -659,7 +705,7 @@
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
   }
-  .dark .glass-header {
+  .dark .glass-header, .liquid-glass .glass-header {
     background: rgba(0, 0, 0, 0.72);
   }
   .midnight .glass-header {
@@ -682,7 +728,7 @@
     -webkit-backdrop-filter: blur(20px) saturate(180%);
     border-bottom: 0.5px solid rgba(0, 0, 0, 0.1);
   }
-  .dark .glass-nav {
+  .dark .glass-nav, .liquid-glass .glass-nav {
     background: rgba(29, 29, 31, 0.94);
     border-bottom: 0.5px solid rgba(255, 255, 255, 0.1);
   }
@@ -716,11 +762,11 @@
     background: rgba(0, 122, 255, 0.2);
     transform: scale(0.98);
   }
-  .dark .glass-button {
+  .dark .glass-button, .liquid-glass .glass-button {
     background: rgba(10, 132, 255, 0.15);
     color: #0A84FF;
   }
-  .dark .glass-button:hover {
+  .dark .glass-button:hover, .liquid-glass .glass-button:hover {
     background: rgba(10, 132, 255, 0.2);
   }
 
@@ -729,7 +775,7 @@
     height: 0.5px;
     background: rgba(60, 60, 67, 0.18);
   }
-  .dark .ios-separator {
+  .dark .ios-separator, .liquid-glass .ios-separator {
     background: rgba(84, 84, 88, 0.36);
   }
 
@@ -743,10 +789,10 @@
     outline: none;
     background: rgba(120, 120, 128, 0.12);
   }
-  .dark .glass-input {
+  .dark .glass-input, .liquid-glass .glass-input {
     background: rgba(120, 120, 128, 0.16);
   }
-  .dark .glass-input:focus {
+  .dark .glass-input:focus, .liquid-glass .glass-input:focus {
     background: rgba(120, 120, 128, 0.24);
   }
 
@@ -755,8 +801,75 @@
     @apply rounded-full px-3 py-1 text-xs font-medium;
     background: rgba(120, 120, 128, 0.12);
   }
-  .dark .glass-pill {
+  .dark .glass-pill, .liquid-glass .glass-pill {
     background: rgba(120, 120, 128, 0.24);
+  }
+
+  /* Liquid Glass material: subtle translucent surfaces; the backdrop is
+     gently refracted by the #liquid-glass displacement map (Chromium only,
+     so -webkit- keeps a graceful blur). Kept minimal — a single soft edge. */
+  .liquid-glass .surface-card,
+  .liquid-glass .score-hero {
+    background: rgba(190, 214, 255, 0.05);
+    -webkit-backdrop-filter: blur(9px) saturate(190%) brightness(1.06);
+    backdrop-filter: blur(3px) saturate(190%) brightness(1.06) url(#liquid-glass);
+    border: 1px solid transparent;
+    box-shadow: 0 14px 40px -22px rgba(0, 0, 0, 0.7);
+  }
+
+  .liquid-glass .glass-nav,
+  .liquid-glass .glass-header {
+    background: rgba(18, 22, 33, 0.42);
+    border-bottom: none;
+    -webkit-backdrop-filter: blur(12px) saturate(190%);
+    backdrop-filter: blur(4px) saturate(190%) url(#liquid-glass);
+  }
+
+  .liquid-glass .glass-pill {
+    background: rgba(190, 214, 255, 0.06);
+    border: 1px solid transparent;
+    -webkit-backdrop-filter: blur(9px) saturate(190%);
+    backdrop-filter: blur(3px) saturate(190%) url(#liquid-glass);
+  }
+
+  .liquid-glass .glass-input {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    backdrop-filter: blur(16px) saturate(180%);
+  }
+  .liquid-glass .glass-input:focus {
+    background: rgba(255, 255, 255, 0.09);
+  }
+
+  .liquid-glass .glass-button {
+    background: rgba(10, 132, 255, 0.16);
+    color: #4aa8ff;
+    border: 1px solid rgba(120, 180, 255, 0.18);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    backdrop-filter: blur(16px) saturate(180%);
+  }
+  .liquid-glass .glass-button:hover {
+    background: rgba(10, 132, 255, 0.24);
+  }
+
+  /* Reduce Transparency: opaque fallback. */
+  @media (prefers-reduced-transparency: reduce) {
+    .liquid-glass .surface-card,
+    .liquid-glass .score-hero,
+    .liquid-glass .glass-pill,
+    .liquid-glass .glass-input,
+    .liquid-glass .glass-button {
+      background: hsl(var(--card));
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+    .liquid-glass .glass-nav,
+    .liquid-glass .glass-header {
+      background: hsl(224 26% 9%);
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
   }
 
   /* Active tab indicator */

@@ -1001,11 +1001,14 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
         }
     }
 
+    const hasStat = (v?: string) => !!v && v !== '-' && v !== 'N/A';
     const hasKeyStats = !!(data && (
-        (data.partnership && data.partnership !== '-') ||
-        (data.lastWicket && data.lastWicket !== '-') ||
-        (data.recentOvers && data.recentOvers !== '-')
+        hasStat(data.partnership) || hasStat(data.lastWicket) || hasStat(data.recentOvers)
     ));
+
+    // A match that hasn't begun has no score and no batters yet: hide the tabs
+    // and the empty scoreboard, and just show the Live (preview) content.
+    const notStarted = !!data && (!data.score || data.score === 'N/A') && (data.batsmen?.length ?? 0) === 0;
 
     const keyStatsBody = (
         <div className="divide-y divide-border/50">
@@ -1094,20 +1097,19 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                     : null;
                                 if (!hasVenue && !dateStr) return null;
                                 return (
-                                    <div className="flex items-center gap-1.5 min-w-0">
+                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
                                         {hasVenue && (venueHref ? (
-                                            <Link href={venueHref} className="inline-flex items-center gap-1 min-w-0 hover:text-foreground hover:underline transition-colors">
+                                            <Link href={venueHref} className="inline-flex items-center gap-1 max-w-full min-w-0 hover:text-foreground hover:underline transition-colors">
                                                 <MapPin className="w-3 h-3 shrink-0" />
                                                 <span className="truncate">{data.venue}</span>
                                             </Link>
                                         ) : (
-                                            <span className="inline-flex items-center gap-1 min-w-0">
+                                            <span className="inline-flex items-center gap-1 max-w-full min-w-0">
                                                 <MapPin className="w-3 h-3 shrink-0" />
                                                 <span className="truncate">{data.venue}</span>
                                             </span>
                                         ))}
-                                        {hasVenue && dateStr && <span className="opacity-40 shrink-0">•</span>}
-                                        {dateStr && <span className="truncate shrink-0">{dateStr}</span>}
+                                        {dateStr && <span className="whitespace-nowrap">{dateStr}</span>}
                                     </div>
                                 );
                             })()}
@@ -1116,6 +1118,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                     </div>
                     {/* Desktop: tabs + theme toggle inline with title */}
                     <div className="hidden md:flex items-center gap-3 shrink-0">
+                        {!notStarted && (
                         <div className="flex items-center gap-1 tab-container">
                             {views.map((v) => (
                                 <button
@@ -1134,6 +1137,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                 </button>
                             ))}
                         </div>
+                        )}
                         <CommandPaletteTrigger />
                         <ThemeToggle />
                     </div>
@@ -1146,22 +1150,24 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
             </div>
 
             {/* Mobile: pinned tabs + always-glanceable compact scoreboard */}
-            <MatchStickyBar
-                views={views}
-                view={view}
-                onSelect={setView}
-                labels={VIEW_LABELS}
-                score={data?.score}
-                currentRunRate={data?.currentRunRate}
-                requiredRunRate={data?.requiredRunRate}
-                status={data?.status}
-                live={data ? isLive(data.status) : false}
-                hasHero={view === 'live'}
-                heroRef={scoreHeroRef}
-                batsmen={data?.batsmen}
-                bowler={data?.bowlers?.find((b) => b.onStrike) ?? data?.bowlers?.[0] ?? null}
-                showBatting={view === 'live' && (data?.batsmen?.length ?? 0) > 0}
-            />
+            {!notStarted && (
+                <MatchStickyBar
+                    views={views}
+                    view={view}
+                    onSelect={setView}
+                    labels={VIEW_LABELS}
+                    score={data?.score}
+                    currentRunRate={data?.currentRunRate}
+                    requiredRunRate={data?.requiredRunRate}
+                    status={data?.status}
+                    live={data ? isLive(data.status) : false}
+                    hasHero={view === 'live'}
+                    heroRef={scoreHeroRef}
+                    batsmen={data?.batsmen}
+                    bowler={data?.bowlers?.find((b) => b.onStrike) ?? data?.bowlers?.[0] ?? null}
+                    showBatting={view === 'live' && (data?.batsmen?.length ?? 0) > 0}
+                />
+            )}
 
             <div>
                 {view === 'live' && (
@@ -1275,16 +1281,16 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                 )}
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-                                                    <span className="text-xs font-mono font-semibold text-cyan-400 tracking-wide">
+                                                {!notStarted && (
+                                                <div className="flex items-center px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30">
+                                                    <span className="text-xs font-display font-semibold text-cyan-400 tracking-wide">
                                                         CRR {data?.currentRunRate}
                                                     </span>
                                                 </div>
-                                                {data?.requiredRunRate && (
-                                                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/20">
-                                                        <div className="w-1.5 h-1.5 rounded-full bg-orange-400" />
-                                                        <span className="text-xs font-mono font-semibold text-orange-400 tracking-wide">
+                                                )}
+                                                {!notStarted && data?.requiredRunRate && (
+                                                    <div className="flex items-center px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/20">
+                                                        <span className="text-xs font-display font-semibold text-orange-400 tracking-wide">
                                                             REQ {data.requiredRunRate}
                                                         </span>
                                                     </div>

@@ -11,6 +11,7 @@ const log = (...a) => console.log('[screenshots]', ...a);
 // so the Report tab shows Win-Probability with a Draw line.
 const MATCHES = {
     test: '129574',
+    odi: '129469',       // England v India 2nd ODI
     t20League: '150745', // Major League Cricket 2026 (USA T20 league)
     t20i: '150986',      // Ireland v India T20I
 };
@@ -179,6 +180,14 @@ async function main() {
         await shot('match-t20.png', { fullPage: true });
     } catch (e) { log('match-t20 failed:', e.message); }
 
+    // ─ ODI match ────────────────────────────────────────────────────────
+    try {
+        await go(`/match/${MATCHES.odi}`);
+        await waitForContent(5000);
+        await autoScrollAndSettle(page, 5000);
+        await shot('match-odi.png', { fullPage: true });
+    } catch (e) { log('match-odi failed:', e.message); }
+
     // ─ Matchups from a T20I match (Test matches don't have matchups data) ─
     try {
         await go(`/match/${MATCHES.t20i}`);
@@ -230,6 +239,52 @@ async function main() {
         log('mobile-home.png');
         await mob.close();
     } catch (e) { log('mobile-home failed:', e.message); }
+
+    // ─ Liquid Glass theme showcase ──────────────────────────────────────
+    // Forced via localStorage before any app script runs, so next-themes
+    // applies the `.liquid-glass` class on first paint.
+    const forceGlass = () => { try { localStorage.setItem('theme', 'liquid-glass'); } catch { /* ignore */ } };
+    try {
+        const glass = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, colorScheme: 'dark' });
+        await glass.addInitScript(forceGlass);
+        const gp = await glass.newPage();
+        const gGo = (path) => gp.goto(BASE + path, { waitUntil: 'networkidle', timeout: 90_000 }).catch(() => gp.goto(BASE + path, { waitUntil: 'load', timeout: 90_000 }));
+        const gShot = async (name, opts = {}) => { await gp.screenshot({ path: join(OUT, name), fullPage: opts.fullPage ?? false }); log(name); };
+
+        await gGo('/');
+        await gp.waitForTimeout(4500);
+        await autoScrollAndSettle(gp, 4000);
+        await gShot('liquid-glass-home.png', { fullPage: true });
+
+        await gGo(`/match/${MATCHES.test}`);
+        await gp.waitForTimeout(5000);
+        await autoScrollAndSettle(gp, 5000);
+        await gShot('liquid-glass-match-live.png', { fullPage: true });
+
+        await gp.locator('button:has-text("Scorecard")').first().click().catch(() => {});
+        await gp.waitForTimeout(3500);
+        await autoScrollAndSettle(gp, 5000);
+        await gShot('liquid-glass-match-scorecard.png', { fullPage: true });
+
+        await glass.close();
+    } catch (e) { log('liquid-glass desktop failed:', e.message); }
+
+    try {
+        const glassMob = await browser.newContext({
+            viewport: { width: 390, height: 844 },
+            deviceScaleFactor: 2,
+            colorScheme: 'dark',
+            userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+        });
+        await glassMob.addInitScript(forceGlass);
+        const gmp = await glassMob.newPage();
+        await gmp.goto(BASE + '/', { waitUntil: 'networkidle', timeout: 90_000 }).catch(() => gmp.goto(BASE + '/', { waitUntil: 'load', timeout: 90_000 }));
+        await gmp.waitForTimeout(4500);
+        await autoScrollAndSettle(gmp, 3500);
+        await gmp.screenshot({ path: join(OUT, 'liquid-glass-mobile-home.png'), fullPage: true });
+        log('liquid-glass-mobile-home.png');
+        await glassMob.close();
+    } catch (e) { log('liquid-glass mobile failed:', e.message); }
 
     await browser.close();
     log('done →', OUT);

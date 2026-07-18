@@ -91,9 +91,11 @@ export default function MatchStickyBar<V extends string>({
     };
   }, [hasHero, heroRef, view]);
 
+  const hasScore = !!score && score !== 'N/A' && score.trim() !== '';
+
   return (
     <div className="md:hidden sticky top-0 z-40 -mx-2 px-2 glass-header border-b border-border/60">
-      {showScore && score && (
+      {showScore && hasScore && (
         <div className="pt-2 pb-1.5 animate-in fade-in slide-in-from-top-1 duration-200 motion-reduce:animate-none">
           <div className="flex items-center justify-between gap-2">
             <AnimatedScore
@@ -102,12 +104,12 @@ export default function MatchStickyBar<V extends string>({
             />
             <div className="flex items-center gap-2 shrink-0">
               {currentRunRate && (
-                <span className="text-[11px] font-mono font-semibold text-cyan-400 tracking-wide">
+                <span className="text-[11px] font-display font-semibold text-cyan-400 tracking-wide">
                   CRR {currentRunRate}
                 </span>
               )}
               {requiredRunRate && (
-                <span className="text-[11px] font-mono font-semibold text-orange-400 tracking-wide">
+                <span className="text-[11px] font-display font-semibold text-orange-400 tracking-wide">
                   REQ {requiredRunRate}
                 </span>
               )}

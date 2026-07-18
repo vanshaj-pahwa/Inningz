@@ -1,7 +1,8 @@
 const { fontFamily } = require("tailwindcss/defaultTheme");
 
 export default {
-  darkMode: ["class"],
+  // Liquid Glass is a dark theme, so `dark:` utilities apply under it too.
+  darkMode: ["variant", ["&:is(.dark *)", "&:is(.liquid-glass *)", "&:is(.dark)", "&:is(.liquid-glass)"]],
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",

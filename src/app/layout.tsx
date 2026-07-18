@@ -82,11 +82,19 @@ export default function RootLayout({
           jetbrainsMono.variable
         )}
       >
+        {/* Refraction filter for the Liquid Glass theme's backdrop lens. */}
+        <svg aria-hidden="true" width="0" height="0" style={{ position: 'absolute' }}>
+          <filter id="liquid-glass" x="-30%" y="-30%" width="160%" height="160%" colorInterpolationFilters="sRGB">
+            <feTurbulence type="fractalNoise" baseFrequency="0.008 0.011" numOctaves={2} seed={7} result="noise" />
+            <feGaussianBlur in="noise" stdDeviation={1.6} result="soft" />
+            <feDisplacementMap in="SourceGraphic" in2="soft" scale={30} xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+        </svg>
         <ThemeProvider
             attribute="class"
             defaultTheme="dark"
             enableSystem
-            themes={['light', 'dark', 'system']}
+            themes={['light', 'dark', 'liquid-glass', 'system']}
             disableTransitionOnChange
         >
           <DataLayerProvider>

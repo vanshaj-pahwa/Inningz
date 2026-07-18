@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Moon, Sun, Monitor, Palette } from "lucide-react"
+import { Moon, Sun, Monitor, Palette, Droplets } from "lucide-react"
 import { useTheme } from "next-themes"
 
 import { Button } from "@/components/ui/button"
@@ -46,6 +46,17 @@ const themes: ThemeOption[] = [
       primary: '#007AFF',
     }
   },
+  {
+    id: 'liquid-glass',
+    name: 'Liquid Glass',
+    icon: <Droplets className="w-3.5 h-3.5" />,
+    colors: {
+      bg: '#0b0e15',
+      card: '#aebfe6',
+      primary: '#3aa0ff',
+      accent: '#8b7bff',
+    }
+  },
 ]
 
 function ThemeSwatch({ theme, isActive, onClick }: {
@@ -64,28 +75,19 @@ function ThemeSwatch({ theme, isActive, onClick }: {
         }
       `}
     >
-      {/* Theme preview swatch */}
+      {/* Mini UI preview: background, an accent bar, and a content card */}
       <div
-        className="relative w-10 h-10 rounded-lg overflow-hidden ring-1 ring-black/10 dark:ring-white/10 shadow-sm flex-shrink-0"
+        className="relative w-9 h-9 rounded-lg overflow-hidden ring-1 ring-black/10 dark:ring-white/10 flex-shrink-0"
         style={{ backgroundColor: theme.colors.bg }}
       >
-        {/* Mini card preview */}
         <div
-          className="absolute bottom-1 left-1 right-1 h-5 rounded-md"
-          style={{ backgroundColor: theme.colors.card }}
-        />
-        {/* Primary color dot */}
-        <div
-          className="absolute top-1.5 left-1.5 w-2.5 h-2.5 rounded-full"
+          className="absolute top-2 left-2 h-1 w-3.5 rounded-full"
           style={{ backgroundColor: theme.colors.primary }}
         />
-        {/* Accent color dot (if exists) */}
-        {theme.colors.accent && (
-          <div
-            className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full"
-            style={{ backgroundColor: theme.colors.accent }}
-          />
-        )}
+        <div
+          className="absolute inset-x-2 bottom-2 top-4 rounded-md"
+          style={{ backgroundColor: theme.colors.card }}
+        />
       </div>
 
       {/* Theme name and icon */}
@@ -103,7 +105,7 @@ function ThemeSwatch({ theme, isActive, onClick }: {
   )
 }
 
-const customThemes = ['midnight', 'pitch', 'sunset', 'sepia']
+const customThemes = ['midnight', 'pitch', 'sunset', 'sepia', 'liquid-glass']
 
 export function ThemeToggle() {
   const { theme, setTheme, resolvedTheme } = useTheme()
@@ -136,9 +138,13 @@ export function ThemeToggle() {
           <Moon className={`absolute h-4 w-4 transition-all ${
             !isLightTheme && !isCustomTheme ? 'rotate-0 scale-100' : 'rotate-90 scale-0'
           }`} />
+          {/* Liquid Glass icon */}
+          <Droplets className={`absolute h-4 w-4 transition-all ${
+            currentTheme === 'liquid-glass' ? 'rotate-0 scale-100' : 'rotate-90 scale-0'
+          }`} />
           {/* Custom theme icon */}
           <Palette className={`absolute h-4 w-4 transition-all ${
-            isCustomTheme && currentTheme !== 'sepia' ? 'rotate-0 scale-100' : 'rotate-90 scale-0'
+            isCustomTheme && currentTheme !== 'sepia' && currentTheme !== 'liquid-glass' ? 'rotate-0 scale-100' : 'rotate-90 scale-0'
           }`} />
           <span className="sr-only">Toggle theme</span>
         </Button>
@@ -155,8 +161,8 @@ export function ThemeToggle() {
             }
           `}
         >
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-zinc-100 to-zinc-900 flex items-center justify-center ring-1 ring-black/10 dark:ring-white/10 shadow-sm">
-            <Monitor className="w-5 h-5 text-zinc-500" />
+          <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center ring-1 ring-black/10 dark:ring-white/10">
+            <Monitor className="w-4 h-4 text-muted-foreground" />
           </div>
           <span className={`text-sm font-medium ${theme === 'system' ? 'text-primary' : 'text-foreground'}`}>
             System
