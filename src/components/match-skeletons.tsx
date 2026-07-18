@@ -36,7 +36,7 @@ export function MatchPageSkeleton() {
 
             <div className="space-y-4">
                 {/* Score Hero */}
-                <div className="glass-card relative overflow-hidden">
+                <div className="surface-card relative overflow-hidden">
                     <div className="p-5 md:p-7 space-y-4">
                         {/* Previous innings */}
                         <div className="flex items-baseline gap-2 opacity-50">
@@ -64,7 +64,7 @@ export function MatchPageSkeleton() {
                 {/* Main grid: Scorecard left + Commentary right */}
                 <div className="grid grid-cols-1 xl:grid-cols-[420px_1fr] gap-4 lg:gap-6">
                     {/* Left: mini scorecard table */}
-                    <div className="glass-card overflow-hidden">
+                    <div className="surface-card overflow-hidden">
                         <div className="px-3 md:px-4 py-2 md:py-3 border-b border-border/40 flex items-center justify-between">
                             <Skeleton className="h-3 w-14 rounded-md" />
                             <div className="flex gap-3">
@@ -106,7 +106,7 @@ export function MatchPageSkeleton() {
                     </div>
 
                     {/* Right: commentary column */}
-                    <div className="glass-card p-4 md:p-5 space-y-4">
+                    <div className="surface-card p-4 md:p-5 space-y-4">
                         <Skeleton className="h-4 w-24 rounded-md" />
                         {[...Array(6)].map((_, i) => (
                             <div key={i} className="flex items-start gap-3">
@@ -265,7 +265,7 @@ export function ScorecardSkeleton() {
                                 <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 md:gap-8">
                                     <div className="lg:col-span-3 space-y-3 md:space-y-8">
                                         {/* Batting card */}
-                                        <div className="glass-card rounded-none md:rounded-lg overflow-hidden">
+                                        <div className="surface-card rounded-none md:rounded-lg overflow-hidden">
                                             <div className="border-b border-border/50 p-2 md:p-6">
                                                 <Skeleton className="h-4 md:h-5 w-32 md:w-40 rounded-md" />
                                             </div>
@@ -312,7 +312,7 @@ export function ScorecardSkeleton() {
                                         </div>
 
                                         {/* Bowling card */}
-                                        <div className="glass-card rounded-none md:rounded-lg overflow-hidden">
+                                        <div className="surface-card rounded-none md:rounded-lg overflow-hidden">
                                             <div className="border-b border-border/50 p-2 md:p-6">
                                                 <Skeleton className="h-4 md:h-5 w-32 md:w-40 rounded-md" />
                                             </div>
@@ -343,7 +343,7 @@ export function ScorecardSkeleton() {
 
                                     {/* Right column: fall of wickets + partnerships */}
                                     <div className="lg:col-span-2 space-y-3 md:space-y-8">
-                                        <div className="glass-card rounded-none md:rounded-lg overflow-hidden">
+                                        <div className="surface-card rounded-none md:rounded-lg overflow-hidden">
                                             <div className="border-b border-border/50 p-2 md:p-6">
                                                 <Skeleton className="h-4 md:h-5 w-32 rounded-md" />
                                             </div>

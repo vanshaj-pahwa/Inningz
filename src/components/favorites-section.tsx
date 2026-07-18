@@ -87,14 +87,17 @@ function FavoriteCard({
           e.stopPropagation();
           onRemove(item.id);
         }}
+        aria-label="Remove from favorites"
         className={cn(
-          'absolute -top-1.5 md:-top-2 -right-1.5 md:-right-2 p-0.5 md:p-1 rounded-full z-10',
+          'absolute -top-1.5 md:-top-2 -right-1.5 md:-right-2 p-1 rounded-full z-10',
           'bg-muted border border-border',
           'md:opacity-0 md:group-hover:opacity-100 transition-opacity',
-          'hover:bg-destructive hover:border-destructive'
+          'hover:bg-destructive hover:border-destructive',
+          // invisible expanded hit area for a comfortable touch target
+          'before:absolute before:-inset-2 before:content-[""]'
         )}
       >
-        <X className="w-2 md:w-2.5 h-2 md:h-2.5" />
+        <X className="w-3 h-3" />
       </button>
     </div>
   );

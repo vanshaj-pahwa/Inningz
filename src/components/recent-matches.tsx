@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { getRecentMatches } from '@/app/actions';
 import type { LiveMatch } from '@/app/actions';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import SeriesDivider from "./series-divider";
+import { formatScore } from "@/lib/utils";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { History, Filter } from "lucide-react";
@@ -45,6 +47,7 @@ export default function RecentMatches() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<MatchFilter>('all');
+  const [reloadKey, setReloadKey] = useState(0);
 
   const getMatchCategory = (match: LiveMatch): MatchFilter => {
     // Use scraped matchType if available
@@ -81,7 +84,7 @@ export default function RecentMatches() {
       setLoading(false);
     };
     fetchMatches();
-  }, []);
+  }, [reloadKey]);
 
   const filteredMatches = filterMatches(matches);
   const groupedMatches: GroupedMatches = filteredMatches.reduce((acc, match) => {
@@ -112,6 +115,9 @@ export default function RecentMatches() {
         <Alert variant="destructive" className="max-w-xl rounded-2xl">
           <AlertTitle className="text-lg">Unable to fetch matches</AlertTitle>
           <AlertDescription className="mt-2">{error}</AlertDescription>
+          <Button variant="outline" size="sm" className="mt-3 rounded-xl" onClick={() => setReloadKey(k => k + 1)}>
+            Try again
+          </Button>
         </Alert>
       </div>
     );
@@ -149,14 +155,7 @@ export default function RecentMatches() {
 
       {Object.entries(groupedMatches).map(([seriesName, seriesMatches]) => (
         <section key={seriesName}>
-          {/* Series Header */}
-          <div className="flex items-center gap-3 mb-4">
-            <div className="h-px flex-1 bg-gradient-to-r from-blue-500/30 to-transparent" />
-            <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground px-1">
-              {seriesName}
-            </h3>
-            <div className="h-px flex-1 bg-gradient-to-l from-blue-500/30 to-transparent" />
-          </div>
+          <SeriesDivider name={seriesName} seriesUrl={seriesMatches[0]?.seriesUrl} />
 
           {/* Match Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -171,7 +170,7 @@ export default function RecentMatches() {
                   className="stagger-in"
                   style={{ '--stagger-index': index } as React.CSSProperties}
                 >
-                  <div className="glass-card card-hover p-5 h-full">
+                  <div className="surface-card card-hover p-5 h-full">
                     {/* Category badge */}
                     <div className="flex items-center justify-between mb-4">
                       {activeFilter === 'all' && (
@@ -194,7 +193,7 @@ export default function RecentMatches() {
                           </span>
                           {team.score && (
                             <span className="font-display text-lg tabular-nums text-foreground flex-shrink-0">
-                              {team.score}
+                              {formatScore(team.score)}
                             </span>
                           )}
                         </div>
@@ -228,47 +227,22 @@ export default function RecentMatches() {
 }
 
 function FilterBar({ activeFilter, setActiveFilter }: { activeFilter: MatchFilter; setActiveFilter: (f: MatchFilter) => void }) {
-  const activeLabel = filters.find(f => f.value === activeFilter)?.label ?? 'All';
   return (
-    <div className="flex items-center">
-      {/* Desktop: inline pills */}
-      <div className="hidden md:flex gap-2">
-        {filters.map((filter) => (
-          <button
-            key={filter.value}
-            onClick={() => setActiveFilter(filter.value)}
-            className={`
-              shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200
-              ${activeFilter === filter.value
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-neutral-100 dark:bg-neutral-800 text-muted-foreground hover:text-foreground hover:bg-neutral-200 dark:hover:bg-neutral-700'
-              }
-            `}
-          >
-            {filter.label}
-          </button>
-        ))}
-      </div>
-      {/* Mobile: dropdown on the right */}
-      <div className="md:hidden ml-auto">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="rounded-xl gap-2">
-              <Filter className="h-3.5 w-3.5" />
-              {activeLabel}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="rounded-xl">
-            <DropdownMenuRadioGroup value={activeFilter} onValueChange={(v) => setActiveFilter(v as MatchFilter)}>
-              {filters.map((filter) => (
-                <DropdownMenuRadioItem key={filter.value} value={filter.value} className="rounded-lg">
-                  {filter.label}
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+    <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
+      {filters.map((filter) => (
+        <button
+          key={filter.value}
+          onClick={() => setActiveFilter(filter.value)}
+          aria-current={activeFilter === filter.value ? 'page' : undefined}
+          className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+            activeFilter === filter.value
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-muted text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          {filter.label}
+        </button>
+      ))}
     </div>
   );
 }

@@ -50,7 +50,9 @@ function HomeContent() {
             params.set('tab', newView);
         }
         const query = params.toString();
-        router.replace(query ? `/?${query}` : '/', { scroll: false });
+        // push (not replace) so the hardware/browser Back button steps through tab
+        // switches instead of exiting the home page.
+        router.push(query ? `/?${query}` : '/', { scroll: false });
     }, [router, searchParams]);
 
     return (
@@ -60,13 +62,19 @@ function HomeContent() {
                 <div className="max-w-7xl mx-auto px-4 md:px-6">
                     {/* Top row: Logo + Actions */}
                     <div className="flex items-center justify-between h-14 md:h-16">
-                        <h1 className="text-2xl md:text-3xl font-display tracking-tight">
-                            <span className="text-primary">Inningz</span>
-                        </h1>
+                        <Link
+                            href="/"
+                            aria-label="Inningz home"
+                            onClick={(e) => { e.preventDefault(); switchView('home'); }}
+                        >
+                            <h1 className="text-2xl md:text-3xl font-display tracking-tight">
+                                <span className="text-primary">Inningz</span>
+                            </h1>
+                        </Link>
 
                         {/* Desktop: inline nav tabs */}
                         <LayoutGroup id="desktop-nav">
-                            <nav className="hidden md:flex items-center gap-1 p-1 rounded-xl" style={{ background: 'rgba(120, 120, 128, 0.12)' }}>
+                            <nav className="hidden lg:flex items-center gap-1 p-1 rounded-xl" style={{ background: 'rgba(120, 120, 128, 0.12)' }}>
                                 {tabs.map((tab) => {
                                     const Icon = tab.icon;
                                     const isActive = view === tab.value;
@@ -74,7 +82,8 @@ function HomeContent() {
                                         <button
                                             key={tab.value}
                                             onClick={() => switchView(tab.value)}
-                                            className={`relative flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-150 ${isActive ? 'active-tab' : 'text-muted-foreground hover:text-foreground'}`}
+                                            aria-current={isActive ? 'page' : undefined}
+                                            className={`relative flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${isActive ? 'active-tab' : 'text-muted-foreground hover:text-foreground'}`}
                                         >
                                             {isActive && (
                                                 <motion.span
@@ -107,7 +116,7 @@ function HomeContent() {
 
                     {/* Mobile: iOS-style segmented control */}
                     <LayoutGroup id="mobile-nav">
-                        <nav className="md:hidden pb-3">
+                        <nav className="hidden">
                             <div className="flex p-1 rounded-lg bg-muted">
                                 {tabs.map((tab) => {
                                     const Icon = tab.icon;
@@ -116,7 +125,8 @@ function HomeContent() {
                                         <button
                                             key={tab.value}
                                             onClick={() => switchView(tab.value)}
-                                            className={`relative flex-1 flex flex-col items-center justify-center gap-0.5 py-2 rounded-md text-[10px] font-medium transition-colors duration-150 ${isActive ? 'text-white' : 'text-muted-foreground'}`}
+                                            aria-current={isActive ? 'page' : undefined}
+                                            className={`relative flex-1 flex flex-col items-center justify-center gap-0.5 py-2 rounded-md text-[10px] font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${isActive ? 'text-white' : 'text-muted-foreground'}`}
                                         >
                                             {isActive && (
                                                 <motion.span

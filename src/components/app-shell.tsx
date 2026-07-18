@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, Suspense } from 'react';
 import { usePathname } from 'next/navigation';
 import SplashScreen from './splash-screen';
+import OfflineBanner from './offline-banner';
+import BottomNav from './bottom-nav';
 import { recordNavigation } from '@/lib/nav-history';
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -11,10 +13,23 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   // (e.g. the match page back button) see an up-to-date count when they mount.
   recordNavigation(pathname);
 
-  const [showSplash, setShowSplash] = useState(true);
+  const [showSplash, setShowSplash] = useState(false);
 
   const handleComplete = useCallback(() => {
     setShowSplash(false);
+  }, []);
+
+  // Show the branded splash only once per browser session — never on reloads or
+  // return visits, so a live-scores app never blocks content behind it.
+  useEffect(() => {
+    try {
+      if (!sessionStorage.getItem('inningz_splash_shown')) {
+        sessionStorage.setItem('inningz_splash_shown', '1');
+        setShowSplash(true);
+      }
+    } catch {
+      /* storage blocked — skip the splash entirely */
+    }
   }, []);
 
   // Register service worker for PWA
@@ -26,10 +41,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <>
+      <OfflineBanner />
       {showSplash && <SplashScreen onComplete={handleComplete} />}
-      <div className={showSplash ? 'opacity-0' : 'opacity-100 transition-opacity duration-300'}>
-        {children}
-      </div>
+      {children}
+      <Suspense fallback={null}>
+        <BottomNav />
+      </Suspense>
     </>
   );
 }

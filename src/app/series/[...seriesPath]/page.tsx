@@ -320,11 +320,11 @@ export default function SeriesPage() {
               {topPerformersLoading ? (
                 <div className="flex flex-col sm:flex-row gap-2">
                   <div className="min-w-0 px-3 py-1.5 sm:py-2 rounded-xl bg-orange-500/10 border border-orange-500/20 flex-1">
-                    <p className="text-[8px] sm:text-[9px] uppercase tracking-wider text-orange-400 font-semibold">Most Runs</p>
+                    <p className="text-[11px] sm:text-[11px] uppercase tracking-wider text-orange-400 font-semibold">Most Runs</p>
                     <div className="skeleton h-3 sm:h-3.5 w-32 rounded mt-1" />
                   </div>
                   <div className="min-w-0 px-3 py-1.5 sm:py-2 rounded-xl bg-purple-500/10 border border-purple-500/20 flex-1">
-                    <p className="text-[8px] sm:text-[9px] uppercase tracking-wider text-purple-400 font-semibold">Most Wickets</p>
+                    <p className="text-[11px] sm:text-[11px] uppercase tracking-wider text-purple-400 font-semibold">Most Wickets</p>
                     <div className="skeleton h-3 sm:h-3.5 w-32 rounded mt-1" />
                   </div>
                 </div>
@@ -332,13 +332,13 @@ export default function SeriesPage() {
                 <div className="flex flex-col sm:flex-row gap-2">
                   {topRunScorer && topRunScorer.value && (
                     <div className="min-w-0 px-3 py-1.5 sm:py-2 rounded-xl bg-orange-500/10 border border-orange-500/20 flex-1">
-                      <p className="text-[8px] sm:text-[9px] uppercase tracking-wider text-orange-400 font-semibold">Most Runs</p>
+                      <p className="text-[11px] sm:text-[11px] uppercase tracking-wider text-orange-400 font-semibold">Most Runs</p>
                       <p className="text-[11px] sm:text-xs font-medium truncate">{topRunScorer.name} <span className="text-muted-foreground">({topRunScorer.value})</span></p>
                     </div>
                   )}
                   {topWicketTaker && topWicketTaker.value && (
                     <div className="min-w-0 px-3 py-1.5 sm:py-2 rounded-xl bg-purple-500/10 border border-purple-500/20 flex-1">
-                      <p className="text-[8px] sm:text-[9px] uppercase tracking-wider text-purple-400 font-semibold">Most Wickets</p>
+                      <p className="text-[11px] sm:text-[11px] uppercase tracking-wider text-purple-400 font-semibold">Most Wickets</p>
                       <p className="text-[11px] sm:text-xs font-medium truncate">{topWicketTaker.name} <span className="text-muted-foreground">({topWicketTaker.value})</span></p>
                     </div>
                   )}
@@ -416,7 +416,7 @@ export default function SeriesPage() {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {[...Array(g === 1 ? 2 : 1)].map((_, i) => (
-                        <div key={i} className="glass-card p-5 space-y-4">
+                        <div key={i} className="surface-card p-5 space-y-4">
                           <div className="skeleton h-3 w-3/5 rounded" />
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
@@ -486,7 +486,7 @@ export default function SeriesPage() {
                             style={{ '--stagger-index': globalIndex } as React.CSSProperties}
                           >
                             <div className={`
-                              glass-card card-hover p-5 h-full
+                              surface-card card-hover p-5 h-full
                               ${matchIsLive ? 'ring-1 ring-red-500/20' : ''}
                             `}>
                               <div className="flex items-center justify-between mb-4">

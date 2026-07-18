@@ -122,7 +122,7 @@ function VenueStatCard({ card }: { card: ForecastCard }) {
                                     <div className="text-sm font-display tabular-nums text-foreground leading-tight">
                                         {s.value}
                                     </div>
-                                    <div className="text-[9px] uppercase tracking-wider text-muted-foreground mt-0.5">
+                                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground mt-0.5">
                                         {s.label}
                                     </div>
                                 </div>

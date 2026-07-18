@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { getMatchSquads, getPlayerProfile } from '@/app/actions';
 import type { MatchSquads, PlayerProfile, SquadPlayer } from '@/app/actions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LoaderCircle } from 'lucide-react';
+import { LoaderCircle, Plane } from 'lucide-react';
 import { SquadsSkeleton } from './match-skeletons';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import PlayerProfileDisplay from './player-profile';
@@ -130,6 +130,12 @@ export default function MatchSquadsDisplay({ matchId }: { matchId: string }) {
                         </div>
                         <div className="text-[10px] md:text-xs text-muted-foreground">{player.role}</div>
                     </div>
+                    {player.isOverseas && (
+                        <Plane
+                            className="w-3.5 h-3.5 md:w-4 md:h-4 text-muted-foreground shrink-0"
+                            aria-label="Overseas player"
+                        />
+                    )}
                 </div>
                 {isRightSide && (
                     <div className="relative flex-shrink-0">

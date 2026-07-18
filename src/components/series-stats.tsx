@@ -146,17 +146,17 @@ export default function SeriesStatsDisplay({ seriesId }: SeriesStatsProps) {
           ))}
         </div>
       ) : statData && statData.entries.length > 0 ? (
-        <div className="glass-card rounded-3xl overflow-hidden">
+        <div className="surface-card rounded-3xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-xs sm:text-sm" style={{ minWidth: 0 }}>
               <thead>
                 <tr className="border-b border-border/50">
-                  <th className="text-center py-2 px-1.5 sm:px-4 font-semibold text-muted-foreground text-[9px] sm:text-xs uppercase tracking-wider w-5 sm:w-8 border-r border-border/20">#</th>
-                  <th className="text-center py-2 px-1 sm:px-4 font-semibold text-muted-foreground text-[9px] sm:text-xs uppercase tracking-wider border-r border-border/20">
+                  <th className="text-center py-2 px-1.5 sm:px-4 font-semibold text-muted-foreground text-[11px] sm:text-xs uppercase tracking-wider w-5 sm:w-8 border-r border-border/20">#</th>
+                  <th className="text-center py-2 px-1 sm:px-4 font-semibold text-muted-foreground text-[11px] sm:text-xs uppercase tracking-wider border-r border-border/20">
                     {statData.headers[0] || 'Player'}
                   </th>
                   {statData.headers.slice(1).map((header, i) => (
-                    <th key={header} className={`text-center py-2 px-2 sm:px-4 font-semibold text-muted-foreground text-[9px] sm:text-xs uppercase tracking-wider whitespace-nowrap ${i < statData.headers.length - 2 ? 'border-r border-border/20' : ''}`}>
+                    <th key={header} className={`text-center py-2 px-2 sm:px-4 font-semibold text-muted-foreground text-[11px] sm:text-xs uppercase tracking-wider whitespace-nowrap ${i < statData.headers.length - 2 ? 'border-r border-border/20' : ''}`}>
                       {shortenHeader(header)}
                     </th>
                   ))}

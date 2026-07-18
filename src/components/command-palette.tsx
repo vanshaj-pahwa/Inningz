@@ -27,7 +27,7 @@ export function CommandPaletteTrigger({ className }: { className?: string }) {
             onClick={open}
             aria-label="Search (press /)"
             className={cn(
-                'inline-flex items-center gap-2 rounded-xl border border-border/60 bg-card/40 hover:bg-card/70 transition-colors px-3 h-9 text-muted-foreground',
+                'inline-flex items-center gap-2 rounded-xl border border-border/60 bg-card/40 hover:bg-card/70 transition-colors px-3 h-10 text-muted-foreground',
                 className
             )}
         >
@@ -222,14 +222,7 @@ export default function CommandPaletteProvider({ children }: { children: React.R
         <CommandPaletteContext.Provider value={{ open: () => setOpen(true) }}>
             {children}
             <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent
-                className="max-w-xl p-0 rounded-2xl overflow-hidden gap-0"
-                onOpenAutoFocus={(e) => {
-                    if (typeof window !== 'undefined' && window.innerWidth < 768) {
-                        e.preventDefault();
-                    }
-                }}
-            >
+            <DialogContent className="max-w-xl p-0 rounded-2xl overflow-hidden gap-0">
                 <DialogHeader className="sr-only">
                     <DialogTitle>Command palette</DialogTitle>
                 </DialogHeader>
@@ -281,7 +274,7 @@ export default function CommandPaletteProvider({ children }: { children: React.R
                         </div>
                     ))}
                 </div>
-                <div className="flex items-center justify-between px-4 py-2 border-t border-border/50 text-[10px] text-muted-foreground font-mono">
+                <div className="hidden md:flex items-center justify-between px-4 py-2 border-t border-border/50 text-[10px] text-muted-foreground font-mono">
                     <div className="flex items-center gap-3">
                         <span>↑↓ navigate</span>
                         <span>↵ select</span>

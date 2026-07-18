@@ -330,6 +330,7 @@ const SquadPlayerSchema = z.object({
   imageUrl: z.string().optional(),
   isCaptain: z.boolean().optional(),
   isWicketKeeper: z.boolean().optional(),
+  isOverseas: z.boolean().optional(),
   isIn: z.boolean().optional(),
   isOut: z.boolean().optional(),
 });
@@ -529,7 +530,7 @@ export type WinProbPoint = {
   team1Prob: number;
   team2Name: string;
   team2Prob: number;
-  // Test-match draw/tie probability (cricbuzz emits a `draw` field per point).
+  // Test-match draw/tie probability (the source emits a `draw` field per point).
   // 0 (or absent) for limited-overs formats where a draw isn't possible.
   drawProb?: number;
   isTeam1Wicket: boolean;
@@ -811,7 +812,7 @@ export async function getPlayerProfile(profileId: string, playerName?: string): 
   }
 
   // Extract image URL from the new structure
-  // New format: <img srcset="https://static.cricbuzz.com/a/img/v1/i1/c717783/zak-crawley.jpg...">
+  // New format: <img srcset="https://static.the source.com/a/img/v1/i1/c717783/zak-crawley.jpg...">
   let imageUrl = '';
   // Try new structure first - look for player image in the header card
   const headerImg = $('.rounded-lg.overflow-hidden img, .w-16.h-16 img').first();
@@ -841,7 +842,7 @@ export async function getPlayerProfile(profileId: string, playerName?: string): 
   const getPersonalInfo = (label: string): string => {
     let value = '';
 
-    // Try new structure with flex layout (Cricbuzz's current HTML)
+    // Try new structure with flex layout (the source's current HTML)
     // Each row has: label div (w-1/3) and value div (w-2/3 flex-grow)
     $('div.flex.gap-4').each((_, row) => {
       const $row = $(row);
@@ -1007,7 +1008,7 @@ export async function getPlayerProfile(profileId: string, playerName?: string): 
   const battingStats: z.infer<typeof PlayerStatsSchema>[] = [];
   const battingCareerSummary: z.infer<typeof BattingStatsRowSchema>[] = [];
 
-  // Extract career summary — Cricbuzz uses a div (not h3) with text "Batting Career Summary"
+  // Extract career summary — the source uses a div (not h3) with text "Batting Career Summary"
   // followed by a table with grid-cols-6 layout: [stat(col-span-2), Test, ODI, T20, IPL]
   $('div').filter((_, el) => {
     const text = $(el).text().trim();
@@ -1283,7 +1284,7 @@ export async function getPlayerProfile(profileId: string, playerName?: string): 
   const recentBattingForm: z.infer<typeof RecentBattingFormSchema>[] = [];
   const recentBowlingForm: z.infer<typeof RecentBowlingFormSchema>[] = [];
 
-  // Find Recent Form — Cricbuzz uses div containers with "Batting Form" / "Bowling Form" headers
+  // Find Recent Form — the source uses div containers with "Batting Form" / "Bowling Form" headers
   // Each match row is an <a> with flex children in order: Score, OPPN, Format, Date
   $('div').filter((_, el) => {
     const text = $(el).text().trim();
@@ -1587,6 +1588,31 @@ export async function scrapeUpcomingMatches(): Promise<LiveMatch[]> {
   const upcomingMatches: LiveMatch[] = [];
   const processedMatchIds = new Set<string>();
 
+  // The visible date span is JS-populated (empty in SSR HTML), but the page ships
+  // JSON-LD SportsEvent data with a reliable startDate. Index it by team pair.
+  const startTimeByTeams = new Map<string, { startDate: number; status: string }>();
+  // SportsEvent entries are nested (WebPage -> mainEntity -> itemListElement), so walk in.
+  const collectEvents = (node: any): any[] => { // eslint-disable-line @typescript-eslint/no-explicit-any
+    if (!node || typeof node !== 'object') return [];
+    if (Array.isArray(node)) return node.flatMap(collectEvents);
+    if (node['@type'] === 'SportsEvent') return [node];
+    return collectEvents(node.itemListElement ?? node.mainEntity ?? node['@graph'] ?? []);
+  };
+  $('script[type="application/ld+json"]').each((_, el) => {
+    try {
+      const events = collectEvents(JSON.parse($(el).text()));
+      for (const ev of events) {
+        if (ev.startDate && Array.isArray(ev.competitor)) {
+          const teamKey = ev.competitor.map((c: { name?: string }) => (c.name || '').toLowerCase().trim()).sort().join('|');
+          const ts = Date.parse(ev.startDate);
+          if (teamKey && !isNaN(ts)) {
+            startTimeByTeams.set(teamKey, { startDate: Math.floor(ts / 1000), status: typeof ev.eventStatus === 'string' ? ev.eventStatus : '' });
+          }
+        }
+      }
+    } catch { /* ignore malformed JSON-LD */ }
+  });
+
   // Use same structure as live matches
   $('.flex.flex-col.gap-2 > div').each((_, seriesBlock) => {
     const $seriesBlock = $(seriesBlock);
@@ -1668,9 +1694,15 @@ export async function scrapeUpcomingMatches(): Promise<LiveMatch[]> {
         status = $match.find('span[class*="text-cb"]').last().text().trim();
       }
       
-      // Use dateTime as status if available and no other status found
-      if (!status && dateTime) {
+      // Enrich with the reliable start time from JSON-LD, matched by team pair.
+      const teamKey = teams.map((t) => t.name.toLowerCase().trim()).sort().join('|');
+      const startMeta = startTimeByTeams.get(teamKey);
+
+      // For upcoming matches the start date/time is the most useful "status".
+      if (dateTime) {
         status = dateTime;
+      } else if (startMeta?.status) {
+        status = startMeta.status;
       }
 
       if (teams.length > 0) {
@@ -1684,12 +1716,14 @@ export async function scrapeUpcomingMatches(): Promise<LiveMatch[]> {
           seriesName,
           seriesUrl,
           venue: venue || undefined,
+          startDate: startMeta?.startDate,
         });
       }
     });
   });
 
   // Fallback: if CSS parsing returned nothing, try extracting from RSC payload
+  let result = upcomingMatches;
   if (upcomingMatches.length === 0) {
     const fallback = extractMatchesFromRSCPayload(html);
     const upcoming = fallback.filter(m => {
@@ -1697,10 +1731,22 @@ export async function scrapeUpcomingMatches(): Promise<LiveMatch[]> {
       return !s.includes('won') && !s.includes('drawn') && !s.includes('no result') &&
              !s.includes('abandoned') && !s.includes('tied');
     });
-    return upcoming.length > 0 ? upcoming : fallback;
+    result = upcoming.length > 0 ? upcoming : fallback;
   }
 
-  return upcomingMatches;
+  // Enrich every match with the reliable start time from JSON-LD (matched by team pair),
+  // regardless of which parsing path produced it.
+  for (const m of result) {
+    if (m.startDate) continue;
+    const key = (m.teams || []).map(t => (t.name || '').toLowerCase().trim()).sort().join('|');
+    const meta = startTimeByTeams.get(key);
+    if (meta) {
+      m.startDate = meta.startDate;
+      if (!m.status || m.status === 'Status not available') m.status = meta.status;
+    }
+  }
+
+  return result;
 }
 
 export async function scrapeRecentMatches(): Promise<LiveMatch[]> {
@@ -3225,11 +3271,11 @@ export async function getMatchSquads(matchId: string): Promise<MatchSquads> {
   // Helper to upgrade player image quality to 225x225
   const upgradePlayerImage = (url: string | undefined): string | undefined => {
     if (!url) return undefined;
-    // Upgrade static.cricbuzz.com URLs (e.g., 50x50 -> 225x225)
+    // Upgrade static.the source.com URLs (e.g., 50x50 -> 225x225)
     if (url.includes('static.cricbuzz.com')) {
       return url.replace(/\/\d+x\d+\//, '/225x225/');
     }
-    // Convert img1.cricbuzz.com faceImages to higher res static URL
+    // Convert img1.the source.com faceImages to higher res static URL
     const faceMatch = url.match(/c-img\/faceImages\/(\d+)/);
     if (faceMatch) {
       return `https://static.cricbuzz.com/a/img/v1/225x225/i1/c${faceMatch[1]}/player.jpg`;
@@ -3256,6 +3302,7 @@ export async function getMatchSquads(matchId: string): Promise<MatchSquads> {
       const rawImageUrl = $player.find('img').attr('src') || $player.find('img').attr('srcset')?.split(' ')[0];
       const isIn = $player.find('.cbPlayerIn').length > 0;
       const isOut = $player.find('.cbPlayerOut').length > 0;
+      const isOverseas = $player.find('.cbOverseas').length > 0;
 
       if (!name) return null;
       return {
@@ -3265,6 +3312,7 @@ export async function getMatchSquads(matchId: string): Promise<MatchSquads> {
         imageUrl: upgradePlayerImage(rawImageUrl),
         isCaptain: captainWK.includes('C'),
         isWicketKeeper: captainWK.includes('WK'),
+        ...(isOverseas ? { isOverseas: true } : {}),
         ...(isIn ? { isIn: true } : {}),
         ...(isOut ? { isOut: true } : {}),
       };
@@ -3292,6 +3340,7 @@ export async function getMatchSquads(matchId: string): Promise<MatchSquads> {
     const rawImageUrl = $player.find('img').attr('src') || $player.find('img').attr('srcset')?.split(' ')[0];
     const isIn = $player.find('.cbPlayerIn').length > 0;
     const isOut = $player.find('.cbPlayerOut').length > 0;
+    const isOverseas = $player.find('.cbOverseas').length > 0;
 
     if (!name) return null;
     return {
@@ -3299,6 +3348,7 @@ export async function getMatchSquads(matchId: string): Promise<MatchSquads> {
       role: role || 'Player',
       profileId,
       imageUrl: upgradePlayerImage(rawImageUrl),
+      ...(isOverseas ? { isOverseas: true } : {}),
       ...(isIn ? { isIn: true } : {}),
       ...(isOut ? { isOut: true } : {}),
     };
@@ -3450,7 +3500,7 @@ export async function scrapePlayerHighlights(highlightsUrl: string): Promise<Pla
   }
 
   // Extract ball-by-ball highlights
-  // Cricbuzz HTML structure:
+  // the source HTML structure:
   // <div class="flex gap-4 ...">
   //   <div class="flex flex-col ...">           <- first child (contains over + badge)
   //     <div class="font-bold ...">2.3</div>    <- over number
@@ -4086,7 +4136,7 @@ export async function fetchBallMapData(matchId: string, inningsId: number): Prom
 }
 
 export async function scrapeWinProbHistory(matchId: string): Promise<WinProbHistory | null> {
-  // The Cricbuzz graphs page embeds win probability data in Next.js RSC flight payload
+  // The the source graphs page embeds win probability data in Next.js RSC flight payload
   // as winProbabilityChartData and winProbabilityChartLegends in the HTML source
   const url = `https://www.cricbuzz.com/live-cricket-graphs/${matchId}`;
   let html: string;

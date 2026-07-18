@@ -132,7 +132,7 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                             <div className="px-0 md:px-6 pb-3 md:pb-6">
                                 <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 md:gap-8">
                                     <div className="lg:col-span-3 space-y-3 md:space-y-8">
-                                        <Card className="glass-card rounded-none md:rounded-lg">
+                                        <Card className="surface-card rounded-none md:rounded-lg">
                                             <CardHeader className="border-b border-border/50 p-2 md:p-6">
                                                 <CardTitle className="flex items-center gap-2 text-xs md:text-base">
                                                     {inning.battingTeamName} Batting
@@ -207,7 +207,7 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                                             </CardContent>
                                         </Card>
 
-                                        <Card className="glass-card rounded-none md:rounded-lg">
+                                        <Card className="surface-card rounded-none md:rounded-lg">
                                             <CardHeader className="border-b border-border/50 p-2 md:p-6">
                                                 <CardTitle className="flex items-center gap-2 text-xs md:text-base">
                                                     {inning.bowlingTeamName} Bowling
@@ -283,7 +283,7 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                                     </div>
                                     <div className="lg:col-span-2 space-y-3 md:space-y-6">
                                         {inning.partnerships && inning.partnerships.length > 0 && (
-                                            <Card className="glass-card rounded-none md:rounded-lg">
+                                            <Card className="surface-card rounded-none md:rounded-lg">
                                                 <CardHeader className="border-b border-border/50 p-2 md:p-6">
                                                     <CardTitle className="flex items-center gap-2 text-xs md:text-base">
                                                         Partnerships
@@ -292,7 +292,7 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                                                 <CardContent className="grid gap-2 md:gap-3 p-2 md:p-4">
                                                     {inning.partnerships.map((partnership, i) => (
                                                         <div key={i}
-                                                            className="p-2 md:p-4 rounded-lg bg-gradient-to-br from-purple-50/50 to-blue-50/50 dark:from-purple-950/20 dark:to-blue-950/20 border border-purple-100 dark:border-purple-900/30 hover:shadow-md transition-all"
+                                                            className="p-2 md:p-4 rounded-lg bg-muted/40 border border-border hover:shadow-md transition-all"
                                                         >
                                                             <div className="flex justify-between items-start mb-2 md:mb-3 gap-2">
                                                                 <div className="flex-1 min-w-0">
@@ -327,7 +327,7 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                                             </Card>
                                         )}
                                         {inning.fallOfWickets.length > 0 && (
-                                            <Card className="glass-card rounded-none md:rounded-lg">
+                                            <Card className="surface-card rounded-none md:rounded-lg">
                                                 <CardHeader className="border-b border-border/50 p-2 md:p-6">
                                                     <CardTitle className="flex items-center gap-2 text-xs md:text-base">
                                                         Fall of Wickets
@@ -355,7 +355,7 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                                             </Card>
                                         )}
                                         {inning.yetToBat.length > 0 && (
-                                            <Card className="glass-card rounded-none md:rounded-lg">
+                                            <Card className="surface-card rounded-none md:rounded-lg">
                                                 <CardHeader className="border-b border-border/50 p-2 md:p-6">
                                                     <CardTitle className="flex items-center gap-2 text-xs md:text-base">
                                                         Yet to Bat
@@ -383,7 +383,7 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
             {/* Match Information - Detailed */}
             <div className="px-0 md:px-4">
                 {scorecard.matchInfo && (
-                    <Card className="glass-card rounded-none md:rounded-lg">
+                    <Card className="surface-card rounded-none md:rounded-lg">
                         <CardHeader className="border-b border-border/50 p-2 md:p-6">
                             <CardTitle className="text-sm md:text-2xl">Match Information</CardTitle>
                         </CardHeader>

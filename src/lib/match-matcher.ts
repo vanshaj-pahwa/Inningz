@@ -78,11 +78,11 @@ export function findBestStreamMatch(
   teams: { name: string }[],
   streamMatches: StreamMatch[]
 ): MatchCandidate | null {
-  // Extract team names from Cricbuzz title (format: "Team A vs Team B, Match Description")
+  // Extract team names from the source title (format: "Team A vs Team B, Match Description")
   const titleParts = cricbuzzTitle.split(',')[0]; // "Team A vs Team B"
   const titleTeams = titleParts.split(/\s+vs\s+/i).map(t => t.trim());
 
-  // Build list of known team names from Cricbuzz data
+  // Build list of known team names from the source data
   const cricbuzzTeams = [
     ...titleTeams,
     ...teams.map(t => t.name),

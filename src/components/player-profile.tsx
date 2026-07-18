@@ -16,8 +16,8 @@ export default function PlayerProfileDisplay({ profile }: { profile: PlayerProfi
     return (
         <div className="w-full bg-background">
             {/* Header Section */}
-            <div className="relative bg-gradient-to-r from-green-900 to-zinc-950 overflow-hidden rounded-t-2xl">
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent"></div>
+            <div className="relative bg-zinc-900 overflow-hidden rounded-t-2xl">
+                <div className="absolute inset-0"></div>
                 <div className="relative max-w-7xl mx-auto px-4 py-6 md:px-12 md:py-8">
                     <div className="flex items-center gap-4 md:gap-6">
                         {info.imageUrl && (

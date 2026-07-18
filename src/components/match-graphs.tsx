@@ -243,8 +243,40 @@ export default function MatchGraphs({ matchId, initialTab, matchTitle = '', seri
     ]
     : undefined;
 
+  const overDataShown = !tried.overData || overDataLoading || overInnings.length > 0;
+  const show: Record<SectionId, boolean> = {
+    winProb: !!(!tried.winProb || winProbLoading || winProbData),
+    runRate: overDataShown,
+    worm: overDataShown,
+    overs: overDataShown,
+    partnerships: !!(!tried.partnerships || partnershipsLoading || (partnershipData && partnershipData.length > 0)),
+    ballMap: !!(!tried.ballMap || (ballMapLoading.get(selectedBallMapInn) ?? false) || ballMapData.size > 0),
+    matchups: !!(!tried.matchups || matchupsLoading || (matchupsData && matchupsData.cards.length > 0)),
+    venue: !!(!tried.venue || venueLoading || venueData),
+    players: !!(!tried.allPlayers || allPlayersLoading || (allPlayersData && allPlayersData.playersByRole.length > 0)),
+  };
+  const visibleSections = SECTIONS.filter((s) => show[s.id]);
+
+  const jumpTo = (id: SectionId) =>
+    sectionRefs.current.get(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
   return (
     <div className="max-w-6xl mx-auto">
+      {visibleSections.length > 1 && (
+        <div className="md:sticky md:top-4 z-30 mb-4 -mx-2 px-2 py-2 glass-header rounded-none md:rounded-xl">
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+            {visibleSections.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => jumpTo(s.id)}
+                className="shrink-0 px-3 py-1.5 rounded-full text-[11px] font-medium bg-muted/70 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <div>
         {(!tried.winProb || winProbLoading || winProbData) && (
           <GraphSection
@@ -554,7 +586,7 @@ function GraphSection({
         )}
       </div>
 
-      <div className="h-px bg-gradient-to-r from-cyan-500/40 via-border/50 to-transparent mb-5 md:mb-6" />
+      <div className="h-px bg-border mb-5 md:mb-6" />
 
       {innings && innings.length > 1 && onInningsChange && selectedInnings !== undefined && (
         <div className="flex flex-wrap gap-1.5 mb-4">
@@ -575,7 +607,7 @@ function GraphSection({
         </div>
       )}
 
-      <div className="glass-card p-3 md:p-5 overflow-hidden">
+      <div className="surface-card p-3 md:p-5 overflow-hidden">
         {loading ? (skeleton ?? <GraphsSkeleton />) : children}
       </div>
     </section>

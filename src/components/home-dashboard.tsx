@@ -11,6 +11,8 @@ import {
   getSeriesSchedule,
 } from '@/app/actions';
 import type { LiveMatch, RankingsData, RankingEntry, CricketSeries } from '@/app/actions';
+import { formatScore } from '@/lib/utils';
+import MatchCard from '@/components/match-card';
 import { useDashboardPreferences } from '@/contexts/dashboard-preferences-context';
 import RecentHistory from '@/components/recent-history';
 import FavoritesSection from '@/components/favorites-section';
@@ -114,19 +116,6 @@ export default function HomeDashboard() {
     return () => { cancelled = true; };
   }, []);
 
-  const isComplete = (status: string) => {
-    const s = status.toLowerCase();
-    return s.includes('won') || s.includes('no result') || s.includes('drawn') ||
-      s.includes('tied') || s.includes('complete') || s.includes('abandoned');
-  };
-
-  const isLive = (status: string) => {
-    if (isComplete(status)) return false;
-    const s = status.toLowerCase();
-    if (s.includes('match scheduled') || s === 'status not available' || s.includes('preview')) return false;
-    return true;
-  };
-
   return (
     <div className="space-y-6 md:space-y-8 pt-4 md:pt-6 overflow-hidden">
       {/* Favorites (chips strip) */}
@@ -143,21 +132,7 @@ export default function HomeDashboard() {
           <SectionHeader title="Live" liveDot href="/?tab=live" hrefLabel="View all" />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-4">
             {liveMatches.map((m) => (
-              <LiveMatchCard key={m.matchId} match={m} isLive={isLive(m.status)} />
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {/* === SERIES === */}
-      {seriesLoading ? (
-        <SectionSkeleton title="Series" rows={3} />
-      ) : series.length > 0 ? (
-        <section className="overflow-hidden">
-          <SectionHeader title="Series" href="/?tab=series" hrefLabel="See all" />
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-4">
-            {series.map((s, i) => (
-              <SeriesCard key={s.seriesId} series={s} index={i} />
+              <MatchCard key={m.matchId} match={m} header="series" />
             ))}
           </div>
         </section>
@@ -202,6 +177,20 @@ export default function HomeDashboard() {
         </div>
       </section>
 
+      {/* === SERIES === */}
+      {seriesLoading ? (
+        <SectionSkeleton title="Series" rows={3} />
+      ) : series.length > 0 ? (
+        <section className="overflow-hidden">
+          <SectionHeader title="Series" href="/?tab=series" hrefLabel="See all" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-4">
+            {series.map((s, i) => (
+              <SeriesCard key={s.seriesId} series={s} index={i} />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       {/* === RANKINGS STRIP === */}
       <section className="overflow-hidden">
         <SectionHeader
@@ -213,7 +202,7 @@ export default function HomeDashboard() {
           }
         />
         {/* Mobile: horizontal scroll; Desktop: 3-col grid */}
-        <div className="md:hidden -mx-4 px-4 flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 no-scrollbar">
+        <div className="md:hidden flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 no-scrollbar">
           {(['batting', 'bowling', 'all-rounder'] as RankingCategory[]).map((cat) => (
             <div key={cat} className="snap-start shrink-0 w-[85%] xs:w-[80%]">
               <RankingsWidget
@@ -318,7 +307,7 @@ function FormatSwitcher({
           <button
             key={f.value}
             onClick={() => onChange(f.value)}
-            className={`px-2.5 py-1 rounded-md text-[10px] md:text-[11px] font-bold uppercase tracking-wider transition-colors ${
+            className={`px-3 py-2 rounded-md text-[11px] font-bold uppercase tracking-wider transition-colors ${
               active
                 ? 'bg-primary text-primary-foreground'
                 : 'text-muted-foreground hover:text-foreground'
@@ -352,7 +341,7 @@ function RankingsWidget({
   const entries = data?.entries?.slice(0, 3) ?? [];
 
   return (
-    <div className="glass-card p-3 md:p-4">
+    <div className="surface-card p-3 md:p-4">
       <div className="flex items-center justify-between mb-3">
         <span className={`text-[10px] md:text-[11px] font-bold uppercase tracking-widest ${cfg.accent}`}>
           {formatLabel} {cfg.noun}
@@ -466,14 +455,17 @@ function CompactMatchRow({ match, variant }: { match: LiveMatch; variant: 'recen
     : (status.includes('won') || status.includes('drawn') || status.includes('tied') ? 'text-amber-400' : 'text-muted-foreground');
 
   const startsAt = isUpcoming ? formatStartTime(match.startDate) : null;
-  const upcomingFooter = startsAt || (match.venue && match.venue !== 'N/A' ? match.venue : null);
+  const upcomingWhen = startsAt
+    ? `Starts ${startsAt}`
+    : (match.status && match.status.toLowerCase() !== 'status not available' ? match.status : null);
+  const upcomingFooter = upcomingWhen || (match.venue && match.venue !== 'N/A' ? match.venue : null);
 
   return (
     <Link href={`/match/${match.matchId}`} className="block">
       <motion.div
         whileHover={{ y: -3 }}
         transition={{ type: 'spring', stiffness: 320, damping: 22 }}
-        className="glass-card p-3 overflow-hidden h-full hover:border-primary/30"
+        className="surface-card p-3 overflow-hidden h-full hover:border-primary/30"
       >
         <p className="text-[10px] text-muted-foreground/80 truncate mb-1.5">
           {match.seriesName || match.title}
@@ -486,7 +478,7 @@ function CompactMatchRow({ match, variant }: { match: LiveMatch; variant: 'recen
               </span>
               {t.score && (
                 <span className="font-display text-sm tabular-nums text-foreground shrink-0">
-                  {t.score}
+                  {formatScore(t.score)}
                 </span>
               )}
             </div>
@@ -495,7 +487,7 @@ function CompactMatchRow({ match, variant }: { match: LiveMatch; variant: 'recen
         {isUpcoming ? (
           upcomingFooter && (
             <p className={`mt-2 pt-1.5 border-t border-border/40 text-[10px] font-medium truncate ${statusColor}`}>
-              {startsAt ? `Starts at ${startsAt}` : upcomingFooter}
+              {upcomingFooter}
             </p>
           )
         ) : (
@@ -514,55 +506,6 @@ function CompactMatchRow({ match, variant }: { match: LiveMatch; variant: 'recen
 // Original Live card (kept — full-size for the hero row)
 // ============================================================================
 
-function LiveMatchCard({ match, isLive }: { match: LiveMatch; isLive: boolean }) {
-  const isComplete = match.status.toLowerCase().includes('won');
-
-  return (
-    <Link href={`/match/${match.matchId}`} className="block">
-      <motion.div
-        whileHover={{ y: -4 }}
-        transition={{ type: 'spring', stiffness: 320, damping: 22 }}
-        className={`glass-card p-3 md:p-4 overflow-hidden hover:border-primary/30 ${isLive ? 'ring-1 ring-red-500/20' : ''}`}
-      >
-        <div className="flex items-center justify-between gap-2 mb-2 md:mb-3">
-          <p className="text-[10px] md:text-xs text-muted-foreground truncate flex-1">
-            {match.seriesName || match.title}
-          </p>
-          {isLive && (
-            <span className="text-[10px] md:text-xs font-bold text-red-500 shrink-0">
-              LIVE
-            </span>
-          )}
-        </div>
-
-        <div className="space-y-1.5 md:space-y-2">
-          {match.teams.map((team, idx) => (
-            <div key={idx} className="flex items-center justify-between gap-2">
-              <span className="text-[13px] md:text-sm font-semibold truncate text-foreground flex-1">
-                {team.name}
-              </span>
-              {team.score && (
-                <span className="font-display text-sm md:text-base tabular-nums shrink-0 text-foreground">
-                  {team.score}
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {match.status && match.status.toLowerCase() !== 'status not available' && (
-          <div className="mt-2 md:mt-3 pt-2 md:pt-2.5 border-t border-border/50">
-            <p className={`text-[10px] md:text-xs font-medium truncate ${
-              isLive ? 'text-red-400' : isComplete ? 'text-amber-400' : 'text-muted-foreground'
-            }`}>
-              {match.status}
-            </p>
-          </div>
-        )}
-      </motion.div>
-    </Link>
-  );
-}
 
 // ============================================================================
 // Skeletons + empty

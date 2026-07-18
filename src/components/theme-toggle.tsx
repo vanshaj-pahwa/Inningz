@@ -46,46 +46,6 @@ const themes: ThemeOption[] = [
       primary: '#007AFF',
     }
   },
-  {
-    id: 'midnight',
-    name: 'Midnight',
-    colors: {
-      bg: '#0e1421',
-      card: '#161d2d',
-      primary: '#4a90e2',
-      accent: '#9b59b6',
-    }
-  },
-  {
-    id: 'pitch',
-    name: 'Pitch',
-    colors: {
-      bg: '#0d1a12',
-      card: '#132419',
-      primary: '#4ade80',
-      accent: '#eab308',
-    }
-  },
-  {
-    id: 'sunset',
-    name: 'Sunset',
-    colors: {
-      bg: '#1a100a',
-      card: '#241710',
-      primary: '#f97316',
-      accent: '#ec4899',
-    }
-  },
-  {
-    id: 'sepia',
-    name: 'Sepia',
-    colors: {
-      bg: '#f0e6d6',
-      card: '#faf6ef',
-      primary: '#8b5a2b',
-      accent: '#c98b2b',
-    }
-  },
 ]
 
 function ThemeSwatch({ theme, isActive, onClick }: {
@@ -167,7 +127,7 @@ export function ThemeToggle() {
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="icon" className="relative h-9 w-9 rounded-xl">
+        <Button variant="outline" size="icon" className="relative h-10 w-10 rounded-xl">
           {/* Light theme icon */}
           <Sun className={`h-4 w-4 transition-all ${
             isLightTheme ? 'rotate-0 scale-100' : '-rotate-90 scale-0'

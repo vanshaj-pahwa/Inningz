@@ -9,7 +9,7 @@ import { loadMoreCommentary as loadMoreCommentaryAction, getPlayerProfile, getPl
 import type { ScrapeCricbuzzUrlOutput, Commentary, PlayerProfile, PlayerHighlights } from '@/app/actions';
 import { useLiveScore } from '@/lib/data-layer';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { User, ArrowLeft, ChevronLeft, ChevronRight, Share2, Trophy } from "lucide-react";
+import { User, ArrowLeft, ChevronLeft, ChevronRight, ChevronUp, Share2, Trophy } from "lucide-react";
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { cn } from '@/lib/utils';
@@ -23,16 +23,24 @@ import MatchSquadsDisplay from './match-squads';
 import { ThemeToggle } from './theme-toggle';
 
 import WinProbability from './win-probability';
-import QuickScoreWidget from './quick-score-widget';
+import MatchStickyBar from './match-sticky-bar';
+import Breadcrumbs from './breadcrumbs';
 import { useRecentHistoryContext } from '@/contexts/recent-history-context';
 import { useSwipe } from '@/hooks/use-swipe';
 import { ShareButton, StatShareDialog } from './share-cards';
 import { VirtualCommentaryList } from './virtual-commentary-list';
 import PointsTableDisplay from './points-table';
-import LiveStreamTab from './live-stream-tab';
-import MatchGraphs from './match-graphs';
+import dynamic from 'next/dynamic';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
-import { MatchPageSkeleton, PlayerProfileSkeleton, HighlightsSkeleton } from './match-skeletons';
+import { MatchPageSkeleton, PlayerProfileSkeleton, HighlightsSkeleton, GraphsSkeleton } from './match-skeletons';
+
+// Heavy, tab-gated components (hls.js / recharts + gsap) loaded as async chunks so they
+// stay out of the initial match-page bundle.
+const LiveStreamTab = dynamic(() => import('./live-stream-tab'), { ssr: false });
+const MatchGraphs = dynamic(() => import('./match-graphs'), {
+    ssr: false,
+    loading: () => <GraphsSkeleton />,
+});
 import { CommandPaletteTrigger } from './command-palette';
 
 type LastEventType = {
@@ -111,6 +119,8 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
     }, []);
     const [overSheetOpen, setOverSheetOpen] = useState(false);
     const [overSheetData, setOverSheetData] = useState<Commentary | null>(null);
+    const [keyStatsOpen, setKeyStatsOpen] = useState(false);
+    const [loadTimedOut, setLoadTimedOut] = useState(false);
     const [graphsInitialTab, setGraphsInitialTab] = useState<string | undefined>(undefined);
 
     // SSE-powered live score with polling fallback
@@ -140,6 +150,14 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
             commentary: [...liveData.commentary, ...extraCommentary],
         };
     }, [liveData, extraCommentary]);
+
+    // Invalid/dead matches can load forever without erroring. Stop the skeleton after a
+    // grace period and show a "Match unavailable" state instead.
+    useEffect(() => {
+        if (liveData || liveError) { setLoadTimedOut(false); return; }
+        const t = setTimeout(() => setLoadTimedOut(true), 12000);
+        return () => clearTimeout(t);
+    }, [liveData, liveError, matchId]);
 
     // Dynamic views based on data availability
     const views: View[] = useMemo(() => {
@@ -384,13 +402,22 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
     }, [liveData]);
 
 
-    if (liveError) {
+    const matchUnavailable = data?.status === 'Match data not available' || data?.score === 'Score not available';
+
+    if (matchUnavailable || ((liveError || loadTimedOut) && !data)) {
         return (
-            <div className="max-w-4xl mx-auto px-4">
-                <Alert variant="destructive" className="mt-8 rounded-2xl">
-                    <AlertTitle>Error</AlertTitle>
-                    <AlertDescription>{liveError}</AlertDescription>
-                </Alert>
+            <div className="max-w-md mx-auto px-4 min-h-[60vh] flex flex-col items-center justify-center text-center">
+                <div className="p-4 rounded-full bg-muted mb-4">
+                    <Trophy className="w-7 h-7 text-muted-foreground" />
+                </div>
+                <h2 className="text-xl font-display mb-1.5">Match unavailable</h2>
+                <p className="text-sm text-muted-foreground mb-5 max-w-xs">
+                    We couldn&apos;t load this match. It may have ended or the link is no longer valid.
+                </p>
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" onClick={() => refresh()} className="rounded-xl">Try again</Button>
+                    <Button onClick={() => router.push('/')} className="rounded-xl">Back to Home</Button>
+                </div>
             </div>
         )
     }
@@ -450,7 +477,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
     };
 
     const renderCommentaryItem = (comment: Commentary, index: number) => {
-        // Filter out Cricbuzz promotional/branding text
+        // Filter out the source promotional/branding text
         const cricbuzzPattern = /cricbuzz|comm\s*box|download\s*app|#cricbuzz/i;
         if (cricbuzzPattern.test(comment.text) || cricbuzzPattern.test(comment.headline || '')) {
             return null;
@@ -549,7 +576,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
 
                 return (
                     <div key={index} className="slide-in-left my-3">
-                        <div className="rounded-xl overflow-hidden bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
+                        <div className="rounded-xl overflow-hidden bg-primary/5 border border-primary/20">
                             {/* Header */}
                             <div className="px-3 py-2 bg-primary/10 border-b border-primary/20 flex items-center gap-2">
                                 <span className="text-sm font-bold text-primary">
@@ -578,9 +605,9 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                             }`}
                                         >
                                             {cleanName}
-                                            {isBoth && <span className="text-[9px] text-primary">(w/c)</span>}
-                                            {isCaptain && !isBoth && <span className="text-[9px] text-amber-400">(c)</span>}
-                                            {isWicketkeeper && !isBoth && <span className="text-[9px] text-blue-400">(w)</span>}
+                                            {isBoth && <span className="text-[11px] text-primary">(w/c)</span>}
+                                            {isCaptain && !isBoth && <span className="text-[11px] text-amber-400">(c)</span>}
+                                            {isWicketkeeper && !isBoth && <span className="text-[11px] text-blue-400">(w)</span>}
                                         </span>
                                     );
                                 })}
@@ -738,7 +765,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                     {/* Mobile layout */}
                                     <div className="flex md:hidden items-start gap-2.5 py-1">
                                         <div className="flex-shrink-0 flex flex-col items-center over-badge-bg rounded-xl px-2.5 py-2 min-w-[44px]">
-                                            <span className="text-[9px] text-muted-foreground font-medium">Over</span>
+                                            <span className="text-[11px] text-muted-foreground font-medium">Over</span>
                                             <span className="text-xl font-display text-primary">{Math.floor(comment.overNumber || 0)}</span>
                                         </div>
                                         <div className="flex-1 min-w-0 flex flex-col gap-2">
@@ -752,14 +779,14 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
 
                                                     if (ballStr === '6') ballClass += " bg-purple-600 text-white";
                                                     else if (ballStr === '4') ballClass += " bg-blue-600 text-white";
-                                                    else if (ballStr.toLowerCase().includes('wd') || ballStr.toLowerCase().includes('wide')) { ballClass += " bg-amber-500 text-white text-[8px]"; ballContent = 'Wd'; }
-                                                    else if (ballStr.toLowerCase().includes('nb') || ballStr.toLowerCase().includes('noball')) { ballClass += " bg-orange-500 text-white text-[8px]"; ballContent = 'Nb'; }
+                                                    else if (ballStr.toLowerCase().includes('wd') || ballStr.toLowerCase().includes('wide')) { ballClass += " bg-amber-500 text-white text-[11px]"; ballContent = 'Wd'; }
+                                                    else if (ballStr.toLowerCase().includes('nb') || ballStr.toLowerCase().includes('noball')) { ballClass += " bg-orange-500 text-white text-[11px]"; ballContent = 'Nb'; }
                                                     else if (ballStr === 'W') ballClass += " bg-red-600 text-white";
-                                                    else if (ballStr.toLowerCase().includes('lb') || ballStr.toLowerCase().includes('legbye')) { ballClass += " bg-zinc-500 text-white text-[8px]"; ballContent = 'Lb'; }
-                                                    else if (ballStr.toLowerCase().includes('b') && ballStr.length <= 2) { ballClass += " bg-zinc-500 text-white text-[8px]"; ballContent = 'B'; }
+                                                    else if (ballStr.toLowerCase().includes('lb') || ballStr.toLowerCase().includes('legbye')) { ballClass += " bg-zinc-500 text-white text-[11px]"; ballContent = 'Lb'; }
+                                                    else if (ballStr.toLowerCase().includes('b') && ballStr.length <= 2) { ballClass += " bg-zinc-500 text-white text-[11px]"; ballContent = 'B'; }
                                                     else if (ballStr === '0' || ballStr === '.') { ballClass += " bg-muted text-muted-foreground"; ballContent = '\u2022'; }
                                                     else if (/^\d+$/.test(ballStr)) ballClass += " bg-green-600 text-white";
-                                                    else ballClass += " bg-muted text-muted-foreground text-[8px]";
+                                                    else ballClass += " bg-muted text-muted-foreground text-[11px]";
 
                                                     return <span key={idx} className={ballClass}>{ballContent}</span>;
                                                 })}
@@ -771,7 +798,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                             </div>
                                             <div className="flex items-center gap-1.5 self-start bg-muted/80 px-2.5 py-1 rounded-full border border-border/50">
                                                 <span className="font-bold text-xs text-primary">{comment.teamShortName}</span>
-                                                <span className="font-display text-sm font-bold text-foreground">{comment.teamScore}-{comment.teamWickets}</span>
+                                                <span className="font-display text-sm font-bold text-foreground">{comment.teamScore}/{comment.teamWickets}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -811,7 +838,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                 )}
                                                 <div className="flex items-center gap-1.5 ml-auto bg-muted/80 px-3 py-1.5 rounded-full border border-border/50">
                                                     <span className="font-bold text-xs text-primary">{comment.teamShortName}</span>
-                                                    <span className="font-display text-base text-foreground">{comment.teamScore}-{comment.teamWickets}</span>
+                                                    <span className="font-display text-base text-foreground">{comment.teamScore}/{comment.teamWickets}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -974,6 +1001,44 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
         }
     }
 
+    const hasKeyStats = !!(data && (
+        (data.partnership && data.partnership !== '-') ||
+        (data.lastWicket && data.lastWicket !== '-') ||
+        (data.recentOvers && data.recentOvers !== '-')
+    ));
+
+    const keyStatsBody = (
+        <div className="divide-y divide-border/50">
+            {data?.partnership && data.partnership !== '-' && (
+                <div className="p-3 flex items-start gap-3">
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0"></div>
+                    <div className="min-w-0">
+                        <span className="text-[10px] font-bold uppercase tracking-wider stat-blue">Partnership</span>
+                        <p className="text-sm font-semibold text-foreground mt-0.5">{data.partnership}</p>
+                    </div>
+                </div>
+            )}
+            {data?.lastWicket && data.lastWicket !== '-' && (
+                <div className="p-3 flex items-start gap-3">
+                    <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 shrink-0"></div>
+                    <div className="min-w-0">
+                        <span className="text-[10px] font-bold uppercase tracking-wider stat-red">Last Wicket</span>
+                        <p className="text-sm font-semibold text-foreground mt-0.5">{data.lastWicket}</p>
+                    </div>
+                </div>
+            )}
+            {data?.recentOvers && data.recentOvers !== '-' && (
+                <div className="p-3 flex items-start gap-3">
+                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0"></div>
+                    <div className="min-w-0">
+                        <span className="text-[10px] font-bold uppercase tracking-wider stat-amber">Recent Overs</span>
+                        <p className="text-sm font-mono font-semibold text-foreground mt-0.5">{data.recentOvers}</p>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+
     return (
         <div className="w-full mx-auto px-2 md:px-6 lg:px-8">
             {/* Header */}
@@ -1002,20 +1067,22 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                         </Button>
                     )}
                     <div className="flex-1 min-w-0">
+                        <Breadcrumbs
+                            className="mb-1"
+                            items={[
+                                { label: 'Home', href: '/' },
+                                ...(data?.seriesName && data?.seriesId
+                                    ? [{
+                                        label: data.seriesName,
+                                        href: `/series/${data.seriesId}/${data.seriesName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`,
+                                    }]
+                                    : []),
+                            ]}
+                        />
                         <h1 className="text-base md:text-2xl font-display tracking-tight text-foreground leading-tight line-clamp-2 md:truncate">
                             {data?.title}
                         </h1>
                         <div className="text-[10px] md:text-xs text-muted-foreground mt-1 space-y-0.5">
-                            {data?.seriesName && data?.seriesId && (
-                                <p className="truncate">
-                                    <Link
-                                        href={`/series/${data.seriesId}/${data.seriesName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`}
-                                        className="text-primary hover:underline"
-                                    >
-                                        {data.seriesName}
-                                    </Link>
-                                </p>
-                            )}
                             {data?.venue && data.venue !== 'N/A' && data.venue.trim() !== '' && <p className="truncate">{data.venue}</p>}
                             {data?.toss && data.toss !== 'N/A' && data.toss.trim() !== '' && <p className="truncate">{data.toss}</p>}
                             {data?.matchStartTimestamp && (
@@ -1057,35 +1124,29 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                         <ThemeToggle />
                     </div>
                 </div>
-                {/* Mobile: tabs row */}
-                <div className="flex md:hidden items-center gap-3">
-                    <div className="flex items-center gap-0.5 tab-container flex-1">
-                        {views.map((v) => (
-                            <button
-                                key={v}
-                                onClick={() => setView(v)}
-                                className={`
-                                    flex-1 px-3 py-1.5 rounded-lg text-xs font-medium
-                                    transition-all duration-200 text-center
-                                    ${view === v
-                                        ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25'
-                                        : 'text-muted-foreground hover:text-foreground'
-                                    }
-                                `}
-                            >
-                                {VIEW_LABELS[v]}
-                            </button>
-                        ))}
-                    </div>
-                </div>
             </div>
+
+            {/* Mobile: pinned tabs + always-glanceable compact scoreboard */}
+            <MatchStickyBar
+                views={views}
+                view={view}
+                onSelect={setView}
+                labels={VIEW_LABELS}
+                score={data?.score}
+                currentRunRate={data?.currentRunRate}
+                requiredRunRate={data?.requiredRunRate}
+                status={data?.status}
+                live={data ? isLive(data.status) : false}
+                hasHero={view === 'live'}
+                heroRef={scoreHeroRef}
+            />
 
             <div>
                 {view === 'live' && (
                     <motion.div className="space-y-4" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}>
                         {/* Countdown Timer */}
                         {timeLeft && data?.batsmen.length === 0 && (
-                            <div className="glass-card p-8 md:p-12 text-center">
+                            <div className="surface-card p-8 md:p-12 text-center">
                                 <div className="flex justify-center gap-2 md:gap-4 mb-4">
                                     {[
                                         { value: timeLeft.hours, label: 'hours' },
@@ -1111,8 +1172,6 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                         {(!timeLeft || (data && data.batsmen.length > 0)) && (
                             <div ref={scoreHeroRef} className="relative overflow-hidden score-hero">
                                 {/* Atmospheric background layers */}
-                                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(6,182,212,0.12)_0%,_transparent_60%)]" />
-                                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_rgba(59,130,246,0.08)_0%,_transparent_60%)]" />
 
                                 {/* Share Button */}
                                 {data && (
@@ -1214,7 +1273,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                 </div>
 
                                 {/* Bottom accent line */}
-                                <div className="h-[2px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent" />
+                                <div className="h-px bg-border" />
                             </div>
                         )}
 
@@ -1283,7 +1342,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                             <div className="min-w-0 space-y-4">
                                 {/* Scorecard Tables */}
                                 {data && (data.batsmen.length !== 0 || data.bowlers.length !== 0) && (
-                                    <div className="glass-card overflow-hidden">
+                                    <div className="surface-card overflow-hidden">
                                         {/* Batting */}
                                         <div className="overflow-x-auto">
                                             <table className="w-full text-xs md:text-sm">
@@ -1409,6 +1468,17 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                     </div>
                                 )}
 
+                                {/* Key Stats trigger - mobile; opens Partnership/Last Wicket/Recent Overs as a bottom sheet */}
+                                {hasKeyStats && (
+                                    <button
+                                        onClick={() => setKeyStatsOpen(true)}
+                                        className="md:hidden surface-card w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                                    >
+                                        Key Stats
+                                        <ChevronUp className="w-3.5 h-3.5" />
+                                    </button>
+                                )}
+
                                 {/* Live Stream - inside left column, below scorecard */}
                                 {data?.status && isLive(data.status) && data.batsmen.length > 0 && (
                                     <LiveStreamTab
@@ -1417,45 +1487,12 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                     />
                                 )}
 
-                                {/* Key Stats - Vertical layout for full visibility */}
-                                {data && (data.batsmen.length !== 0 || data.bowlers.length !== 0) && (
-                                    <div className="glass-card overflow-hidden divide-y divide-border/50">
-                                        {data?.partnership && data.partnership !== '-' && (
-                                            <div className="p-3 flex items-start gap-3">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0"></div>
-                                                <div className="min-w-0">
-                                                    <span className="text-[10px] font-bold uppercase tracking-wider stat-blue">Partnership</span>
-                                                    <p className="text-sm font-semibold text-foreground mt-0.5">{data.partnership}</p>
-                                                </div>
-                                            </div>
-                                        )}
-                                        {data?.lastWicket && data.lastWicket !== '-' && (
-                                            <div className="p-3 flex items-start gap-3">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 shrink-0"></div>
-                                                <div className="min-w-0">
-                                                    <span className="text-[10px] font-bold uppercase tracking-wider stat-red">Last Wicket</span>
-                                                    <p className="text-sm font-semibold text-foreground mt-0.5">{data.lastWicket}</p>
-                                                </div>
-                                            </div>
-                                        )}
-                                        {data?.recentOvers && data.recentOvers !== '-' && (
-                                            <div className="p-3 flex items-start gap-3">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0"></div>
-                                                <div className="min-w-0">
-                                                    <span className="text-[10px] font-bold uppercase tracking-wider stat-amber">Recent Overs</span>
-                                                    <p className="text-sm font-mono font-semibold text-foreground mt-0.5">{data.recentOvers}</p>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-
                                 {/* Commentary - visible on mobile always, on desktop only when no scorecard */}
-                                <div className={`glass-card overflow-hidden ${data && (data.batsmen.length !== 0 || data.bowlers.length !== 0) ? 'xl:hidden' : ''}`}>
+                                <div className={`surface-card overflow-hidden ${data && (data.batsmen.length !== 0 || data.bowlers.length !== 0) ? 'xl:hidden' : ''}`}>
                                     <div className="px-4 py-3 border-b border-border/50 section-header-gradient">
                                         <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Commentary</h3>
                                     </div>
-                                    <div className="p-3 pb-24">
+                                    <div className="p-3">
                                         <VirtualCommentaryList
                                             commentary={data?.commentary || []}
                                             renderItem={renderCommentaryItem}
@@ -1468,13 +1505,20 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                         />
                                     </div>
                                 </div>
+
+                                {/* Key Stats - desktop inline; mobile opens as a bottom sheet from the sticky bar */}
+                                {hasKeyStats && (
+                                    <div className="surface-card overflow-hidden hidden md:block">
+                                        {keyStatsBody}
+                                    </div>
+                                )}
                             </div>
 
                             {/* Right Column: Commentary - Desktop only, sticky */}
                             {data && (data.batsmen.length !== 0 || data.bowlers.length !== 0) && (
                                 <div className="hidden xl:block">
                                     <div className="sticky top-4">
-                                        <div className="glass-card overflow-hidden">
+                                        <div className="surface-card overflow-hidden">
                                             {/* Commentary Header with gradient accent */}
                                             <div className="relative px-4 py-3 border-b border-border/50">
                                                 <div className="absolute inset-0 commentary-header-gradient"></div>
@@ -1585,7 +1629,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                     const isSix = hasBold('six') || /\bSIX\b/.test(text);
                                     const isWicket = hasBold('out') || /\bOUT\b/.test(text);
                                     const isDot = textLower.includes('no run');
-                                    // Wide detection: only detect actual wides via bold tag (Cricbuzz bolds extras)
+                                    // Wide detection: only detect actual wides via bold tag (the source bolds extras)
                                     const isWide = !isDot && hasBold('wide');
                                     const isNoBall = textLower.includes('no ball') || textLower.includes('no-ball');
 
@@ -1662,6 +1706,16 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                 />
             )}
 
+            {/* Key Stats Sheet - mobile */}
+            <Sheet open={keyStatsOpen} onOpenChange={setKeyStatsOpen}>
+                <SheetContent side="bottom" className="rounded-t-2xl max-h-[60vh] overflow-y-auto px-0 pb-6">
+                    <SheetHeader className="px-5 pb-3 border-b border-border/30">
+                        <SheetTitle className="text-sm font-bold uppercase tracking-widest text-foreground">Key Stats</SheetTitle>
+                    </SheetHeader>
+                    <div className="px-2 pt-1">{keyStatsBody}</div>
+                </SheetContent>
+            </Sheet>
+
             {/* Over Summary Sheet */}
             <Sheet open={overSheetOpen} onOpenChange={setOverSheetOpen}>
                 <SheetContent side="bottom" className="rounded-t-2xl max-h-[70vh] overflow-y-auto px-0 pb-6">
@@ -1674,7 +1728,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                             <div className="flex items-baseline justify-between mb-4">
                                 <div className="flex items-baseline gap-3">
                                     <span className="text-2xl font-display text-foreground tabular-nums">
-                                        {overSheetData.teamScore}-{overSheetData.teamWickets}
+                                        {overSheetData.teamScore}/{overSheetData.teamWickets}
                                     </span>
                                     <span className="text-sm text-muted-foreground">
                                         ({Math.floor(overSheetData.overNumber || 0)} ov)
@@ -1769,16 +1823,6 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                     )}
                 </SheetContent>
             </Sheet>
-
-            {/* Quick Score Widget - shows when scrolling */}
-            {data && view === 'live' && (
-                <QuickScoreWidget
-                    score={data.score}
-                    status={data.status}
-                    previousInnings={data.previousInnings}
-                    targetRef={scoreHeroRef}
-                />
-            )}
 
             {/* Swipe indicators */}
             {swiping && swipeDirection === 'right' && currentViewIndex > 0 && (

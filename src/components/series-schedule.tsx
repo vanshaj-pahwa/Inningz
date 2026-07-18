@@ -182,12 +182,12 @@ export default function SeriesScheduleComponent() {
         <section key={month.name}>
           {/* Month Header */}
           <div className="flex items-center gap-3 mb-5">
-            <div className="h-px flex-1 bg-gradient-to-r from-primary/30 to-transparent" />
+            <div className="h-px flex-1 bg-border" />
             <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground px-1">
               <Calendar className="w-3.5 h-3.5" />
               {month.name}
             </h3>
-            <div className="h-px flex-1 bg-gradient-to-l from-primary/30 to-transparent" />
+            <div className="h-px flex-1 bg-border" />
           </div>
 
           {/* Series Cards Grid */}
@@ -230,7 +230,7 @@ export function SeriesCard({ series, index }: { series: CricketSeries; index: nu
       className="stagger-in"
       style={{ '--stagger-index': index } as React.CSSProperties}
     >
-      <div className="glass-card card-hover p-5 h-full">
+      <div className="surface-card card-hover p-5 h-full">
         {/* Category badge + Favorite toggle */}
         <div className="flex items-center justify-between mb-3">
           <span className="flex items-center gap-1.5 text-xs font-medium">
@@ -289,32 +289,30 @@ function FilterBar({
   setSelectedMonth: (m: string) => void;
   availableMonths: string[];
 }) {
-  const activeLabel = filters.find(f => f.value === activeFilter)?.label ?? 'All';
   const yearLabel = selectedYear === 'all' ? 'All Years' : selectedYear;
   const monthLabel = selectedMonth === 'all' ? 'All Months' : selectedMonth;
 
   return (
-    <div className="flex items-center justify-between gap-4">
-      {/* Desktop: inline pills */}
-      <div className="hidden md:flex gap-2">
+    <div className="flex flex-col gap-3">
+      {/* Category chips (scrollable) */}
+      <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
         {filters.map((filter) => (
           <button
             key={filter.value}
             onClick={() => setActiveFilter(filter.value)}
-            className={`
-              shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200
-              ${activeFilter === filter.value
-                ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25'
-                : 'bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80 border border-transparent'
-              }
-            `}
+            aria-current={activeFilter === filter.value ? 'page' : undefined}
+            className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+              activeFilter === filter.value
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted text-muted-foreground hover:text-foreground'
+            }`}
           >
             {filter.label}
           </button>
         ))}
       </div>
 
-      <div className="flex items-center gap-2 md:gap-4 ml-auto">
+      <div className="flex items-center gap-2 md:gap-4">
         {/* Month dropdown */}
         {availableMonths.length > 0 && (
           <DropdownMenu>
@@ -365,26 +363,6 @@ function FilterBar({
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-        {/* Category filter dropdown (mobile) */}
-        <div className="md:hidden">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="rounded-xl gap-2">
-                <Filter className="h-3.5 w-3.5" />
-                {activeLabel}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="rounded-xl">
-              <DropdownMenuRadioGroup value={activeFilter} onValueChange={(v) => setActiveFilter(v as SeriesFilter)}>
-                {filters.map((filter) => (
-                  <DropdownMenuRadioItem key={filter.value} value={filter.value} className="rounded-lg">
-                    {filter.label}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
       </div>
     </div>
   );

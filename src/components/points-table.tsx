@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { getSeriesPointsTable, getSeriesStats } from '@/app/actions';
@@ -108,11 +108,11 @@ export default function PointsTableDisplay({ seriesId, onAvailabilityChange, sho
             {topPerformersLoading ? (
               <>
                 <div className="min-w-0 px-3 py-2 sm:py-2 rounded-xl bg-orange-500/10 border border-orange-500/20 flex-1">
-                  <p className="text-[8px] sm:text-[9px] uppercase tracking-wider text-orange-400 font-semibold">Most Runs</p>
+                  <p className="text-[11px] sm:text-[11px] uppercase tracking-wider text-orange-400 font-semibold">Most Runs</p>
                   <div className="skeleton h-3 sm:h-3.5 w-32 rounded mt-1" />
                 </div>
                 <div className="min-w-0 px-3 py-2 sm:py-2 rounded-xl bg-purple-500/10 border border-purple-500/20 flex-1">
-                  <p className="text-[8px] sm:text-[9px] uppercase tracking-wider text-purple-400 font-semibold">Most Wickets</p>
+                  <p className="text-[11px] sm:text-[11px] uppercase tracking-wider text-purple-400 font-semibold">Most Wickets</p>
                   <div className="skeleton h-3 sm:h-3.5 w-32 rounded mt-1" />
                 </div>
               </>
@@ -120,13 +120,13 @@ export default function PointsTableDisplay({ seriesId, onAvailabilityChange, sho
               <>
                 {topRunScorer && topRunScorer.value && (
                   <div className="min-w-0 px-3 py-2 sm:py-2 rounded-xl bg-orange-500/10 border border-orange-500/20 flex-1">
-                    <p className="text-[8px] sm:text-[9px] uppercase tracking-wider text-orange-400 font-semibold">Most Runs</p>
+                    <p className="text-[11px] sm:text-[11px] uppercase tracking-wider text-orange-400 font-semibold">Most Runs</p>
                     <p className="text-[11px] sm:text-xs font-medium truncate">{topRunScorer.name} <span className="text-muted-foreground">({topRunScorer.value})</span></p>
                   </div>
                 )}
                 {topWicketTaker && topWicketTaker.value && (
                   <div className="min-w-0 px-3 py-2 sm:py-2 rounded-xl bg-purple-500/10 border border-purple-500/20 flex-1">
-                    <p className="text-[8px] sm:text-[9px] uppercase tracking-wider text-purple-400 font-semibold">Most Wickets</p>
+                    <p className="text-[11px] sm:text-[11px] uppercase tracking-wider text-purple-400 font-semibold">Most Wickets</p>
                     <p className="text-[11px] sm:text-xs font-medium truncate">{topWicketTaker.name} <span className="text-muted-foreground">({topWicketTaker.value})</span></p>
                   </div>
                 )}
@@ -200,7 +200,7 @@ function GroupTable({ group, showGroupName }: { group: PointsTableGroup; showGro
           {group.groupName}
         </h3>
       )}
-      <div className="glass-card rounded-2xl overflow-hidden">
+      <div className="surface-card rounded-2xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-xs sm:text-sm">
             <thead>
@@ -220,9 +220,8 @@ function GroupTable({ group, showGroupName }: { group: PointsTableGroup; showGro
             </thead>
             <tbody>
               {group.teams.map((team, idx) => (
-                <>
+                <Fragment key={team.teamId}>
                   <TeamRow
-                    key={team.teamId}
                     team={team}
                     rank={idx + 1}
                     isExpanded={expandedTeam === team.teamId}
@@ -231,11 +230,11 @@ function GroupTable({ group, showGroupName }: { group: PointsTableGroup; showGro
                     qualifyCutoff={qualifyCutoff}
                   />
                   {idx === qualifyCutoff && (
-                    <tr key={`cutoff-${idx}`}>
+                    <tr>
                       <td colSpan={totalCols} className="p-0 h-0.5 bg-primary/20" />
                     </tr>
                   )}
-                </>
+                </Fragment>
               ))}
             </tbody>
           </table>
@@ -298,10 +297,10 @@ function TeamRow({
               {team.teamName}
             </span>
             {isQualified && (
-              <span className="text-[8px] sm:text-[10px] font-bold text-primary bg-primary/10 px-1 sm:px-1.5 py-0.5 rounded">Q</span>
+              <span className="text-[11px] sm:text-[10px] font-bold text-primary bg-primary/10 px-1 sm:px-1.5 py-0.5 rounded">Q</span>
             )}
             {isEliminated && (
-              <span className="text-[8px] sm:text-[10px] font-bold text-red-400 border border-red-400/40 px-1 sm:px-1.5 py-0.5 rounded">E</span>
+              <span className="text-[11px] sm:text-[10px] font-bold text-red-400 border border-red-400/40 px-1 sm:px-1.5 py-0.5 rounded">E</span>
             )}
           </div>
         </td>
@@ -326,7 +325,7 @@ function TeamRow({
               <span
                 key={i}
                 className={`
-                  w-4 h-4 sm:w-5 sm:h-5 rounded-full text-[9px] sm:text-[10px] font-bold flex items-center justify-center
+                  w-4 h-4 sm:w-5 sm:h-5 rounded-full text-[11px] sm:text-[10px] font-bold flex items-center justify-center
                   ${result === 'W' ? 'bg-green-500/20 text-green-400' :
                     result === 'L' ? 'bg-red-500/20 text-red-400' :
                     'bg-zinc-500/20 text-zinc-400'}

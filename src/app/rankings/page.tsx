@@ -117,43 +117,41 @@ export default function RankingsPage() {
         <h2 className="text-2xl md:text-4xl font-display tracking-tight mb-1">ICC Rankings</h2>
         <p className="text-sm text-muted-foreground mb-5">Current ICC player rankings</p>
 
-        {/* Format Tabs (pill style) */}
-        <nav className="flex items-center gap-1 tab-container w-fit mb-4">
+        {/* Format tabs */}
+        <nav className="flex items-center gap-1 tab-container w-fit mb-3">
           {formats.map((f) => (
             <button
               key={f.value}
               onClick={() => setFormat(f.value)}
-              className={`
-                px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
-                ${format === f.value
+              aria-current={format === f.value ? 'page' : undefined}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                format === f.value
                   ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                }
-              `}
+              }`}
             >
               {f.label}
             </button>
           ))}
         </nav>
 
-        {/* Category Tabs (underline style, like series page) */}
-        <div className="flex gap-1 border-b border-border -mb-px">
+        {/* Category tabs — same segmented style as format, so peer filters read consistently */}
+        <nav className="flex items-center gap-1 tab-container w-fit">
           {categories.map((c) => (
             <button
               key={c.value}
               onClick={() => setCategory(c.value)}
-              className={`
-                px-4 py-2.5 text-sm font-medium transition-colors border-b-2
-                ${category === c.value
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-muted-foreground hover:text-foreground'
-                }
-              `}
+              aria-current={category === c.value ? 'page' : undefined}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                category === c.value
+                  ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+              }`}
             >
               {c.label}
             </button>
           ))}
-        </div>
+        </nav>
       </div>
 
       {/* Content */}

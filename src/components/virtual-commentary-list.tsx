@@ -44,9 +44,11 @@ export function VirtualCommentaryList({
         if (newCommentaryStartIndex !== null && newCommentaryStartIndex !== undefined && newCommentaryStartIndex < commentary.length) {
             // Small delay to allow virtualizer to update
             const timeout = setTimeout(() => {
+                // 'auto' (instant): 'smooth' isn't supported with dynamic item sizes and
+                // fails after repeated retries ("Failed to scroll to index N").
                 virtualizer.scrollToIndex(newCommentaryStartIndex, {
                     align: 'start',
-                    behavior: 'smooth',
+                    behavior: 'auto',
                 });
                 onNewCommentaryVisible?.();
             }, 100);

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import gsap from 'gsap';
+import { formatScore } from '@/lib/utils';
 
 interface AnimatedScoreProps {
     value?: string;
@@ -12,7 +12,7 @@ interface AnimatedScoreProps {
 // Supports score strings with or without a team prefix:
 //   "153/9 (20.0 ov)", "284-8 (50 ov)", "421", "ZIM 249/2 (61.0 ov)".
 export default function AnimatedScore({ value, className }: AnimatedScoreProps) {
-    const parsed = parseScore(value);
+    const parsed = parseScore(formatScore(value));
 
     if (parsed.runs === null) {
         return <span className={className}>{value ?? ''}</span>;
@@ -35,7 +35,7 @@ export default function AnimatedScore({ value, className }: AnimatedScoreProps) 
     );
 }
 
-// Generic GSAP-driven number tween. Snaps on decrease (e.g. balls 5 → 0 over boundary).
+// Snaps to the new value instantly, with a brief tick cue on increase (reduced-motion aware).
 function AnimatedNumber({
     value,
     format,
@@ -43,33 +43,27 @@ function AnimatedNumber({
     value: number;
     format: (n: number) => string;
 }) {
-    const [display, setDisplay] = useState(value);
+    const [flash, setFlash] = useState(false);
     const prevRef = useRef(value);
 
     useEffect(() => {
         const prev = prevRef.current;
         if (value === prev) return;
-
-        // Snap on decrease — over boundary resets balls, no reverse count-down please.
-        if (value < prev) {
-            setDisplay(value);
-            prevRef.current = value;
-            return;
-        }
-
-        const obj = { n: prev };
-        const tween = gsap.to(obj, {
-            n: value,
-            duration: Math.min(2.4, Math.max(0.9, Math.abs(value - prev) * 0.12)),
-            ease: 'power2.out',
-            onUpdate: () => setDisplay(obj.n),
-        });
-
+        const increased = value > prev;
         prevRef.current = value;
-        return () => { tween.kill(); };
+
+        if (
+            increased &&
+            typeof window !== 'undefined' &&
+            !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        ) {
+            setFlash(true);
+            const t = setTimeout(() => setFlash(false), 500);
+            return () => clearTimeout(t);
+        }
     }, [value]);
 
-    return <span className="tabular-nums">{format(display)}</span>;
+    return <span className={`tabular-nums${flash ? ' score-tick' : ''}`}>{format(value)}</span>;
 }
 
 interface ParsedScore {

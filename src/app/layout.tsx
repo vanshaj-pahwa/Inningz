@@ -39,6 +39,14 @@ export const metadata: Metadata = {
   title: 'Inningz',
   description: 'Live Cricket Scores & Analytics',
   manifest: '/manifest.json',
+  icons: {
+    icon: [
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: '/icon-192.png',
+    shortcut: '/icon-192.png',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
@@ -49,8 +57,6 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   viewportFit: 'cover',
   themeColor: '#0A0E20',
 };
@@ -80,7 +86,7 @@ export default function RootLayout({
             attribute="class"
             defaultTheme="dark"
             enableSystem
-            themes={['light', 'dark', 'midnight', 'pitch', 'sunset', 'sepia', 'system']}
+            themes={['light', 'dark', 'system']}
             disableTransitionOnChange
         >
           <DataLayerProvider>

@@ -69,7 +69,7 @@ function MatchupCard({ card }: { card: ForecastCard }) {
                                     <div className="text-sm md:text-base font-display text-foreground tabular-nums leading-tight">
                                         {s.value}
                                     </div>
-                                    <div className="text-[9px] uppercase tracking-wider text-muted-foreground mt-0.5">
+                                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground mt-0.5">
                                         {s.label}
                                     </div>
                                 </div>

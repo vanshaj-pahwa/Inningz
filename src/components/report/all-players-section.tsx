@@ -11,7 +11,7 @@ interface Props {
 }
 
 function badgeEmoji(code: string): string {
-    // Cricbuzz passes unicode code points as hex strings like "1F525" → 🔥
+    // the source passes unicode code points as hex strings like "1F525" → 🔥
     try {
         const cp = parseInt(code, 16);
         if (!isNaN(cp)) return String.fromCodePoint(cp);
@@ -131,7 +131,7 @@ function PlayerRow({ player }: { player: ForecastPlayer }) {
                 </div>
                 {/* Team tag */}
                 <span className={cn(
-                    'absolute -bottom-1 -right-1 px-1 py-0.5 rounded-md text-[8px] font-bold tabular-nums',
+                    'absolute -bottom-1 -right-1 px-1 py-0.5 rounded-md text-[11px] font-bold tabular-nums',
                     'bg-card border border-border/60 text-foreground'
                 )}>
                     {player.teamShortName}

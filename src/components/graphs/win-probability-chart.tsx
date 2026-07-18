@@ -26,11 +26,18 @@ export default function WinProbabilityChart({ data }: WinProbabilityChartProps) 
   const TEAM2_COLOR = data.team2Color || '#0588F0';
   const [filter, setFilter] = useState<'both' | 'team1' | 'team2'>('both');
 
-  if (!data.points.length) {
-    return <p className="text-xs text-muted-foreground">No win probability data available</p>;
+  // Need at least two points to draw a meaningful line — a single (or empty) series
+  // renders as bare axes, which reads as broken.
+  if (data.points.length < 2) {
+    return (
+      <div className="flex flex-col items-center justify-center text-center py-10 px-4">
+        <p className="text-sm font-medium text-foreground mb-1">Win probability isn&apos;t available yet</p>
+        <p className="text-xs text-muted-foreground max-w-xs">It builds up as the match progresses. Check back once a few overs have been bowled.</p>
+      </div>
+    );
   }
 
-  // Test matches: cricbuzz emits a non-zero `drawProb` on at least some points.
+  // Test matches: the source emits a non-zero `drawProb` on at least some points.
   // Show the draw series only when we actually see meaningful draw probability.
   const hasDrawSeries = data.points.some(p => (p.drawProb ?? 0) > 0);
 
