@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Download, Share2, Loader2, Check } from 'lucide-react';
 import { useShareCard } from '@/hooks/use-share-card';
 import QuickScoreCard, { type QuickScoreCardProps } from './quick-score-card';
+import type { ShareMode } from './share-palette';
 
 interface ShareCardDialogProps {
   open: boolean;
@@ -27,7 +28,8 @@ export default function ShareCardDialog({
     useShareCard();
   const [downloadSuccess, setDownloadSuccess] = useState(false);
   const { resolvedTheme } = useTheme();
-  const mode = resolvedTheme === 'light' ? 'light' : 'dark';
+  const mode: ShareMode = resolvedTheme === 'light' ? 'light' : 'dark';
+  const card = { ...cardData, mode };
 
   const handleDownload = async () => {
     if (!captureRef.current) return;
@@ -65,7 +67,7 @@ export default function ShareCardDialog({
           }}
           aria-hidden="true"
         >
-          <QuickScoreCard ref={captureRef} {...cardData} mode={mode} />
+          <QuickScoreCard ref={captureRef} {...card} />
         </div>
 
         {/* Card Preview - scaled down to fit */}
@@ -87,7 +89,7 @@ export default function ShareCardDialog({
                 transform: `scale(${scaleFactor})`,
               }}
             >
-              <QuickScoreCard {...cardData} mode={mode} />
+              <QuickScoreCard {...card} />
             </div>
           </div>
         </div>

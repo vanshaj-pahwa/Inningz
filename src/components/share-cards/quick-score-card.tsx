@@ -1,7 +1,7 @@
 'use client';
 
 import { forwardRef } from 'react';
-import { sharePalette, type ShareMode } from './share-palette';
+import { sharePalette, alpha, type ShareMode } from './share-palette';
 
 export interface QuickScoreCardProps {
   title: string;
@@ -21,15 +21,32 @@ export interface QuickScoreCardProps {
   };
   /** Resolved app theme; anything other than 'light' uses the dark palette. */
   mode?: ShareMode;
+  /** Batting side's identity colour (matches the live hero). */
+  accent?: string;
+  /** Batting side's flag (a cricbuzz static URL); proxied same-origin for capture. */
+  flagUrl?: string;
+  /** Per-over runs + whether a wicket fell, for the sparkline. */
+  overPoints?: { runs: number; wicketFell: boolean }[];
+  // Threaded to the dialog (which fetches overPoints); unused in the card render.
+  matchId?: string;
+  inningsId?: number;
+}
+
+function proxyFlag(url?: string): string | undefined {
+  if (!url) return undefined;
+  const m = url.match(/\/c(\d+)\/([a-z0-9-]+)\.jpg/i);
+  return m ? `/api/team-flag?id=${m[1]}&name=${encodeURIComponent(m[2])}` : url;
 }
 
 const QuickScoreCard = forwardRef<HTMLDivElement, QuickScoreCardProps>(
   (
-    { title, score, status, seriesName, currentRunRate, requiredRunRate, previousInnings, winProbability, mode = 'dark' },
+    { title, score, status, seriesName, currentRunRate, requiredRunRate, previousInnings, winProbability, mode = 'dark', accent, flagUrl, overPoints },
     ref
   ) => {
     const c = sharePalette(mode);
+    const scoreColor = accent || c.brand;
     const isLive = status.toLowerCase().includes('live');
+    const flag = proxyFlag(flagUrl);
 
     const scoreMatch = score?.match(/^([A-Za-z\s]+?)\s+(\d+\/\d+)/);
     const currentTeam = scoreMatch ? scoreMatch[1].trim() : '';
@@ -37,22 +54,31 @@ const QuickScoreCard = forwardRef<HTMLDivElement, QuickScoreCardProps>(
     const oversMatch = score?.match(/\(([^)]+)\s*[Oo]v\)/);
     const overs = oversMatch ? oversMatch[1] : '';
 
+    // Runs-per-over sparkline geometry (viewBox units; SVG stretches to width).
+    const spark = overPoints && overPoints.length >= 2 ? overPoints.slice(-20) : null;
+    const SW = 900, SH = 150, SPAD = 14;
+    const sx = (i: number) => (spark ? (i / (spark.length - 1)) * SW : 0);
+    const sMax = spark ? Math.max(...spark.map((p) => p.runs), 6) : 6;
+    const sy = (v: number) => SH - SPAD - (v / sMax) * (SH - SPAD * 2);
+    const linePath = spark ? spark.map((p, i) => `${i === 0 ? 'M' : 'L'}${sx(i).toFixed(1)},${sy(p.runs).toFixed(1)}`).join(' ') : '';
+    const areaPath = spark ? `${linePath} L${SW},${SH} L0,${SH} Z` : '';
+
     return (
       <div
         ref={ref}
         data-share-card
         style={{
           width: 1080,
-          height: 1080,
+          minHeight: 1080,
           position: 'relative',
           overflow: 'hidden',
           background: c.bg,
           fontFamily: 'var(--font-sans), "DM Sans", system-ui, -apple-system, sans-serif',
         }}
       >
-        <div style={{ position: 'relative', zIndex: 10, padding: 64, paddingBottom: 120 }}>
+        <div style={{ position: 'relative', zIndex: 10, padding: 64, paddingBottom: 128 }}>
           {/* Series + Live */}
-          <div style={{ marginBottom: 24 }}>
+          <div style={{ marginBottom: 22 }}>
             {isLive && (
               <span style={{
                 display: 'inline-block', padding: '8px 20px', borderRadius: 999,
@@ -71,24 +97,24 @@ const QuickScoreCard = forwardRef<HTMLDivElement, QuickScoreCardProps>(
 
           {/* Title */}
           <h1 style={{
-            fontSize: 44, fontWeight: 600, lineHeight: 1.3, color: c.text, margin: 0, marginBottom: 44,
+            fontSize: 44, fontWeight: 600, lineHeight: 1.25, color: c.text, margin: 0, marginBottom: 28,
             fontFamily: 'var(--font-display), "DM Serif Display", Georgia, serif',
           }}>
             {title}
           </h1>
 
-          {/* Hairline divider (flat, matches the app's surface separators) */}
-          <div style={{ height: 1, marginBottom: 44, background: c.border }} />
+          {/* Hairline divider */}
+          <div style={{ height: 1, marginBottom: 28, background: c.border }} />
 
           {/* Previous innings */}
           {previousInnings && previousInnings.length > 0 && (
-            <div style={{ marginBottom: 36 }}>
+            <div style={{ marginBottom: 24 }}>
               {previousInnings.map((inning, index) => (
-                <p key={index} style={{ margin: 0, marginBottom: 10, fontSize: 0 }}>
-                  <span style={{ fontSize: 32, fontWeight: 600, color: c.muted, verticalAlign: 'baseline' }}>
+                <p key={index} style={{ margin: 0, marginBottom: 8, fontSize: 0 }}>
+                  <span style={{ fontSize: 30, fontWeight: 600, color: c.muted, verticalAlign: 'baseline' }}>
                     {inning.teamShortName || inning.teamName}
                   </span>
-                  <span style={{ fontSize: 52, fontWeight: 700, color: c.faint, fontFamily: 'var(--font-display), "DM Serif Display", Georgia, serif', marginLeft: 24, verticalAlign: 'baseline' }}>
+                  <span style={{ fontSize: 48, fontWeight: 700, color: c.faint, fontFamily: 'var(--font-display), "DM Serif Display", Georgia, serif', marginLeft: 22, verticalAlign: 'baseline' }}>
                     {inning.score?.split('(')[0]?.trim()}
                   </span>
                 </p>
@@ -96,30 +122,34 @@ const QuickScoreCard = forwardRef<HTMLDivElement, QuickScoreCardProps>(
             </div>
           )}
 
-          {/* Current team + score (gold, serif — the hero) */}
-          <div style={{ marginBottom: 32 }}>
+          {/* Current team + score (flag + team-coloured serif score, overs on the baseline) */}
+          <div style={{ marginBottom: 26 }}>
             {currentTeam && (
-              <p style={{ fontSize: 38, fontWeight: 600, marginBottom: 8, marginTop: 0, color: c.muted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <p style={{ fontSize: 34, fontWeight: 600, marginBottom: 12, marginTop: 0, color: c.muted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 {currentTeam}
               </p>
             )}
-            <p style={{ margin: 0, fontSize: 0, lineHeight: 1 }}>
-              <span style={{ fontSize: 150, fontWeight: 700, color: c.brand, fontFamily: 'var(--font-display), "DM Serif Display", Georgia, serif', lineHeight: 1, display: 'inline-block' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 24 }}>
+              {flag && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={flag} alt="" style={{ width: 118, height: 84, objectFit: 'cover', borderRadius: 10, marginBottom: 14, flexShrink: 0 }} />
+              )}
+              <span style={{ fontSize: 132, fontWeight: 700, color: scoreColor, fontFamily: 'var(--font-display), "DM Serif Display", Georgia, serif', lineHeight: 0.86 }}>
                 {currentScore}
               </span>
               {overs && (
-                <span style={{ fontSize: 38, color: c.faint, fontWeight: 500, marginLeft: 20, verticalAlign: 'middle' }}>
+                <span style={{ fontSize: 36, color: c.faint, fontWeight: 500, marginBottom: 16 }}>
                   ({overs} ov)
                 </span>
               )}
-            </p>
+            </div>
           </div>
 
-          {/* Run rates — plain label + value, like the hero (no cyan/orange chips) */}
+          {/* Run rates */}
           {(currentRunRate || requiredRunRate) && (
-            <p style={{ margin: 0, marginBottom: 32, fontSize: 30, fontWeight: 600, fontFamily: 'var(--font-display), "DM Serif Display", Georgia, serif' }}>
+            <p style={{ margin: 0, marginBottom: 26, fontSize: 44, fontWeight: 700, fontFamily: 'var(--font-display), "DM Serif Display", Georgia, serif' }}>
               {currentRunRate && (
-                <span style={{ marginRight: 48 }}>
+                <span style={{ marginRight: 56 }}>
                   <span style={{ color: c.muted }}>CRR </span>
                   <span style={{ color: c.text }}>{currentRunRate}</span>
                 </span>
@@ -127,18 +157,47 @@ const QuickScoreCard = forwardRef<HTMLDivElement, QuickScoreCardProps>(
               {requiredRunRate && (
                 <span>
                   <span style={{ color: c.muted }}>REQ </span>
-                  <span style={{ color: c.brand }}>{requiredRunRate}</span>
+                  <span style={{ color: scoreColor }}>{requiredRunRate}</span>
                 </span>
               )}
             </p>
           )}
 
-          {/* Status */}
-          <p style={{ fontSize: 28, fontWeight: 500, color: c.muted, margin: 0, marginBottom: winProbability ? 44 : 0 }}>
-            {status}
-          </p>
+          {/* Runs-per-over sparkline (team colour, with wicket markers) */}
+          {spark && (
+            <div style={{ marginBottom: 26 }}>
+              <p style={{ fontSize: 20, fontWeight: 700, color: c.muted, textTransform: 'uppercase', letterSpacing: '0.12em', margin: 0, marginBottom: 14 }}>
+                Runs per over
+              </p>
+              <svg viewBox={`0 0 ${SW} ${SH}`} preserveAspectRatio="none" width="100%" height="112" style={{ display: 'block', overflow: 'visible' }}>
+                <path d={areaPath} fill={alpha(scoreColor, 0.16)} />
+                <path d={linePath} fill="none" stroke={scoreColor} strokeWidth={3} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                {spark.map((p, i) =>
+                  p.wicketFell ? (
+                    <circle key={i} cx={sx(i)} cy={sy(p.runs)} r={5} fill={c.danger} stroke={c.bg} strokeWidth={2} vectorEffect="non-scaling-stroke" />
+                  ) : null
+                )}
+              </svg>
+            </div>
+          )}
 
-          {/* Win probability — flat success/danger fills */}
+          {/* Status — tinted pill, matching the live hero */}
+          <div style={{ marginBottom: winProbability ? 30 : 0 }}>
+            <span style={{
+              display: 'inline-block',
+              padding: '14px 30px',
+              borderRadius: 999,
+              background: `linear-gradient(90deg, ${alpha(scoreColor, 0.30)}, ${alpha(scoreColor, 0.12)} 55%, ${alpha(scoreColor, 0)})`,
+              border: `1px solid ${alpha(scoreColor, 0.22)}`,
+              fontSize: 28,
+              fontWeight: 600,
+              color: c.text,
+            }}>
+              {status}
+            </span>
+          </div>
+
+          {/* Win probability */}
           {winProbability && (
             <div style={{ marginTop: 0 }}>
               <p style={{ margin: 0, marginBottom: 14, fontSize: 0 }}>
@@ -157,7 +216,7 @@ const QuickScoreCard = forwardRef<HTMLDivElement, QuickScoreCardProps>(
           )}
         </div>
 
-        {/* Footer — flat, hairline top border */}
+        {/* Footer */}
         <div
           style={{
             position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 10,

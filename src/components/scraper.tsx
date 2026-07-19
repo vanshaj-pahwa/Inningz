@@ -5,7 +5,7 @@ import { useEffect, useState, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { loadMoreCommentary as loadMoreCommentaryAction, getPlayerProfile, getPlayerHighlights, getMatchSquads } from '@/app/actions';
+import { loadMoreCommentary as loadMoreCommentaryAction, getPlayerProfile, getPlayerHighlights, getMatchSquads, getInningsOverData } from '@/app/actions';
 import type { ScrapeCricbuzzUrlOutput, Commentary, PlayerProfile, PlayerHighlights } from '@/app/actions';
 import { useLiveScore } from '@/lib/data-layer';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -28,7 +28,7 @@ import { useRecentHistoryContext } from '@/contexts/recent-history-context';
 import { useSwipe } from '@/hooks/use-swipe';
 import { ShareButton, StatShareDialog } from './share-cards';
 import BatterBreakdown from './batter-breakdown';
-import HeroMomentum from './hero-momentum';
+import HeroMomentum, { type OverPoint } from './hero-momentum';
 import { getMatchFlags, rememberMatchFlags, pickVibrant, teamColorFor, type StoredTeam } from '@/lib/team-flags';
 import { VirtualCommentaryList } from './virtual-commentary-list';
 import PointsTableDisplay from './points-table';
@@ -211,6 +211,32 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
     // Team identity colour: the jersey-colour map first (India blue, England red),
     // then a vivid flag colour for anyone not mapped (e.g. league sides).
     const heroAccent = teamColorFor(data?.score?.split(' ')[0], storedFlags?.map((t) => t.name) ?? null) ?? pickVibrant(scoreColors);
+
+    // Runs-per-over for the current innings, owned here so the same data feeds
+    // both the hero momentum sparkline and the share card (loaded on match open,
+    // so it's ready by the time the user shares). null = still loading.
+    const heroInningsId = data?.currentInningsId || 1;
+    const [heroOvers, setHeroOvers] = useState<OverPoint[] | null>(null);
+    useEffect(() => {
+        let cancelled = false;
+        getInningsOverData(matchId, heroInningsId)
+            .then((res) => {
+                if (cancelled) return;
+                if (res.success && res.data?.overs?.length) {
+                    const list = res.data.overs;
+                    setHeroOvers(list.map((o, i) => ({
+                        overNumber: o.overNumber,
+                        runs: o.runs,
+                        wickets: o.wickets,
+                        wicketFell: i > 0 ? o.wickets > list[i - 1].wickets : o.wickets > 0,
+                    })));
+                } else {
+                    setHeroOvers([]);
+                }
+            })
+            .catch(() => { if (!cancelled) setHeroOvers([]); });
+        return () => { cancelled = true; };
+    }, [matchId, heroInningsId, data?.score]);
 
     // Dynamic views based on data availability
     const views: View[] = useMemo(() => {
@@ -1254,6 +1280,11 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                     team1: { name: data.winProbability.team1.name, probability: data.winProbability.team1.probability ?? 0 },
                                                     team2: { name: data.winProbability.team2.name, probability: data.winProbability.team2.probability ?? 0 },
                                                 } : undefined,
+                                                accent: heroAccent ?? undefined,
+                                                flagUrl: battingFlagUrl ?? undefined,
+                                                overPoints: heroOvers && heroOvers.length
+                                                    ? heroOvers.map((o) => ({ runs: o.runs, wicketFell: o.wicketFell }))
+                                                    : undefined,
                                             }}
                                         />
                                     </div>
@@ -1295,7 +1326,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
 
                                     {/* Current Score - the hero */}
                                     <div>
-                                        <div className="flex items-end justify-between gap-8">
+                                        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 lg:gap-8">
                                             <div className="flex items-center gap-2 md:gap-4 min-w-0">
                                                 {battingFlagUrl && (
                                                     <Image
@@ -1317,9 +1348,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                             </div>
                                             {liveInnings && (
                                                 <HeroMomentum
-                                                    matchId={matchId}
-                                                    inningsId={data?.currentInningsId || 1}
-                                                    refreshKey={data?.score}
+                                                    overs={heroOvers}
                                                     accent={heroAccent ?? undefined}
                                                 />
                                             )}
