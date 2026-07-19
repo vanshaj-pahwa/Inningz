@@ -1895,7 +1895,14 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                             )}
 
                             {/* Win Probability */}
-                            {data && data.winProbability?.team1?.name && data.winProbability?.team2?.name && (
+                            {data && data.winProbability?.team1?.name && data.winProbability?.team2?.name && (() => {
+                                // Match the hero / win-prob strip: colour each side by its
+                                // identity (India blue, England red, ...), falling back to the
+                                // source colours for teams not in the map.
+                                const wp = data.winProbability;
+                                const wp1Color = teamColorFor(wp.team1.name, [wp.team1.name]) ?? '#E6A937';
+                                const wp2Color = teamColorFor(wp.team2.name, [wp.team2.name]) ?? '#0588F0';
+                                return (
                                 <div className="border-t border-border/20 pt-4">
                                     <div className="flex items-center justify-between mb-2">
                                         <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Win Probability</span>
@@ -1910,19 +1917,20 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                     <div className="relative h-2 rounded-full overflow-hidden bg-muted/50 mb-2">
                                         <div
                                             className="absolute inset-y-0 left-0 rounded-l-full transition-all"
-                                            style={{ width: `${data.winProbability.team1.probability}%`, backgroundColor: '#E6A937' }}
+                                            style={{ width: `${wp.team1.probability}%`, backgroundColor: wp1Color }}
                                         />
                                         <div
                                             className="absolute inset-y-0 right-0 rounded-r-full transition-all"
-                                            style={{ width: `${data.winProbability.team2.probability}%`, backgroundColor: '#0588F0' }}
+                                            style={{ width: `${wp.team2.probability}%`, backgroundColor: wp2Color }}
                                         />
                                     </div>
                                     <div className="flex items-center justify-between text-xs">
-                                        <span style={{ color: '#E6A937' }} className="font-semibold">{data.winProbability.team1.name} {data.winProbability.team1.probability}%</span>
-                                        <span style={{ color: '#0588F0' }} className="font-semibold">{data.winProbability.team2.name} {data.winProbability.team2.probability}%</span>
+                                        <span style={{ color: wp1Color }} className="font-semibold">{wp.team1.name} {wp.team1.probability}%</span>
+                                        <span style={{ color: wp2Color }} className="font-semibold">{wp.team2.name} {wp.team2.probability}%</span>
                                     </div>
                                 </div>
-                            )}
+                                );
+                            })()}
                         </div>
                     )}
                 </SheetContent>
