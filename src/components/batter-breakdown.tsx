@@ -65,7 +65,7 @@ function BatterPanel({ batsman, dist }: { batsman: CurrentBatsman; dist: Dist })
   const barTotal = BUCKETS.reduce((s, b) => s + dist[b.key], 0) || 1;
 
   return (
-    <div className="rounded-xl border border-border/50 p-3.5 md:p-4">
+    <div className="rounded-xl border border-border/50 bg-[hsl(var(--elevated))] p-3.5 md:p-4">
       {/* Name + score */}
       <div className="flex items-baseline justify-between gap-2 mb-3">
         <span className="font-semibold text-sm md:text-base text-foreground truncate">

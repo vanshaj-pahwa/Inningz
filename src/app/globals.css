@@ -141,7 +141,7 @@
     --border: 222 16% 15%;
     --input: 222 16% 15%;
     --ring: 205 100% 62%;
-    --radius: 1.25rem;             /* rounder, concentric geometry */
+    --radius: 1rem;                /* a touch rounder than base, without drifting far */
   }
 
   /* Sepia Theme - Vintage cricket nostalgia */
@@ -178,6 +178,7 @@
     --danger: 358 70% 52%;
     --info: 211 100% 50%;   /* == primary (interactive blue) */
     --six: 262 78% 56%;     /* data-viz violet (sixes) */
+    --elevated: 240 5% 97%; /* nested surface (subtle depth on white cards) */
   }
   .dark, .liquid-glass, .midnight, .pitch, .sunset {
     --brand: 43 92% 62%;
