@@ -6,15 +6,15 @@
   :root {
     /* Light Mode */
     --background: 240 5% 96%; /* iOS light gray */
-    --foreground: 0 0% 0%;
+    --foreground: 220 12% 12%; /* soft near-black, not pure #000 (less glare) */
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 0%;
+    --card-foreground: 220 12% 12%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 0%;
+    --popover-foreground: 220 12% 12%;
     --primary: 211 100% 50%; /* iOS blue #007AFF */
     --primary-foreground: 0 0% 100%;
     --secondary: 240 5% 92%;
-    --secondary-foreground: 0 0% 0%;
+    --secondary-foreground: 220 12% 12%;
     --muted: 240 5% 92%;
     --muted-foreground: 240 4% 46%;
     --accent: 211 100% 50%; /* Use iOS blue for accent too - cleaner */
@@ -29,11 +29,12 @@
 
   .dark {
     /* Dark Mode */
-    --background: 0 0% 0%; /* true black for OLED */
+    --background: 240 6% 4%; /* near-black with a hair of warmth so surfaces/elevation read */
     --foreground: 0 0% 98%;
-    --card: 0 0% 11%;
+    --card: 240 5% 10%;
     --card-foreground: 0 0% 98%;
-    --popover: 0 0% 11%;
+    --elevated: 240 5% 14%;
+    --popover: 240 5% 12%;
     --popover-foreground: 0 0% 98%;
     --primary: 211 100% 50%; /* iOS blue */
     --primary-foreground: 0 0% 100%;
@@ -164,6 +165,28 @@
     --border: 35 20% 80%;
     --input: 35 20% 80%;
     --ring: 25 75% 35%;
+  }
+
+  /* ============================================================
+     Semantic + brand + data-viz tokens — single source of truth.
+     Status/stat colours route through these instead of ad-hoc hues.
+     ============================================================ */
+  :root, .sepia {
+    --brand: 43 74% 49%;    /* refined gold — the score / hero identity */
+    --success: 145 63% 38%;
+    --warning: 36 92% 47%;
+    --danger: 358 70% 52%;
+    --info: 211 100% 50%;   /* == primary (interactive blue) */
+    --six: 262 78% 56%;     /* data-viz violet (sixes) */
+  }
+  .dark, .liquid-glass, .midnight, .pitch, .sunset {
+    --brand: 43 92% 62%;
+    --success: 145 60% 56%;
+    --warning: 33 92% 62%;
+    --danger: 0 82% 70%;
+    --info: 210 100% 62%;
+    --six: 262 85% 76%;
+    --elevated: 240 5% 14%;
   }
 }
 
@@ -325,133 +348,25 @@
     @apply bg-muted/30;
   }
 
-  /* Stat highlight colors - theme-aware */
-  .stat-green {
-    color: #16a34a; /* green-600 */
-  }
-  .dark .stat-green,
-  .liquid-glass .stat-green,
-  .midnight .stat-green,
-  .pitch .stat-green,
-  .sunset .stat-green {
-    color: #4ade80; /* green-400 */
-  }
+  /* Stat highlight colours — routed through semantic tokens so the whole app
+     shares one harmonised palette (light/dark handled by the token itself). */
+  .stat-green,
+  .stat-emerald { color: hsl(var(--success)); }
+  .stat-orange { color: hsl(var(--warning)); }
+  .stat-blue { color: hsl(var(--info)); }
+  .stat-purple { color: hsl(var(--six)); }
+  .stat-amber { color: hsl(var(--brand)); }
+  .stat-red { color: hsl(var(--danger)); }
 
-  .stat-emerald {
-    color: #059669; /* emerald-600 */
-  }
-  .dark .stat-emerald,
-  .liquid-glass .stat-emerald,
-  .midnight .stat-emerald,
-  .pitch .stat-emerald,
-  .sunset .stat-emerald {
-    color: #34d399; /* emerald-400 */
-  }
-
-  .stat-orange {
-    color: #ea580c; /* orange-600 */
-  }
-  .dark .stat-orange,
-  .liquid-glass .stat-orange,
-  .midnight .stat-orange,
-  .pitch .stat-orange,
-  .sunset .stat-orange {
-    color: #fb923c; /* orange-400 */
-  }
-
-  .stat-blue {
-    color: #2563eb; /* blue-600 */
-  }
-  .dark .stat-blue,
-  .liquid-glass .stat-blue,
-  .midnight .stat-blue,
-  .pitch .stat-blue,
-  .sunset .stat-blue {
-    color: #60a5fa; /* blue-400 */
-  }
-
-  .stat-purple {
-    color: #9333ea; /* purple-600 */
-  }
-  .dark .stat-purple,
-  .liquid-glass .stat-purple,
-  .midnight .stat-purple,
-  .pitch .stat-purple,
-  .sunset .stat-purple {
-    color: #c084fc; /* purple-400 */
-  }
-
-  .stat-amber {
-    color: #d97706; /* amber-600 */
-  }
-  .dark .stat-amber,
-  .liquid-glass .stat-amber,
-  .midnight .stat-amber,
-  .pitch .stat-amber,
-  .sunset .stat-amber {
-    color: #fbbf24; /* amber-400 */
-  }
-
-  .stat-red {
-    color: #dc2626; /* red-600 */
-  }
-  .dark .stat-red,
-  .liquid-glass .stat-red,
-  .midnight .stat-red,
-  .pitch .stat-red,
-  .sunset .stat-red {
-    color: #f87171; /* red-400 */
-  }
-
-  /* Mini Scorecard Table Headers - Batting (Green themed) */
-  .mini-sc-batting-header {
-    background-color: rgba(220, 252, 231, 0.8); /* green-50/80 */
-    border-bottom: 1px solid rgba(187, 247, 208, 0.5); /* green-200/50 */
-  }
-  .dark .mini-sc-batting-header,
-  .liquid-glass .mini-sc-batting-header,
-  .midnight .mini-sc-batting-header,
-  .pitch .mini-sc-batting-header,
-  .sunset .mini-sc-batting-header {
-    background-color: rgba(5, 46, 22, 0.3); /* green-950/30 */
-    border-bottom: 1px solid rgba(20, 83, 45, 0.3); /* green-900/30 */
-  }
-
-  .mini-sc-batting-text {
-    color: #166534; /* green-800 */
-  }
-  .dark .mini-sc-batting-text,
-  .liquid-glass .mini-sc-batting-text,
-  .midnight .mini-sc-batting-text,
-  .pitch .mini-sc-batting-text,
-  .sunset .mini-sc-batting-text {
-    color: #4ade80; /* green-400 */
-  }
-
-  /* Mini Scorecard Table Headers - Bowling (Orange themed) */
+  /* Mini Scorecard Table Headers — neutral band; the batting/bowling
+     distinction is carried by the label colour, not a full coloured band. */
+  .mini-sc-batting-header,
   .mini-sc-bowling-header {
-    background-color: rgba(255, 237, 213, 0.8); /* orange-50/80 */
-    border-bottom: 1px solid rgba(254, 215, 170, 0.5); /* orange-200/50 */
+    background-color: hsl(var(--muted) / 0.45);
+    border-bottom: 1px solid hsl(var(--border) / 0.7);
   }
-  .dark .mini-sc-bowling-header,
-  .liquid-glass .mini-sc-bowling-header,
-  .midnight .mini-sc-bowling-header,
-  .pitch .mini-sc-bowling-header,
-  .sunset .mini-sc-bowling-header {
-    background-color: rgba(67, 20, 7, 0.3); /* orange-950/30 */
-    border-bottom: 1px solid rgba(124, 45, 18, 0.3); /* orange-900/30 */
-  }
-
-  .mini-sc-bowling-text {
-    color: #9a3412; /* orange-800 */
-  }
-  .dark .mini-sc-bowling-text,
-  .liquid-glass .mini-sc-bowling-text,
-  .midnight .mini-sc-bowling-text,
-  .pitch .mini-sc-bowling-text,
-  .sunset .mini-sc-bowling-text {
-    color: #fb923c; /* orange-400 */
-  }
+  .mini-sc-batting-text { color: hsl(var(--success)); }
+  .mini-sc-bowling-text { color: hsl(var(--warning)); }
 
   /* Row highlights - performance-based */
   .row-highlight-batting-50 {
