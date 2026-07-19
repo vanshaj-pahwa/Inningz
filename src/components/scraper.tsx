@@ -1296,7 +1296,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                     {/* Current Score - the hero */}
                                     <div>
                                         <div className="flex items-end justify-between gap-8">
-                                            <div className="flex items-center gap-3 md:gap-4 min-w-0">
+                                            <div className="flex items-center gap-2 md:gap-4 min-w-0">
                                                 {battingFlagUrl && (
                                                     <Image
                                                         src={battingFlagUrl}
@@ -1304,12 +1304,14 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                         width={56}
                                                         height={40}
                                                         unoptimized
-                                                        className="w-10 h-7 md:w-14 md:h-10 rounded object-cover shrink-0 ring-1 ring-black/5 dark:ring-white/10"
+                                                        className="w-8 h-6 md:w-14 md:h-10 rounded object-cover shrink-0 ring-1 ring-black/5 dark:ring-white/10"
                                                     />
                                                 )}
+                                                {/* Fluid size + no-wrap keep the score on one line at every width;
+                                                    the score is the page's highest-priority element. */}
                                                 <AnimatedScore
                                                     value={data?.score}
-                                                    className={`text-4xl md:text-5xl lg:text-6xl font-display tracking-tight score-breathe ${heroAccent ? '' : 'stat-amber score-glow-effect'}`}
+                                                    className={`whitespace-nowrap text-[clamp(1.5rem,8vw,2.5rem)] md:text-5xl lg:text-6xl font-display tracking-tight score-breathe ${heroAccent ? '' : 'stat-amber score-glow-effect'}`}
                                                     style={heroAccent ? { color: heroAccent } : undefined}
                                                 />
                                             </div>
@@ -1328,8 +1330,14 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                             <div className="flex items-center gap-2 min-w-0">
                                                 {data?.status && (
                                                     <div
-                                                        className={`inline-flex items-center px-3.5 py-1.5 rounded-full ring-1 ring-inset ring-white/5 max-w-full ${heroAccent ? '' : 'bg-muted/50'}`}
-                                                        style={heroAccent ? { background: `linear-gradient(90deg, ${heroAccent}55, ${heroAccent}22 55%, transparent)` } : undefined}
+                                                        className={`inline-flex items-center px-3.5 py-1.5 rounded-full ring-1 ring-inset ring-white/5 max-w-full ${(scoreColors && scoreColors.length >= 2) || heroAccent ? '' : 'bg-muted/50'}`}
+                                                        style={
+                                                            scoreColors && scoreColors.length >= 2
+                                                                ? { background: `linear-gradient(90deg, ${scoreColors[0]}40, ${scoreColors[1]}1f 50%, transparent)` }
+                                                                : heroAccent
+                                                                    ? { background: `linear-gradient(90deg, ${heroAccent}55, ${heroAccent}22 55%, transparent)` }
+                                                                    : undefined
+                                                        }
                                                     >
                                                         <span className={`text-sm font-semibold truncate ${matchOver ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'}`}>
                                                             {data.status}
