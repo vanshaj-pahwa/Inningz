@@ -24,10 +24,12 @@ import { ArrowRight, Tv, ChevronLeft, ChevronRight } from 'lucide-react';
 type RankingCategory = 'batting' | 'bowling' | 'all-rounder';
 type RankingFormat = 'test' | 'odi' | 't20';
 
+// Harmonized to the design tokens (was amber/cyan/purple): gold = runs/batting,
+// blue = bowling, violet = all-rounders. One cohesive triad, no stray cyan.
 const rankingCategoryConfig: Record<RankingCategory, { noun: string; accent: string; ring: string }> = {
-  batting: { noun: 'Batters', accent: 'text-amber-400', ring: 'bg-amber-500/10' },
-  bowling: { noun: 'Bowlers', accent: 'text-cyan-400', ring: 'bg-cyan-500/10' },
-  'all-rounder': { noun: 'All-Rounders', accent: 'text-purple-400', ring: 'bg-purple-500/10' },
+  batting: { noun: 'Batters', accent: 'text-[hsl(var(--brand))]', ring: 'bg-[hsl(var(--brand)/0.12)]' },
+  bowling: { noun: 'Bowlers', accent: 'text-[hsl(var(--info))]', ring: 'bg-[hsl(var(--info)/0.12)]' },
+  'all-rounder': { noun: 'All-Rounders', accent: 'text-[hsl(var(--six))]', ring: 'bg-[hsl(var(--six)/0.12)]' },
 };
 
 const rankingFormats: { value: RankingFormat; label: string }[] = [

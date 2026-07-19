@@ -250,29 +250,8 @@
   }
 
   /* Win Probability - theme-aware colors */
-  .win-prob-leader {
-    color: #059669; /* emerald-600 for light themes */
-  }
-  .dark .win-prob-leader,
-  .liquid-glass .win-prob-leader,
-  .midnight .win-prob-leader,
-  .pitch .win-prob-leader,
-  .sunset .win-prob-leader,
-  .liquid-glass .win-prob-leader {
-    color: #34d399; /* emerald-400 for dark themes */
-  }
-
-  .win-prob-trailing {
-    color: #e11d48; /* rose-600 for light themes */
-  }
-  .dark .win-prob-trailing,
-  .liquid-glass .win-prob-trailing,
-  .midnight .win-prob-trailing,
-  .pitch .win-prob-trailing,
-  .sunset .win-prob-trailing,
-  .liquid-glass .win-prob-trailing {
-    color: #fb7185; /* rose-400 for dark themes */
-  }
+  .win-prob-leader { color: hsl(var(--success)); }
+  .win-prob-trailing { color: hsl(var(--danger)); }
 
   /* Tab container - theme-aware */
   .tab-container {
@@ -368,50 +347,12 @@
   .mini-sc-batting-text { color: hsl(var(--success)); }
   .mini-sc-bowling-text { color: hsl(var(--warning)); }
 
-  /* Row highlights - performance-based */
-  .row-highlight-batting-50 {
-    background-color: rgba(220, 252, 231, 0.5); /* green-50/50 */
-  }
-  .dark .row-highlight-batting-50,
-  .liquid-glass .row-highlight-batting-50,
-  .midnight .row-highlight-batting-50,
-  .pitch .row-highlight-batting-50,
-  .sunset .row-highlight-batting-50 {
-    background-color: rgba(5, 46, 22, 0.2); /* green-950/20 */
-  }
-
-  .row-highlight-batting-30 {
-    background-color: rgba(209, 250, 229, 0.3); /* emerald-50/30 */
-  }
-  .dark .row-highlight-batting-30,
-  .liquid-glass .row-highlight-batting-30,
-  .midnight .row-highlight-batting-30,
-  .pitch .row-highlight-batting-30,
-  .sunset .row-highlight-batting-30 {
-    background-color: rgba(2, 44, 34, 0.1); /* emerald-950/10 */
-  }
-
-  .row-highlight-bowling-3 {
-    background-color: rgba(255, 237, 213, 0.5); /* orange-50/50 */
-  }
-  .dark .row-highlight-bowling-3,
-  .liquid-glass .row-highlight-bowling-3,
-  .midnight .row-highlight-bowling-3,
-  .pitch .row-highlight-bowling-3,
-  .sunset .row-highlight-bowling-3 {
-    background-color: rgba(67, 20, 7, 0.2); /* orange-950/20 */
-  }
-
-  .row-highlight-bowling-2 {
-    background-color: rgba(255, 251, 235, 0.3); /* amber-50/30 */
-  }
-  .dark .row-highlight-bowling-2,
-  .liquid-glass .row-highlight-bowling-2,
-  .midnight .row-highlight-bowling-2,
-  .pitch .row-highlight-bowling-2,
-  .sunset .row-highlight-bowling-2 {
-    background-color: rgba(69, 26, 3, 0.1); /* amber-950/10 */
-  }
+  /* Row highlights - performance-based, routed through semantic tokens so the
+     milestone tint matches the rest of the success/warning palette. */
+  .row-highlight-batting-50 { background-color: hsl(var(--success) / 0.12); }
+  .row-highlight-batting-30 { background-color: hsl(var(--success) / 0.07); }
+  .row-highlight-bowling-3 { background-color: hsl(var(--warning) / 0.12); }
+  .row-highlight-bowling-2 { background-color: hsl(var(--warning) / 0.07); }
 
   /* Score highlight */
   .score-glow {
