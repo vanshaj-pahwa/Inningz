@@ -1,10 +1,14 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { MapPin } from 'lucide-react';
 import { formatScore, formatStartTime, buildVenueHref, buildSeriesHref, deriveMatchFormat } from '@/lib/utils';
 import type { LiveMatch } from '@/app/actions';
+
+// Process-wide cache of a flag's two accent colours, keyed by flag URL.
+const flagColorCache = new Map<string, string[]>();
 
 // Colored format badge (T20 / ODI / TEST …) for at-a-glance segregation.
 const FORMAT_BADGE: Record<string, string> = {
@@ -75,10 +79,38 @@ export default function MatchCard({
     : 'text-muted-foreground';
   const venue = match.venue && match.venue !== 'N/A' && match.venue.trim() ? match.venue : null;
   const venueHref = buildVenueHref(match.venueUrl);
-  const format = deriveMatchFormat(match.title, match.seriesName);
+  const format = match.matchFormat || deriveMatchFormat(match.title, match.seriesName);
   const seriesHref = buildSeriesHref(match.seriesName, match.seriesUrl);
   // Leagues/domestic competitions have a points table; bilateral series don't.
   const showTable = category === 'league' || category === 'domestic';
+
+  // On a finished match, emphasise the winner and mute the losing side.
+  const winnerName = complete ? match.status?.match(/^(.+?)\s+won\b/i)?.[1]?.trim() : null;
+  const isWinner = (teamName: string) => {
+    if (!winnerName) return true; // unknown winner -> don't mute either side
+    const a = teamName.toLowerCase(), w = winnerName.toLowerCase();
+    return a === w || w.includes(a) || a.includes(w);
+  };
+  const winnerFlag = winnerName
+    ? match.teams.find((t) => isWinner(t.name))?.flagUrl ?? null
+    : null;
+
+  // Fetch the winner's flag colours (extracted server-side) for a crisp accent.
+  const [accent, setAccent] = useState<string[] | null>(winnerFlag ? flagColorCache.get(winnerFlag) ?? null : null);
+  useEffect(() => {
+    if (!winnerFlag || flagColorCache.has(winnerFlag)) return;
+    let cancelled = false;
+    fetch(`/api/flag-colors?url=${encodeURIComponent(winnerFlag)}`)
+      .then((r) => r.json())
+      .then((d: { colors?: string[] }) => {
+        if (cancelled || !d.colors?.length) return;
+        flagColorCache.set(winnerFlag, d.colors);
+        setAccent(d.colors);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [winnerFlag]);
+  const hasAccent = !!accent && accent.length >= 2;
 
   return (
     <div className={`surface-card card-hover px-4 py-3 md:px-5 md:py-3.5 h-full relative ${live ? 'ring-1 ring-red-500/20' : ''}`}>
@@ -126,8 +158,14 @@ export default function MatchCard({
         {/* min-h-7 keeps score-less (upcoming) rows the same height as
             rows that show scores (recent/live), so cards align. */}
         <div className="space-y-2 md:space-y-3">
-          {match.teams.map((team, i) => (
-            <div key={i} className="flex items-center justify-between gap-3 min-h-7">
+          {match.teams.map((team, i) => {
+            const winRow = complete && isWinner(team.name) && hasAccent;
+            return (
+            <div
+              key={i}
+              className={`flex items-center justify-between gap-3 min-h-7 ${winRow ? 'rounded-lg -mx-2 px-2 py-0.5 ring-1 ring-inset ring-white/5' : ''}`}
+              style={winRow ? { background: `linear-gradient(90deg, ${accent![0]}40, ${accent![1]}1f 50%, transparent)` } : undefined}
+            >
               <span className="flex items-center gap-2 min-w-0 flex-1">
                 {team.flagUrl && (
                   <Image
@@ -136,18 +174,21 @@ export default function MatchCard({
                     width={24}
                     height={18}
                     unoptimized
-                    className="w-6 h-[18px] rounded-[2px] object-cover shrink-0 ring-1 ring-black/5 dark:ring-white/10"
+                    className={`w-6 h-[18px] rounded-[2px] object-cover shrink-0 ring-1 ring-black/5 dark:ring-white/10 ${complete && !isWinner(team.name) ? 'opacity-60' : ''}`}
                   />
                 )}
-                <span className="text-sm font-semibold truncate text-foreground">{team.name}</span>
+                <span className={`text-sm truncate ${complete && !isWinner(team.name) ? 'font-medium text-muted-foreground' : 'font-semibold text-foreground'}`}>
+                  {team.name}
+                </span>
               </span>
               {team.score && (
-                <span className="font-display text-base md:text-lg tabular-nums shrink-0 text-foreground">
+                <span className={`font-display text-base md:text-lg tabular-nums shrink-0 ${complete && !isWinner(team.name) ? 'text-muted-foreground' : 'text-foreground'}`}>
                   {formatScore(team.score)}
                 </span>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
 
         {(footer || venue || seriesHref) && (

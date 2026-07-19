@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ArrowLeft, Filter, ChevronDown, X } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { deriveMatchFormat } from '@/lib/utils';
 import SeriesStatsDisplay from '@/components/series-stats';
 import PointsTableDisplay from '@/components/points-table';
 import MatchCard from '@/components/match-card';
@@ -41,6 +42,7 @@ export default function SeriesPage() {
   const [hasPointsTable, setHasPointsTable] = useState<boolean | null>(null);
   const [teamFilter, setTeamFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('all');
+  const [formatFilter, setFormatFilter] = useState<string>('all');
   const [hasTrackedSeries, setHasTrackedSeries] = useState(false);
   const [topRunScorer, setTopRunScorer] = useState<{ name: string; value: string } | null>(null);
   const [topWicketTaker, setTopWicketTaker] = useState<{ name: string; value: string } | null>(null);
@@ -74,10 +76,11 @@ export default function SeriesPage() {
     if (hasToday && dateKeys.size > 1) setDateFilter(todayDateKey);
   }, [loading, matches, todayDateKey]);
 
-  const hasActiveFilter = dateFilter !== 'all' || teamFilter !== 'all';
+  const hasActiveFilter = dateFilter !== 'all' || teamFilter !== 'all' || formatFilter !== 'all';
   const resetFilters = () => {
     setDateFilter('all');
     setTeamFilter('all');
+    setFormatFilter('all');
   };
 
   // Auto-scroll to today's date group — wait until the ref element has actual height (cards rendered)
@@ -193,6 +196,12 @@ export default function SeriesPage() {
     new Set(matches.flatMap(m => m.teams.map(t => t.name)).filter(Boolean))
   ).sort();
 
+  // Formats actually present in this series (TEST, ODI, T20, ...), taken from the
+  // real matchFormat field, falling back to a title-derived guess if absent.
+  const matchFmt = (m: LiveMatch) => m.matchFormat || deriveMatchFormat(m.title, m.seriesName) || null;
+  // Whether the series spans more than one format at all (decides if tabs show).
+  const allFormats = Array.from(new Set(matches.map(matchFmt).filter(Boolean) as string[]));
+
   // Helper to get date key from match
   const getMatchDateKey = (match: LiveMatch): { dateKey: string; timestamp: number } => {
     if (match.startDate) {
@@ -223,12 +232,16 @@ export default function SeriesPage() {
     ).values()
   ).sort((a, b) => a.timestamp - b.timestamp).map(d => d.dateKey);
 
-  // Filter matches by team and date
-  const filteredMatches = matches.filter(m => {
+  // Filter by team + date first, then derive which formats remain so the format
+  // tabs stay in sync with the current date/team selection (dynamic tabs).
+  const dateTeamFiltered = matches.filter(m => {
     const teamMatch = teamFilter === 'all' || m.teams.some(t => t.name === teamFilter);
     const dateMatch = dateFilter === 'all' || getMatchDateKey(m).dateKey === dateFilter;
     return teamMatch && dateMatch;
   });
+  const availableFormats = Array.from(new Set(dateTeamFiltered.map(matchFmt).filter(Boolean) as string[]));
+  const effectiveFormat = formatFilter !== 'all' && availableFormats.includes(formatFilter) ? formatFilter : 'all';
+  const filteredMatches = dateTeamFiltered.filter(m => effectiveFormat === 'all' || matchFmt(m) === effectiveFormat);
 
   // Group matches by date
   const groupMatchesByDate = (matchList: LiveMatch[]) => {
@@ -406,6 +419,23 @@ export default function SeriesPage() {
       <main className="max-w-7xl mx-auto px-4 md:px-6 py-8">
         {view === 'matches' && (
           <>
+            {/* Format tabs — reflect the formats present in the current date/team selection */}
+            {!loading && !error && matches.length > 0 && allFormats.length > 1 && (
+              <div className="flex items-center gap-1.5 flex-wrap mb-6">
+                {['all', ...availableFormats].map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setFormatFilter(f)}
+                    className={`px-3.5 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-all ${
+                      effectiveFormat === f ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {f === 'all' ? 'All' : f}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {loading && (
               <div className="space-y-8">
                 {[...Array(3)].map((_, g) => (
