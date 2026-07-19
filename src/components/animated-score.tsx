@@ -6,20 +6,21 @@ import { formatScore } from '@/lib/utils';
 interface AnimatedScoreProps {
     value?: string;
     className?: string;
+    style?: React.CSSProperties;
 }
 
 // Animates the runs and the overs portions of a score string when they change.
 // Supports score strings with or without a team prefix:
 //   "153/9 (20.0 ov)", "284-8 (50 ov)", "421", "ZIM 249/2 (61.0 ov)".
-export default function AnimatedScore({ value, className }: AnimatedScoreProps) {
+export default function AnimatedScore({ value, className, style }: AnimatedScoreProps) {
     const parsed = parseScore(formatScore(value));
 
     if (parsed.runs === null) {
-        return <span className={className}>{value ?? ''}</span>;
+        return <span className={className} style={style}>{value ?? ''}</span>;
     }
 
     return (
-        <span className={className}>
+        <span className={className} style={style}>
             {parsed.prefix}
             <AnimatedNumber value={parsed.runs} format={(n) => String(Math.round(n))} />
             {parsed.wktsText}

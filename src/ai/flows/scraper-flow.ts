@@ -4157,6 +4157,7 @@ export async function getOverByOverData(matchId: string, inningsId: number): Pro
     let response: Response;
     try {
       response = await fetch(url, {
+        cache: 'no-store',
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
         },
@@ -4279,6 +4280,7 @@ export async function fetchPartnershipData(matchId: string): Promise<Partnership
 export async function fetchBallMapData(matchId: string, inningsId: number): Promise<BallMapData | null> {
   const url = `https://www.cricbuzz.com/api/mcenter/balls-map/${matchId}/${inningsId}`;
   const response = await fetch(url, {
+    cache: 'no-store',
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
     },

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { MapPin } from 'lucide-react';
 import { formatScore, formatStartTime, buildVenueHref, buildSeriesHref, deriveMatchFormat } from '@/lib/utils';
+import { rememberMatchFlags } from '@/lib/team-flags';
 import type { LiveMatch } from '@/app/actions';
 
 // Process-wide cache of a flag's two accent colours, keyed by flag URL.
@@ -121,6 +122,7 @@ export default function MatchCard({
         href={`/match/${match.matchId}`}
         className="absolute inset-0 z-0 rounded-2xl"
         aria-label={match.title || 'Match details'}
+        onClick={() => rememberMatchFlags(match.matchId, match.teams)}
       />
       <div className="relative z-[1] pointer-events-none">
         {(showLabel || live || format) && (

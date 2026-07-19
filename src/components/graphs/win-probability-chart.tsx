@@ -4,6 +4,8 @@ import { useState } from 'react';
 import {
   LineChart,
   Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   Tooltip,
@@ -25,6 +27,7 @@ export default function WinProbabilityChart({ data }: WinProbabilityChartProps) 
   const TEAM1_COLOR = data.team1Color || '#E6A937';
   const TEAM2_COLOR = data.team2Color || '#0588F0';
   const [filter, setFilter] = useState<'both' | 'team1' | 'team2'>('both');
+  const [chartType, setChartType] = useState<'area' | 'line'>('area');
 
   // Need at least two points to draw a meaningful line — a single (or empty) series
   // renders as bare axes, which reads as broken.
@@ -70,97 +73,167 @@ export default function WinProbabilityChart({ data }: WinProbabilityChartProps) 
     { key: 'team2' as const, label: data.team2Name },
   ];
 
+  // Grid / reference lines / axes / tooltip are identical for the line and area
+  // views, so share them across both charts.
+  const axisChildren = [
+    <CartesianGrid key="grid" strokeDasharray="4 4" stroke="hsl(var(--border) / 0.5)" />,
+    <ReferenceLine key="ref50" y={50} stroke="hsl(var(--border))" strokeDasharray="2 2" />,
+    inningsBreakIndex > 0 ? (
+      <ReferenceLine key="brk" x={inningsBreakIndex} stroke="hsl(var(--border))" strokeWidth={1} />
+    ) : null,
+    <XAxis
+      key="x"
+      dataKey="idx"
+      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+      tickFormatter={(idx: number) => indexedData[idx]?.overLabel || ''}
+      interval="preserveStartEnd"
+      axisLine={{ stroke: 'hsl(var(--border) / 0.5)' }}
+      tickLine={false}
+    />,
+    <YAxis
+      key="y"
+      domain={[0, 100]}
+      ticks={[0, 25, 50, 75, 100]}
+      tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+      axisLine={false}
+      tickLine={false}
+      width={35}
+    />,
+    <Tooltip
+      key="tt"
+      content={<WinProbTooltip team1={data.team1Name} team2={data.team2Name} hasDrawSeries={hasDrawSeries} />}
+      allowEscapeViewBox={{ x: true, y: false }}
+      wrapperStyle={{ zIndex: 20, pointerEvents: 'none' }}
+    />,
+  ];
+
+  // Wicket markers sit on each team's win-prob line (the boundary of its area).
+  const wicketDot = (color: string, key: 'isTeam1Wicket' | 'isTeam2Wicket', prefix: string) => (props: any) => {
+    const { cx, cy, payload } = props;
+    if (!payload[key]) return <circle key={`${prefix}-${payload.over}`} r={0} />;
+    return <circle key={`${prefix}w-${payload.over}`} cx={cx} cy={cy} r={4} fill={color} stroke="white" strokeWidth={1.5} />;
+  };
+
   return (
     <div className="space-y-4">
-      {/* Filter tabs */}
-      <div className="flex gap-0.5 p-0.5 bg-muted/40 rounded-lg w-fit">
-        {filters.map(f => (
-          <button
-            key={f.key}
-            onClick={() => setFilter(f.key)}
-            className={cn(
-              'px-3.5 py-1 rounded-md text-xs font-medium transition-all duration-200',
-              filter === f.key
-                ? 'bg-card text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            {f.label}
-          </button>
-        ))}
+      {/* Filter + chart-type toggles */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex gap-0.5 p-0.5 bg-muted/40 rounded-lg w-fit">
+          {filters.map(f => (
+            <button
+              key={f.key}
+              onClick={() => setFilter(f.key)}
+              className={cn(
+                'px-3.5 py-1 rounded-md text-xs font-medium transition-all duration-200',
+                filter === f.key
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-0.5 p-0.5 bg-muted/40 rounded-lg w-fit">
+          {([{ key: 'area', label: 'Area' }, { key: 'line', label: 'Line' }] as const).map(t => (
+            <button
+              key={t.key}
+              onClick={() => setChartType(t.key)}
+              className={cn(
+                'px-3.5 py-1 rounded-md text-xs font-medium transition-all duration-200',
+                chartType === t.key
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Chart */}
       <ChartZoomModal title="Win Probability" renderChart={(height) => (
         <>
           <ResponsiveContainer width="100%" height={height}>
-            <LineChart data={indexedData} margin={{ top: 10, right: 10, left: 0, bottom: 25 }}>
-              <CartesianGrid strokeDasharray="4 4" stroke="hsl(var(--border) / 0.5)" />
-              <ReferenceLine y={50} stroke="hsl(var(--border))" strokeDasharray="2 2" />
-              {inningsBreakIndex > 0 && (
-                <ReferenceLine x={inningsBreakIndex} stroke="hsl(var(--border))" strokeWidth={1} />
-              )}
-              <XAxis
-                dataKey="idx"
-                tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-                tickFormatter={(idx: number) => indexedData[idx]?.overLabel || ''}
-                interval="preserveStartEnd"
-                axisLine={{ stroke: 'hsl(var(--border) / 0.5)' }}
-                tickLine={false}
-              />
-              <YAxis
-                domain={[0, 100]}
-                ticks={[0, 25, 50, 75, 100]}
-                tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-                axisLine={false}
-                tickLine={false}
-                width={35}
-              />
-              <Tooltip
-                content={<WinProbTooltip team1={data.team1Name} team2={data.team2Name} hasDrawSeries={hasDrawSeries} />}
-                allowEscapeViewBox={{ x: true, y: false }}
-                wrapperStyle={{ zIndex: 20, pointerEvents: 'none' }}
-              />
-              {(filter === 'both' || filter === 'team1') && (
-                <Line
-                  type="monotone"
-                  dataKey="team1"
-                  stroke={TEAM1_COLOR}
-                  strokeWidth={2.5}
-                  dot={(props: any) => {
-                    const { cx, cy, payload } = props;
-                    if (!payload.isTeam1Wicket) return <circle key={`t1-${payload.over}`} r={0} />;
-                    return <circle key={`t1w-${payload.over}`} cx={cx} cy={cy} r={4} fill={TEAM1_COLOR} stroke="white" strokeWidth={1.5} />;
-                  }}
-                  activeDot={{ r: 5, strokeWidth: 2, stroke: TEAM1_COLOR, fill: 'hsl(var(--card))' }}
-                />
-              )}
-              {(filter === 'both' || filter === 'team2') && (
-                <Line
-                  type="monotone"
-                  dataKey="team2"
-                  stroke={TEAM2_COLOR}
-                  strokeWidth={2.5}
-                  dot={(props: any) => {
-                    const { cx, cy, payload } = props;
-                    if (!payload.isTeam2Wicket) return <circle key={`t2-${payload.over}`} r={0} />;
-                    return <circle key={`t2w-${payload.over}`} cx={cx} cy={cy} r={4} fill={TEAM2_COLOR} stroke="white" strokeWidth={1.5} />;
-                  }}
-                  activeDot={{ r: 5, strokeWidth: 2, stroke: TEAM2_COLOR, fill: 'hsl(var(--card))' }}
-                />
-              )}
-              {hasDrawSeries && filter === 'both' && (
-                <Line
-                  type="monotone"
-                  dataKey="draw"
-                  stroke={DRAW_COLOR}
-                  strokeWidth={2}
-                  strokeDasharray="4 3"
-                  dot={false}
-                  activeDot={{ r: 4, strokeWidth: 2, stroke: DRAW_COLOR, fill: 'hsl(var(--card))' }}
-                />
-              )}
-            </LineChart>
+            {chartType === 'area' ? (
+              <AreaChart data={indexedData} margin={{ top: 10, right: 10, left: 0, bottom: 25 }}>
+                {axisChildren}
+                {(filter === 'both' || filter === 'team1') && (
+                  <Area
+                    type="monotone"
+                    dataKey="team1"
+                    stackId="wp"
+                    stroke={TEAM1_COLOR}
+                    strokeWidth={2}
+                    fill={TEAM1_COLOR}
+                    fillOpacity={0.5}
+                    dot={wicketDot(TEAM1_COLOR, 'isTeam1Wicket', 't1')}
+                    activeDot={{ r: 5, strokeWidth: 2, stroke: TEAM1_COLOR, fill: 'hsl(var(--card))' }}
+                  />
+                )}
+                {hasDrawSeries && filter === 'both' && (
+                  <Area
+                    type="monotone"
+                    dataKey="draw"
+                    stackId="wp"
+                    stroke={DRAW_COLOR}
+                    strokeWidth={1.5}
+                    fill={DRAW_COLOR}
+                    fillOpacity={0.45}
+                    dot={false}
+                  />
+                )}
+                {(filter === 'both' || filter === 'team2') && (
+                  <Area
+                    type="monotone"
+                    dataKey="team2"
+                    stackId="wp"
+                    stroke={TEAM2_COLOR}
+                    strokeWidth={2}
+                    fill={TEAM2_COLOR}
+                    fillOpacity={0.5}
+                    dot={wicketDot(TEAM2_COLOR, 'isTeam2Wicket', 't2')}
+                    activeDot={{ r: 5, strokeWidth: 2, stroke: TEAM2_COLOR, fill: 'hsl(var(--card))' }}
+                  />
+                )}
+              </AreaChart>
+            ) : (
+              <LineChart data={indexedData} margin={{ top: 10, right: 10, left: 0, bottom: 25 }}>
+                {axisChildren}
+                {(filter === 'both' || filter === 'team1') && (
+                  <Line
+                    type="monotone"
+                    dataKey="team1"
+                    stroke={TEAM1_COLOR}
+                    strokeWidth={2.5}
+                    dot={wicketDot(TEAM1_COLOR, 'isTeam1Wicket', 't1')}
+                    activeDot={{ r: 5, strokeWidth: 2, stroke: TEAM1_COLOR, fill: 'hsl(var(--card))' }}
+                  />
+                )}
+                {(filter === 'both' || filter === 'team2') && (
+                  <Line
+                    type="monotone"
+                    dataKey="team2"
+                    stroke={TEAM2_COLOR}
+                    strokeWidth={2.5}
+                    dot={wicketDot(TEAM2_COLOR, 'isTeam2Wicket', 't2')}
+                    activeDot={{ r: 5, strokeWidth: 2, stroke: TEAM2_COLOR, fill: 'hsl(var(--card))' }}
+                  />
+                )}
+                {hasDrawSeries && filter === 'both' && (
+                  <Line
+                    type="monotone"
+                    dataKey="draw"
+                    stroke={DRAW_COLOR}
+                    strokeWidth={2}
+                    strokeDasharray="4 3"
+                    dot={false}
+                    activeDot={{ r: 4, strokeWidth: 2, stroke: DRAW_COLOR, fill: 'hsl(var(--card))' }}
+                  />
+                )}
+              </LineChart>
+            )}
           </ResponsiveContainer>
 
           {/* Innings labels */}

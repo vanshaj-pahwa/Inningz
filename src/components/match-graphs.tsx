@@ -32,6 +32,7 @@ import type {
 } from '@/app/actions';
 import BallMap from './graphs/ball-map';
 import WinProbabilityChart from './graphs/win-probability-chart';
+import { teamColorFor } from '@/lib/team-flags';
 import PartnershipsChart from './graphs/partnerships-chart';
 import OverByOverChart from './over-by-over-chart';
 import RunRateChart from './graphs/run-rate-chart';
@@ -59,6 +60,7 @@ interface MatchGraphsProps {
   initialTab?: string;
   matchTitle?: string;
   seriesName?: string;
+  live?: boolean;
 }
 
 interface ShareState {
@@ -68,7 +70,7 @@ interface ShareState {
   chart: ReactNode;
 }
 
-export default function MatchGraphs({ matchId, initialTab, matchTitle = '', seriesName }: MatchGraphsProps) {
+export default function MatchGraphs({ matchId, initialTab, matchTitle = '', seriesName, live = false }: MatchGraphsProps) {
   const [shareState, setShareState] = useState<ShareState | null>(null);
   const [partnershipData, setPartnershipData] = useState<PartnershipInnings[] | null>(null);
   const [ballMapData, setBallMapData] = useState<Map<number, BallMapData>>(new Map());
@@ -129,6 +131,28 @@ export default function MatchGraphs({ matchId, initialTab, matchTitle = '', seri
     setTried((t) => ({ ...t, overData: true }));
   }, [matchId]);
 
+  // For a live match the over data and win probability keep changing, but the
+  // fetchers above run only once. Re-pull them on an interval so Run Rate / Worm /
+  // Overs / Win Probability track the live feed. Only refreshes sections the user
+  // has already opened, and never resets the innings the user has selected.
+  const refreshLiveGraphs = useCallback(async () => {
+    if (fetched.current.has('overData')) {
+      const ids = [1, 2, 3, 4];
+      const results = await Promise.allSettled(ids.map((id) => getInningsOverData(matchId, id)));
+      const map = new Map<number, InningsOverData>();
+      results.forEach((res, i) => {
+        if (res.status === 'fulfilled' && res.value.success && res.value.data?.overs?.length) {
+          map.set(ids[i], res.value.data);
+        }
+      });
+      if (map.size > 0) setOverData(map);
+    }
+    if (fetched.current.has('winProb')) {
+      const wp = await getWinProbHistory(matchId);
+      if (wp.success && wp.data) setWinProbData(wp.data);
+    }
+  }, [matchId]);
+
   const fetchPartnerships = useCallback(async () => {
     if (fetched.current.has('partnerships')) return;
     fetched.current.add('partnerships');
@@ -184,6 +208,13 @@ export default function MatchGraphs({ matchId, initialTab, matchTitle = '', seri
     fetchAllPlayers();
   }, [fetchWinProb, fetchOverData, fetchPartnerships, fetchMatchups, fetchVenue, fetchAllPlayers]);
 
+  // While the match is live, keep the over-based charts and win probability fresh.
+  useEffect(() => {
+    if (!live) return;
+    const interval = setInterval(refreshLiveGraphs, 40000);
+    return () => clearInterval(interval);
+  }, [live, refreshLiveGraphs]);
+
   const fetchBallMap = useCallback(async (inningsId: number) => {
     const key = `ballMap-${inningsId}`;
     if (fetched.current.has(key)) return;
@@ -236,10 +267,25 @@ export default function MatchGraphs({ matchId, initialTab, matchTitle = '', seri
   }, [initialTab]);
 
   const overInnings = Array.from(overData.entries()).map(([id, d]) => ({ inningsId: id, data: d }));
-  const teamColorMap = winProbData
+  // Colour priority: the report's own scraped colour first; fall back to our
+  // team-identity map (India blue, England red, ...) only when the scrape used
+  // its default placeholder (i.e. it had no real colour to give).
+  const DEFAULT_WP_COLORS = new Set(['#e6a937', '#0588f0']);
+  const reportOrMap = (scraped: string | undefined, name: string) => {
+    if (scraped && !DEFAULT_WP_COLORS.has(scraped.toLowerCase())) return scraped;
+    return teamColorFor(name, [name]) ?? scraped;
+  };
+  const winProbColored = winProbData
+    ? {
+      ...winProbData,
+      team1Color: reportOrMap(winProbData.team1Color, winProbData.team1Name),
+      team2Color: reportOrMap(winProbData.team2Color, winProbData.team2Name),
+    }
+    : null;
+  const teamColorMap = winProbColored
     ? [
-      { name: winProbData.team1Name, color: winProbData.team1Color },
-      { name: winProbData.team2Name, color: winProbData.team2Color },
+      { name: winProbColored.team1Name, color: winProbColored.team1Color },
+      { name: winProbColored.team2Name, color: winProbColored.team2Color },
     ]
     : undefined;
 
@@ -285,13 +331,13 @@ export default function MatchGraphs({ matchId, initialTab, matchTitle = '', seri
             sectionRefs={sectionRefs}
             onFirstView={fetchWinProb}
             loading={!tried.winProb || winProbLoading}
-            onShare={winProbData ? () => setShareState({
+            onShare={winProbColored ? () => setShareState({
               sectionLabel: SECTIONS[0].label,
               sectionSubtitle: SECTIONS[0].subtitle,
-              chart: <WinProbabilityChart data={winProbData} />,
+              chart: <WinProbabilityChart data={winProbColored} />,
             }) : undefined}
           >
-            {winProbData && <WinProbabilityChart data={winProbData} />}
+            {winProbColored && <WinProbabilityChart data={winProbColored} />}
           </GraphSection>
         )}
 

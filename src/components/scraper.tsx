@@ -5,7 +5,7 @@ import { useEffect, useState, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { loadMoreCommentary as loadMoreCommentaryAction, getPlayerProfile, getPlayerHighlights } from '@/app/actions';
+import { loadMoreCommentary as loadMoreCommentaryAction, getPlayerProfile, getPlayerHighlights, getMatchSquads } from '@/app/actions';
 import type { ScrapeCricbuzzUrlOutput, Commentary, PlayerProfile, PlayerHighlights } from '@/app/actions';
 import { useLiveScore } from '@/lib/data-layer';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -13,7 +13,6 @@ import { User, ArrowLeft, ChevronLeft, ChevronRight, ChevronUp, Share2, Trophy, 
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { cn, buildVenueHref } from '@/lib/utils';
-import { hasInAppHistory } from '@/lib/nav-history';
 import FullScorecard from './full-scorecard';
 import PlayerProfileDisplay from './player-profile';
 import AnimatedScore from './animated-score';
@@ -28,6 +27,9 @@ import Breadcrumbs from './breadcrumbs';
 import { useRecentHistoryContext } from '@/contexts/recent-history-context';
 import { useSwipe } from '@/hooks/use-swipe';
 import { ShareButton, StatShareDialog } from './share-cards';
+import BatterBreakdown from './batter-breakdown';
+import HeroMomentum from './hero-momentum';
+import { getMatchFlags, rememberMatchFlags, pickVibrant, teamColorFor, type StoredTeam } from '@/lib/team-flags';
 import { VirtualCommentaryList } from './virtual-commentary-list';
 import PointsTableDisplay from './points-table';
 import dynamic from 'next/dynamic';
@@ -96,6 +98,22 @@ function isLive(status: string): boolean {
         (!s.includes('won') && !s.includes('complete') && !s.includes('drawn') && !s.includes('tied'));
 }
 
+// Match a score's short code (e.g. "ENG", "WI") to a stored full team name
+// ("England", "West Indies") so we can show the batting side's flag. Handles
+// single-word names by prefix and multi-word names by initials.
+function flagForShortCode(shortCode: string | undefined, teams: StoredTeam[] | null): string | null {
+    if (!shortCode || !teams) return null;
+    const s = shortCode.toLowerCase().replace(/[^a-z]/g, '');
+    if (!s) return null;
+    for (const t of teams) {
+        const name = t.name.toLowerCase();
+        const noSpace = name.replace(/[^a-z]/g, '');
+        const initials = name.split(/\s+/).map((w) => w[0] || '').join('');
+        if (noSpace.startsWith(s) || initials === s || initials.startsWith(s)) return t.flagUrl;
+    }
+    return null;
+}
+
 export default function ScoreDisplay({ matchId }: { matchId: string }) {
     const router = useRouter();
     const { addMatch, addPlayer } = useRecentHistoryContext();
@@ -108,15 +126,31 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
     const [lastTimestamp, setLastTimestamp] = useState<number | null>(null);
     const [statShareOpen, setStatShareOpen] = useState(false);
     const [statShareData, setStatShareData] = useState<{ headline?: string; text: string; snippetType?: string } | null>(null);
-    const [canGoBack, setCanGoBack] = useState(false);
-
-    // If the user landed on this page directly (no in-app pathname change yet),
-    // show "Back to Home" instead of an icon. The counter is incremented in
-    // AppShell during render, so by the time this effect runs it reflects
-    // whether any navigation happened in this tab.
+    // Team flags stashed when the user opened this match from a list card; the
+    // live feed itself doesn't carry the batting side's flag.
+    const [storedFlags, setStoredFlags] = useState<StoredTeam[] | null>(null);
     useEffect(() => {
-        setCanGoBack(hasInAppHistory());
-    }, []);
+        const stored = getMatchFlags(matchId);
+        if (stored && stored.length) { setStoredFlags(stored); return; }
+        // Direct navigation (no card click) has no stored flags; pull them from
+        // the squads endpoint and cache for next time.
+        let cancelled = false;
+        getMatchSquads(matchId)
+            .then((res) => {
+                if (cancelled || !res.success || !res.squads) return;
+                const teams = [res.squads.team1, res.squads.team2]
+                    .filter((t): t is typeof t & { teamFlagUrl: string } => !!t.teamName && !!t.teamFlagUrl)
+                    .map((t) => ({ name: t.teamName, flagUrl: t.teamFlagUrl }));
+                if (teams.length) {
+                    setStoredFlags(teams);
+                    rememberMatchFlags(matchId, teams);
+                }
+            })
+            .catch(() => {});
+        return () => { cancelled = true; };
+    }, [matchId]);
+    // Colour the hero score with the batting side's flag colours.
+    const [scoreColors, setScoreColors] = useState<string[] | null>(null);
     const [overSheetOpen, setOverSheetOpen] = useState(false);
     const [overSheetData, setOverSheetData] = useState<Commentary | null>(null);
     const [keyStatsOpen, setKeyStatsOpen] = useState(false);
@@ -158,6 +192,25 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
         const t = setTimeout(() => setLoadTimedOut(true), 12000);
         return () => clearTimeout(t);
     }, [liveData, liveError, matchId]);
+
+    // The batting side's flag (from stored list-card flags) and its accent colours,
+    // used to badge and colour the hero score. Declared here, above any early
+    // return, so hook order stays stable.
+    const battingFlagUrl = flagForShortCode(data?.score?.split(' ')[0], storedFlags);
+    useEffect(() => {
+        if (!battingFlagUrl) { setScoreColors(null); return; }
+        let cancelled = false;
+        fetch(`/api/flag-colors?url=${encodeURIComponent(battingFlagUrl)}`)
+            .then((r) => r.json())
+            .then((d: { colors?: string[] }) => {
+                if (!cancelled && d.colors?.length) setScoreColors(d.colors);
+            })
+            .catch(() => {});
+        return () => { cancelled = true; };
+    }, [battingFlagUrl]);
+    // Team identity colour: the jersey-colour map first (India blue, England red),
+    // then a vivid flag colour for anyone not mapped (e.g. league sides).
+    const heroAccent = teamColorFor(data?.score?.split(' ')[0], storedFlags?.map((t) => t.name) ?? null) ?? pickVibrant(scoreColors);
 
     // Dynamic views based on data availability
     const views: View[] = useMemo(() => {
@@ -1052,27 +1105,6 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
             <div className="flex flex-col gap-2 mb-4 md:mb-6 py-3 md:py-4 gradient-border">
                 {/* Desktop: single row | Mobile: title row */}
                 <div className="flex items-start gap-2 md:gap-4">
-                    {canGoBack ? (
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="shrink-0 h-8 w-8 md:h-9 md:w-9 rounded-xl hover:bg-muted mt-0.5"
-                            onClick={() => router.back()}
-                            aria-label="Go back"
-                        >
-                            <ArrowLeft className="h-4 w-4" />
-                        </Button>
-                    ) : (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="shrink-0 h-8 md:h-9 px-2 md:px-3 rounded-xl hover:bg-muted mt-0.5 gap-1.5"
-                            onClick={() => router.push('/')}
-                        >
-                            <ArrowLeft className="h-4 w-4" />
-                            <span className="text-xs md:text-sm">Back to Home</span>
-                        </Button>
-                    )}
                     <div className="flex-1 min-w-0">
                         <Breadcrumbs
                             className="mb-1"
@@ -1242,11 +1274,13 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                     {/* Previous Innings */}
                                     {data?.previousInnings && data.previousInnings.length > 0 && (
                                         <div className="space-y-1 mb-4">
-                                            {data.previousInnings.map((inning, index) => (
+                                            {data.previousInnings.map((inning, index) => {
+                                                const invFlag = inning.teamFlagUrl || flagForShortCode(inning.teamShortName || inning.teamName, storedFlags);
+                                                return (
                                                 <div key={index} className="flex items-baseline gap-2 opacity-50">
-                                                    {inning.teamFlagUrl && (
+                                                    {invFlag && (
                                                         <div className="rounded overflow-hidden w-5 h-3.5 flex-shrink-0 relative top-[2px]">
-                                                            <Image src={inning.teamFlagUrl} alt={inning.teamShortName || inning.teamName} width={20} height={14} className="w-full h-full object-cover" />
+                                                            <Image src={invFlag} alt={inning.teamShortName || inning.teamName} width={20} height={14} unoptimized className="w-full h-full object-cover" />
                                                         </div>
                                                     )}
                                                     <span className="text-sm font-semibold text-muted-foreground mr-1">{inning.teamShortName || inning.teamName}</span>
@@ -1254,52 +1288,69 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                         {inning.score}
                                                     </span>
                                                 </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     )}
 
                                     {/* Current Score - the hero */}
                                     <div>
-                                        <AnimatedScore
-                                            value={data?.score}
-                                            className="text-4xl md:text-5xl lg:text-6xl font-display tracking-tight stat-amber score-breathe score-glow-effect"
-                                        />
+                                        <div className="flex items-end justify-between gap-8">
+                                            <div className="flex items-center gap-3 md:gap-4 min-w-0">
+                                                {battingFlagUrl && (
+                                                    <Image
+                                                        src={battingFlagUrl}
+                                                        alt=""
+                                                        width={56}
+                                                        height={40}
+                                                        unoptimized
+                                                        className="w-10 h-7 md:w-14 md:h-10 rounded object-cover shrink-0 ring-1 ring-black/5 dark:ring-white/10"
+                                                    />
+                                                )}
+                                                <AnimatedScore
+                                                    value={data?.score}
+                                                    className={`text-4xl md:text-5xl lg:text-6xl font-display tracking-tight score-breathe ${heroAccent ? '' : 'stat-amber score-glow-effect'}`}
+                                                    style={heroAccent ? { color: heroAccent } : undefined}
+                                                />
+                                            </div>
+                                            {liveInnings && (
+                                                <HeroMomentum
+                                                    matchId={matchId}
+                                                    inningsId={data?.currentInningsId || 1}
+                                                    refreshKey={data?.score}
+                                                    accent={heroAccent ?? undefined}
+                                                />
+                                            )}
+                                        </div>
 
                                         {/* Status + Rates row */}
                                         <div className="mt-5 md:mt-6 flex items-center justify-between gap-4 flex-wrap">
                                             <div className="flex items-center gap-2 min-w-0">
                                                 {data?.status && (
-                                                    isLive(data.status) ? (
-                                                        <>
-                                                            <div className="w-2 h-2 rounded-full bg-red-500 live-pulse" />
-                                                            <p className="text-sm font-semibold text-foreground/80">{data.status}</p>
-                                                        </>
-                                                    ) : (
-                                                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 max-w-full">
-                                                            <Trophy className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                                                            <span className="text-xs md:text-sm font-semibold text-amber-300 truncate">
-                                                                {data.status}
-                                                            </span>
-                                                        </div>
-                                                    )
+                                                    <div
+                                                        className={`inline-flex items-center px-3.5 py-1.5 rounded-full ring-1 ring-inset ring-white/5 max-w-full ${heroAccent ? '' : 'bg-muted/50'}`}
+                                                        style={heroAccent ? { background: `linear-gradient(90deg, ${heroAccent}55, ${heroAccent}22 55%, transparent)` } : undefined}
+                                                    >
+                                                        <span className={`text-sm font-semibold truncate ${matchOver ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'}`}>
+                                                            {data.status}
+                                                        </span>
+                                                    </div>
                                                 )}
                                             </div>
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-4">
                                                 {/* Run rates only make sense during a live innings, not before
                                                     the start or once the match is over. */}
                                                 {liveInnings && (
-                                                <div className="flex items-center px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30">
-                                                    <span className="text-xs font-display font-semibold text-cyan-400 tracking-wide">
-                                                        CRR {data?.currentRunRate}
+                                                    <span className="text-base md:text-lg font-display font-semibold tracking-wide">
+                                                        <span className="text-muted-foreground">CRR</span>{' '}
+                                                        <span className="text-foreground">{data?.currentRunRate}</span>
                                                     </span>
-                                                </div>
                                                 )}
                                                 {liveInnings && data?.requiredRunRate && (
-                                                    <div className="flex items-center px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/20">
-                                                        <span className="text-xs font-display font-semibold text-orange-400 tracking-wide">
-                                                            REQ {data.requiredRunRate}
-                                                        </span>
-                                                    </div>
+                                                    <span className="text-base md:text-lg font-display font-semibold tracking-wide">
+                                                        <span className="text-muted-foreground">REQ</span>{' '}
+                                                        <span className="stat-amber">{data.requiredRunRate}</span>
+                                                    </span>
                                                 )}
                                             </div>
                                         </div>
@@ -1502,6 +1553,16 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                     </div>
                                 )}
 
+                                {/* Per-batter scoring breakdown (dot %, run distribution) for the
+                                    two batters at the crease, from ball-by-ball data. */}
+                                {data?.status && isLive(data.status) && data.batsmen.length > 0 && (
+                                    <BatterBreakdown
+                                        matchId={matchId}
+                                        inningsId={data.currentInningsId || 1}
+                                        batsmen={data.batsmen}
+                                    />
+                                )}
+
                                 {/* Key Stats trigger - mobile; opens Partnership/Last Wicket/Recent Overs as a bottom sheet */}
                                 {hasKeyStats && (
                                     <button
@@ -1609,6 +1670,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                         initialTab={graphsInitialTab}
                         matchTitle={data?.title || ''}
                         seriesName={data?.seriesName}
+                        live={!!data?.status && isLive(data.status)}
                     />
                 </motion.div>
                 {view === 'table' && data?.seriesId && (
