@@ -1,5 +1,7 @@
 'use client';
 
+import { teamColorFor } from '@/lib/team-flags';
+
 interface PreviousInning {
   teamName?: string;
   teamShortName?: string;
@@ -134,8 +136,21 @@ export default function WinProbability({ score, currentRunRate, requiredRunRate,
     battingTeam = scoreTeamMatch ? scoreTeamMatch[1].trim() : 'Batting';
   }
 
-  // Determine leader - leading team gets green
+  // Determine leader (leading team gets green in the fallback scheme).
   const battingIsLeader = battingProb >= bowlingProb;
+
+  // Prefer each side's identity colour (India blue, England red, ...) to match
+  // the live hero. Fall back to the leader/trailing green-red for unmapped teams.
+  const battingColor = teamColorFor(battingTeam, [battingTeam]);
+  const bowlingColor = teamColorFor(bowlingTeam, [bowlingTeam]);
+  const useTeamColors = !!battingColor && !!bowlingColor;
+
+  const batText = useTeamColors ? undefined : (battingIsLeader ? 'win-prob-leader' : 'win-prob-trailing');
+  const bowlText = useTeamColors ? undefined : (!battingIsLeader ? 'win-prob-leader' : 'win-prob-trailing');
+  const batStyle = useTeamColors ? { color: battingColor! } : undefined;
+  const bowlStyle = useTeamColors ? { color: bowlingColor! } : undefined;
+  const batBar = useTeamColors ? '' : (battingIsLeader ? 'bg-emerald-500' : 'bg-rose-500');
+  const bowlBar = useTeamColors ? '' : (!battingIsLeader ? 'bg-emerald-500' : 'bg-rose-500');
 
   return (
     <div className="rounded-xl bg-card/80 border border-border px-3 py-2.5">
@@ -150,20 +165,20 @@ export default function WinProbability({ score, currentRunRate, requiredRunRate,
       <div className="flex items-center justify-between mb-2">
         {/* Team 1 (Batting) */}
         <div className="flex items-center gap-2">
-          <span className={`text-xs font-bold uppercase ${battingIsLeader ? 'win-prob-leader' : 'win-prob-trailing'}`}>
+          <span className={`text-xs font-bold uppercase ${batText ?? ''}`} style={batStyle}>
             {battingTeam}
           </span>
-          <span className={`text-lg font-display font-black tabular-nums ${battingIsLeader ? 'win-prob-leader' : 'win-prob-trailing'}`}>
+          <span className={`text-lg font-display font-black tabular-nums ${batText ?? ''}`} style={batStyle}>
             {battingProb}%
           </span>
         </div>
 
         {/* Team 2 (Bowling) */}
         <div className="flex items-center gap-2">
-          <span className={`text-lg font-display font-black tabular-nums ${!battingIsLeader ? 'win-prob-leader' : 'win-prob-trailing'}`}>
+          <span className={`text-lg font-display font-black tabular-nums ${bowlText ?? ''}`} style={bowlStyle}>
             {bowlingProb}%
           </span>
-          <span className={`text-xs font-bold uppercase ${!battingIsLeader ? 'win-prob-leader' : 'win-prob-trailing'}`}>
+          <span className={`text-xs font-bold uppercase ${bowlText ?? ''}`} style={bowlStyle}>
             {bowlingTeam}
           </span>
         </div>
@@ -172,12 +187,12 @@ export default function WinProbability({ score, currentRunRate, requiredRunRate,
       {/* Probability bar */}
       <div className="relative h-1.5 rounded-full overflow-hidden bg-muted">
         <div
-          className={`absolute inset-y-0 left-0 transition-all duration-500 ${battingIsLeader ? 'bg-emerald-500' : 'bg-rose-500'}`}
-          style={{ width: `${battingProb}%` }}
+          className={`absolute inset-y-0 left-0 transition-all duration-500 ${batBar}`}
+          style={{ width: `${battingProb}%`, ...(useTeamColors ? { backgroundColor: battingColor! } : {}) }}
         />
         <div
-          className={`absolute inset-y-0 right-0 transition-all duration-500 ${!battingIsLeader ? 'bg-emerald-500' : 'bg-rose-500'}`}
-          style={{ width: `${bowlingProb}%` }}
+          className={`absolute inset-y-0 right-0 transition-all duration-500 ${bowlBar}`}
+          style={{ width: `${bowlingProb}%`, ...(useTeamColors ? { backgroundColor: bowlingColor! } : {}) }}
         />
         <div
           className="absolute top-0 bottom-0 w-0.5 bg-background z-10"
