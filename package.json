@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "screenshots": "node scripts/screenshots.mjs"
+    "screenshots": "node scripts/screenshots.mjs",
+    "test": "tsx --test src/lib/*.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^4.1.3",

@@ -101,9 +101,22 @@ export default function RankingsPage() {
                   <ArrowLeft className="h-5 w-5" />
                 </Button>
                 <Link href="/">
-                  <h1 className="text-xl md:text-2xl font-display tracking-tight">
-                    <span className="text-primary">Inningz</span>
-                  </h1>
+                  <Image
+                    src="/logo-full-transparent.png"
+                    alt="Inningz"
+                    width={400}
+                    height={120}
+                    priority
+                    className="hidden dark:block h-9 md:h-11 w-auto"
+                  />
+                  <Image
+                    src="/logo-full-dark.png"
+                    alt="Inningz"
+                    width={400}
+                    height={120}
+                    priority
+                    className="block dark:hidden h-9 md:h-11 w-auto"
+                  />
                 </Link>
               </div>
               <ThemeToggle />

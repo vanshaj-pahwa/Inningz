@@ -1009,6 +1009,10 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
     // A match that hasn't begun has no score and no batters yet: hide the tabs
     // and the empty scoreboard, and just show the Live (preview) content.
     const notStarted = !!data && (!data.score || data.score === 'N/A') && (data.batsmen?.length ?? 0) === 0;
+    // A finished match (result, draw, tie, abandonment, or no-result) — used to
+    // hide run rates, which only make sense during a live innings.
+    const matchOver = !!data && /\bwon\b|complete|drawn|\btied\b|abandon|no result/i.test(data.status);
+    const liveInnings = !!data && !notStarted && !matchOver;
 
     const keyStatsBody = (
         <div className="divide-y divide-border/50">
@@ -1160,7 +1164,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                     currentRunRate={data?.currentRunRate}
                     requiredRunRate={data?.requiredRunRate}
                     status={data?.status}
-                    live={data ? isLive(data.status) : false}
+                    live={liveInnings}
                     hasHero={view === 'live'}
                     heroRef={scoreHeroRef}
                     batsmen={data?.batsmen}
@@ -1281,14 +1285,16 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                 )}
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                {!notStarted && (
+                                                {/* Run rates only make sense during a live innings, not before
+                                                    the start or once the match is over. */}
+                                                {liveInnings && (
                                                 <div className="flex items-center px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30">
                                                     <span className="text-xs font-display font-semibold text-cyan-400 tracking-wide">
                                                         CRR {data?.currentRunRate}
                                                     </span>
                                                 </div>
                                                 )}
-                                                {!notStarted && data?.requiredRunRate && (
+                                                {liveInnings && data?.requiredRunRate && (
                                                     <div className="flex items-center px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/20">
                                                         <span className="text-xs font-display font-semibold text-orange-400 tracking-wide">
                                                             REQ {data.requiredRunRate}

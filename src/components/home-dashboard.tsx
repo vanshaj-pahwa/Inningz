@@ -61,10 +61,10 @@ export default function HomeDashboard() {
         setLiveMatches(liveResult.matches.slice(0, 3));
       }
       if (recentResult.success && recentResult.matches) {
-        setRecentMatches(recentResult.matches.slice(0, 4));
+        setRecentMatches(recentResult.matches.slice(0, 12));
       }
       if (upcomingResult.success && upcomingResult.matches) {
-        setUpcomingMatches(upcomingResult.matches.slice(0, 4));
+        setUpcomingMatches(upcomingResult.matches.slice(0, 12));
       }
       setLoading(false);
     };
@@ -116,6 +116,50 @@ export default function HomeDashboard() {
     return () => { cancelled = true; };
   }, []);
 
+  // Surface today's matches at the top (Cricinfo-style) instead of making the
+  // user scroll to the Upcoming column to see what's on today.
+  const isToday = (sd?: number) => {
+    if (!sd) return false;
+    const ms = sd < 10_000_000_000 ? sd * 1000 : sd;
+    const d = new Date(ms);
+    const n = new Date();
+    return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate();
+  };
+  const liveIds = new Set(liveMatches.map((m) => m.matchId));
+  const todayUpcoming = upcomingMatches.filter((m) => isToday(m.startDate) && !liveIds.has(m.matchId));
+
+  // Order today's row by relevance: actively live → about-to-start (soonest) →
+  // paused live (stumps/rain) → finished results.
+  const matchTier = (m: LiveMatch) => {
+    const s = (m.status || '').toLowerCase();
+    const isResult = /won|drawn|\btied\b|abandon|no result|complete/.test(s);
+    const hasScore = (m.teams || []).some((t) => t.score && t.score !== 'N/A');
+    const isPaused = /stumps|lunch|\btea\b|drinks|rain|bad light|innings break|delay|wet|interrupt/.test(s);
+    if (isResult) return 3;
+    if (hasScore && !isPaused) return 0; // actively in progress
+    if (!hasScore) return 1; // upcoming
+    return 2; // paused live
+  };
+  const topMatches = [...liveMatches, ...todayUpcoming].sort((a, b) => {
+    const ta = matchTier(a), tb = matchTier(b);
+    if (ta !== tb) return ta - tb;
+    return (a.startDate ?? Infinity) - (b.startDate ?? Infinity);
+  });
+  const laterUpcoming = upcomingMatches.filter((m) => !isToday(m.startDate));
+
+  // Cricinfo-style horizontal carousel of match cards (fixed-width, snap scroll).
+  // No negative-margin edge bleed: the dashboard root is overflow-hidden, which
+  // would clip it and cut the first card's left edge on mobile.
+  const carousel = (matches: LiveMatch[]) => (
+    <div className="flex items-start gap-3 md:gap-4 overflow-x-auto no-scrollbar snap-x snap-mandatory">
+      {matches.map((m) => (
+        <div key={m.matchId} className="snap-start shrink-0 w-[280px] sm:w-[300px] md:w-[320px]">
+          <MatchCard match={m} header="series" />
+        </div>
+      ))}
+    </div>
+  );
+
   return (
     <div className="space-y-6 md:space-y-8 pt-4 md:pt-6 overflow-hidden">
       {/* Favorites (chips strip) */}
@@ -124,58 +168,32 @@ export default function HomeDashboard() {
       {/* Recently Viewed (chips strip, mirrors Favorites) */}
       <RecentHistory />
 
-      {/* === LIVE === */}
+      {/* === LIVE & TODAY === */}
       {loading ? (
         <SectionSkeleton title="Live" rows={3} />
-      ) : liveMatches.length > 0 ? (
+      ) : topMatches.length > 0 ? (
         <section className="overflow-hidden">
-          <SectionHeader title="Live" liveDot href="/?tab=live" hrefLabel="View all" />
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-4">
-            {liveMatches.map((m) => (
-              <MatchCard key={m.matchId} match={m} header="series" />
-            ))}
-          </div>
+          {carousel(topMatches)}
         </section>
       ) : null}
 
-      {/* === 2-COL: RECENT | UPCOMING === */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-        {/* Recent matches */}
-        <div className="overflow-hidden">
-          {loading ? (
-            <SectionSkeleton title="Recent" rows={3} compact />
-          ) : recentMatches.length > 0 ? (
-            <>
-              <SectionHeader title="Recent" href="/?tab=recent" hrefLabel="See all" />
-              <div className="space-y-3">
-                {recentMatches.map((m) => (
-                  <MatchCard key={m.matchId} match={m} header="series" />
-                ))}
-              </div>
-            </>
-          ) : (
-            <EmptyCell title="Recent" message="No recent matches" />
-          )}
-        </div>
+      {/* === RECENT (carousel) === */}
+      {loading ? (
+        <SectionSkeleton title="Recent" rows={3} />
+      ) : recentMatches.length > 0 ? (
+        <section className="overflow-hidden">
+          <SectionHeader title="Recent" href="/?tab=recent" hrefLabel="See all" />
+          {carousel(recentMatches)}
+        </section>
+      ) : null}
 
-        {/* Upcoming matches */}
-        <div className="overflow-hidden">
-          {loading ? (
-            <SectionSkeleton title="Upcoming" rows={3} compact />
-          ) : upcomingMatches.length > 0 ? (
-            <>
-              <SectionHeader title="Upcoming" href="/?tab=upcoming" hrefLabel="See all" />
-              <div className="space-y-3">
-                {upcomingMatches.map((m) => (
-                  <MatchCard key={m.matchId} match={m} header="series" />
-                ))}
-              </div>
-            </>
-          ) : (
-            <EmptyCell title="Upcoming" message="No upcoming matches" />
-          )}
-        </div>
-      </section>
+      {/* === UPCOMING (carousel) === */}
+      {!loading && laterUpcoming.length > 0 ? (
+        <section className="overflow-hidden">
+          <SectionHeader title="Upcoming" href="/?tab=upcoming" hrefLabel="See all" />
+          {carousel(laterUpcoming)}
+        </section>
+      ) : null}
 
       {/* === SERIES === */}
       {seriesLoading ? (
@@ -443,16 +461,5 @@ function SectionSkeleton({ title, rows, compact }: { title: string; rows: number
         ))}
       </div>
     </section>
-  );
-}
-
-function EmptyCell({ title, message }: { title: string; message: string }) {
-  return (
-    <>
-      <SectionHeader title={title} />
-      <div className="rounded-xl border border-dashed border-border/50 p-4 text-center">
-        <p className="text-xs text-muted-foreground italic">{message}</p>
-      </div>
-    </>
   );
 }

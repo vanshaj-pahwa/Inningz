@@ -4,6 +4,7 @@
 
 import { z } from 'zod';
 import * as cheerio from 'cheerio';
+import { decodeHtmlEntities } from '@/lib/html-entities';
 
 const CommentarySchema = z.object({
   type: z.enum(['live', 'user', 'stat', 'snippet']),
@@ -99,6 +100,7 @@ const LiveMatchSchema = z.object({
   teams: z.array(z.object({
     name: z.string(),
     score: z.string().optional(),
+    flagUrl: z.string().optional(),
   })),
   status: z.string(),
   matchType: z.enum(['International', 'League', 'Domestic', 'Women']).optional(),
@@ -1674,10 +1676,12 @@ export async function scrapeUpcomingMatches(): Promise<LiveMatch[]> {
         venue = venueText.split('•').pop()?.trim() || '';
       }
 
-      const teams: { name: string, score?: string }[] = [];
+      const teams: { name: string, score?: string, flagUrl?: string }[] = [];
 
       $match.find('.flex.items-center.gap-4.justify-between').each((_, teamContainer) => {
         const $team = $(teamContainer);
+        const flagRaw = $team.find('img').attr('src') || $team.find('img').attr('srcset')?.split(/\s+/)[0];
+        const flagUrl = flagRaw && flagRaw.includes('static.cricbuzz.com') ? flagRaw.replace(/\/\d+x\d+\//, '/72x52/') : undefined;
         let teamName = $team.find('span.text-cbTxtPrim.hidden.wb\\:block').text().trim() ||
           $team.find('span.text-cbTxtSec.hidden.wb\\:block').text().trim() ||
           $team.find('span.text-cbTxtPrim.block.wb\\:hidden').text().trim() ||
@@ -1685,7 +1689,8 @@ export async function scrapeUpcomingMatches(): Promise<LiveMatch[]> {
 
         if (teamName) {
           teams.push({
-            name: teamName
+            name: teamName,
+            flagUrl,
           });
         }
       });
@@ -1923,10 +1928,12 @@ export async function scrapeRecentMatches(): Promise<LiveMatch[]> {
       const venueText = $match.find('.text-xs.text-cbTxtSec').first().text().trim();
       const venue = venueText.split('•').pop()?.trim() || '';
 
-      const teams: { name: string, score?: string }[] = [];
+      const teams: { name: string, score?: string, flagUrl?: string }[] = [];
 
       $match.find('.flex.items-center.gap-4.justify-between').each((_, teamContainer) => {
         const $team = $(teamContainer);
+        const flagRaw = $team.find('img').attr('src') || $team.find('img').attr('srcset')?.split(/\s+/)[0];
+        const flagUrl = flagRaw && flagRaw.includes('static.cricbuzz.com') ? flagRaw.replace(/\/\d+x\d+\//, '/72x52/') : undefined;
         let teamName = $team.find('span.text-cbTxtPrim.hidden.wb\\:block').text().trim() ||
           $team.find('span.text-cbTxtSec.hidden.wb\\:block').text().trim() ||
           $team.find('span.text-cbTxtPrim.block.wb\\:hidden').text().trim() ||
@@ -1938,7 +1945,8 @@ export async function scrapeRecentMatches(): Promise<LiveMatch[]> {
         if (teamName) {
           teams.push({
             name: teamName,
-            score: score || undefined
+            score: score || undefined,
+            flagUrl,
           });
         }
       });
@@ -1984,14 +1992,18 @@ export async function scrapeRecentMatches(): Promise<LiveMatch[]> {
 function matchInfoToLiveMatch(match: any): LiveMatch | null {
   const matchInfo = match?.matchInfo;
   if (!matchInfo) return null;
-  const teams: { name: string; score?: string }[] = [];
+  const teams: { name: string; score?: string; flagUrl?: string }[] = [];
+  const flagFor = (team: any): string | undefined =>
+    team?.imageId
+      ? `https://static.cricbuzz.com/a/img/v1/72x52/i1/c${team.imageId}/${String(team.teamSName || 'team').toLowerCase()}.jpg`
+      : undefined;
   if (matchInfo.team1) {
     let s = '';
     if (match.matchScore?.team1Score?.inngs1) {
       const i = match.matchScore.team1Score.inngs1;
       s = `${i.runs}${i.wickets !== undefined ? `/${i.wickets}` : ''} (${i.overs})`;
     }
-    teams.push({ name: matchInfo.team1.teamName, score: s || undefined });
+    teams.push({ name: matchInfo.team1.teamName, score: s || undefined, flagUrl: flagFor(matchInfo.team1) });
   }
   if (matchInfo.team2) {
     let s = '';
@@ -1999,7 +2011,7 @@ function matchInfoToLiveMatch(match: any): LiveMatch | null {
       const i = match.matchScore.team2Score.inngs1;
       s = `${i.runs}${i.wickets !== undefined ? `/${i.wickets}` : ''} (${i.overs})`;
     }
-    teams.push({ name: matchInfo.team2.teamName, score: s || undefined });
+    teams.push({ name: matchInfo.team2.teamName, score: s || undefined, flagUrl: flagFor(matchInfo.team2) });
   }
   const venue = matchInfo.venueInfo
     ? `${matchInfo.venueInfo.ground}, ${matchInfo.venueInfo.city}`
@@ -2151,11 +2163,13 @@ export async function scrapeLiveMatches(): Promise<LiveMatch[]> {
       const venue = venueText.split('•').pop()?.trim() || '';
 
       // Extract teams and scores
-      const teams: { name: string, score?: string }[] = [];
+      const teams: { name: string, score?: string, flagUrl?: string }[] = [];
 
       // Find team containers - they have specific classes for team info
       $match.find('.flex.items-center.gap-4.justify-between').each((_, teamContainer) => {
         const $team = $(teamContainer);
+        const flagRaw = $team.find('img').attr('src') || $team.find('img').attr('srcset')?.split(/\s+/)[0];
+        const flagUrl = flagRaw && flagRaw.includes('static.cricbuzz.com') ? flagRaw.replace(/\/\d+x\d+\//, '/72x52/') : undefined;
 
         // Team name - try multiple selectors
         let teamName = $team.find('span.text-cbTxtPrim.hidden.wb\\:block').text().trim() ||
@@ -2170,7 +2184,8 @@ export async function scrapeLiveMatches(): Promise<LiveMatch[]> {
         if (teamName) {
           teams.push({
             name: teamName,
-            score: score || undefined
+            score: score || undefined,
+            flagUrl,
           });
         }
       });
@@ -2430,7 +2445,8 @@ async function fetchVenueFromMatchPage(
     const html = await res.text();
     const m = html.match(/<a\s+title="([^"]+)"\s+href="(\/cricket-series\/\d+\/[^"]+\/venues\/\d+\/[^"]+)"/i);
     if (!m) return undefined;
-    return { venue: m[1], venueUrl: m[2] };
+    // The title/href are raw HTML attributes, so decode entities (e.g. Lord&#x27;s).
+    return { venue: decodeHtmlEntities(m[1]), venueUrl: decodeHtmlEntities(m[2]) };
   } catch {
     return undefined;
   }
@@ -2912,7 +2928,7 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
               const matchInfo = match.matchInfo;
               if (!matchInfo) continue;
 
-              const teams: { name: string, score?: string }[] = [];
+              const teams: { name: string, score?: string, flagUrl?: string }[] = [];
 
               // Add team 1
               if (matchInfo.team1) {
@@ -3015,7 +3031,7 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
               const matchInfo = match.matchInfo;
               if (!matchInfo) continue;
 
-              const teams: { name: string, score?: string }[] = [];
+              const teams: { name: string, score?: string, flagUrl?: string }[] = [];
 
               // Add team 1
               if (matchInfo.team1) {
@@ -3178,7 +3194,7 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
             const matchInfo = match.matchInfo;
             if (!matchInfo) continue;
 
-            const teams: { name: string, score?: string }[] = [];
+            const teams: { name: string, score?: string, flagUrl?: string }[] = [];
 
             // Add team 1
             if (matchInfo.team1) {

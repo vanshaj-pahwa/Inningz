@@ -1,9 +1,19 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { MapPin } from 'lucide-react';
-import { formatScore, formatStartTime, buildVenueHref } from '@/lib/utils';
+import { formatScore, formatStartTime, buildVenueHref, buildSeriesHref, deriveMatchFormat } from '@/lib/utils';
 import type { LiveMatch } from '@/app/actions';
+
+// Colored format badge (T20 / ODI / TEST …) for at-a-glance segregation.
+const FORMAT_BADGE: Record<string, string> = {
+  T20: 'bg-purple-500/15 text-purple-600 dark:text-purple-300',
+  T20I: 'bg-purple-500/15 text-purple-600 dark:text-purple-300',
+  T10: 'bg-teal-500/15 text-teal-600 dark:text-teal-300',
+  ODI: 'bg-blue-500/15 text-blue-600 dark:text-blue-300',
+  TEST: 'bg-rose-500/15 text-rose-600 dark:text-rose-300',
+};
 
 const CATEGORY_DOT: Record<string, string> = {
   international: 'bg-blue-500',
@@ -58,12 +68,20 @@ export default function MatchCard({
   const footer =
     upcoming ? `Starts ${startsAt}`
     : (match.status && status !== 'status not available' ? match.status : null);
-  const footerColor = live ? 'text-red-400' : (complete || upcoming) ? 'text-amber-400' : 'text-muted-foreground';
+  const footerColor =
+    live ? 'text-red-500 dark:text-red-400'
+    : complete ? 'text-emerald-600 dark:text-emerald-400'
+    : upcoming ? 'text-amber-600 dark:text-amber-400'
+    : 'text-muted-foreground';
   const venue = match.venue && match.venue !== 'N/A' && match.venue.trim() ? match.venue : null;
   const venueHref = buildVenueHref(match.venueUrl);
+  const format = deriveMatchFormat(match.title, match.seriesName);
+  const seriesHref = buildSeriesHref(match.seriesName, match.seriesUrl);
+  // Leagues/domestic competitions have a points table; bilateral series don't.
+  const showTable = category === 'league' || category === 'domestic';
 
   return (
-    <div className={`surface-card card-hover p-4 md:p-5 h-full relative ${live ? 'ring-1 ring-red-500/20' : ''}`}>
+    <div className={`surface-card card-hover px-4 py-3 md:px-5 md:py-3.5 h-full relative ${live ? 'ring-1 ring-red-500/20' : ''}`}>
       {/* Stretched link makes the whole card go to the match, without wrapping the
           venue link (an <a> inside an <a> is invalid). Content is pointer-events-none
           so clicks fall through to this overlay; the venue link re-enables its own. */}
@@ -73,7 +91,7 @@ export default function MatchCard({
         aria-label={match.title || 'Match details'}
       />
       <div className="relative z-[1] pointer-events-none">
-        {(showLabel || live) && (
+        {(showLabel || live || format) && (
           <div className="flex items-center justify-between gap-2 mb-3 md:mb-4">
             {header === 'category' ? (
               <span className="flex items-center gap-1.5 text-xs font-medium min-w-0">
@@ -89,19 +107,40 @@ export default function MatchCard({
             ) : (
               <span />
             )}
-            {live && (
-              <span className="flex items-center gap-1.5 text-xs font-bold text-red-500 shrink-0">
-                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                LIVE
-              </span>
-            )}
+            <span className="flex items-center gap-1.5 shrink-0">
+              {format && (
+                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md tracking-wide ${FORMAT_BADGE[format] ?? 'bg-muted text-muted-foreground'}`}>
+                  {format}
+                </span>
+              )}
+              {live && (
+                <span className="flex items-center gap-1.5 text-xs font-bold text-red-500">
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                  LIVE
+                </span>
+              )}
+            </span>
           </div>
         )}
 
+        {/* min-h-7 keeps score-less (upcoming) rows the same height as
+            rows that show scores (recent/live), so cards align. */}
         <div className="space-y-2 md:space-y-3">
           {match.teams.map((team, i) => (
-            <div key={i} className="flex items-center justify-between gap-3">
-              <span className="text-sm font-semibold truncate text-foreground flex-1">{team.name}</span>
+            <div key={i} className="flex items-center justify-between gap-3 min-h-7">
+              <span className="flex items-center gap-2 min-w-0 flex-1">
+                {team.flagUrl && (
+                  <Image
+                    src={team.flagUrl}
+                    alt=""
+                    width={24}
+                    height={18}
+                    unoptimized
+                    className="w-6 h-[18px] rounded-[2px] object-cover shrink-0 ring-1 ring-black/5 dark:ring-white/10"
+                  />
+                )}
+                <span className="text-sm font-semibold truncate text-foreground">{team.name}</span>
+              </span>
               {team.score && (
                 <span className="font-display text-base md:text-lg tabular-nums shrink-0 text-foreground">
                   {formatScore(team.score)}
@@ -111,10 +150,10 @@ export default function MatchCard({
           ))}
         </div>
 
-        {(footer || venue) && (
-          <div className="mt-3 md:mt-4 pt-2.5 md:pt-3 border-t border-border/50 space-y-1">
+        {(footer || venue || seriesHref) && (
+          <div className="mt-3 md:mt-4 pt-2.5 md:pt-3 border-t border-border/50 space-y-1.5">
             {footer && (
-              <p className={`text-xs font-medium truncate ${footerColor}`}>{footer}</p>
+              <p className={`text-sm font-semibold truncate ${footerColor}`}>{footer}</p>
             )}
             {venue && (
               venueHref ? (
@@ -131,6 +170,27 @@ export default function MatchCard({
                   <span className="truncate">{venue}</span>
                 </p>
               )
+            )}
+            {seriesHref && (
+              <div className="flex items-center gap-3 mt-1.5 pt-2.5 border-t border-border/50 text-[13px] font-semibold">
+                <Link
+                  href={seriesHref}
+                  className="pointer-events-auto relative z-[2] text-primary hover:text-primary/70 transition-colors"
+                >
+                  Schedule
+                </Link>
+                {showTable && (
+                  <>
+                    <span className="w-px h-3 bg-border" aria-hidden />
+                    <Link
+                      href={`${seriesHref}?view=points`}
+                      className="pointer-events-auto relative z-[2] text-primary hover:text-primary/70 transition-colors"
+                    >
+                      Points Table
+                    </Link>
+                  </>
+                )}
+              </div>
             )}
           </div>
         )}

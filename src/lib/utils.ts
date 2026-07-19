@@ -44,6 +44,18 @@ export function buildVenueHref(venueUrl?: string): string | null {
   return `/venue/${path}`;
 }
 
+// Derive the match format (for the card badge) from the title/series text,
+// e.g. "England vs India, 3rd ODI" -> "ODI", "Final • T20 Blast" -> "T20".
+export function deriveMatchFormat(...parts: (string | undefined)[]): string | null {
+  const s = ` ${parts.filter(Boolean).join(' ')} `.toLowerCase();
+  if (/\bt20i\b/.test(s)) return 'T20I';
+  if (/\bt20\b|twenty ?20|blast|premier league|major league|the hundred/.test(s)) return 'T20';
+  if (/\bt10\b/.test(s)) return 'T10';
+  if (/\bodi\b|one[- ]day international/.test(s)) return 'ODI';
+  if (/\btest\b/.test(s)) return 'TEST';
+  return null;
+}
+
 // Build the internal series-page href from a source series URL + name.
 // e.g. "/cricket-series/10532/india-tour-of-england-2026/matches" -> "/series/10532/india-tour-of-england-2026"
 export function buildSeriesHref(seriesName?: string, seriesUrl?: string): string | null {

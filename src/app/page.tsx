@@ -4,6 +4,7 @@
 import { Suspense, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { motion, LayoutGroup } from "framer-motion";
 import LiveMatches from "@/components/live-matches";
 import RecentMatches from "@/components/recent-matches";
@@ -67,9 +68,22 @@ function HomeContent() {
                             aria-label="Inningz home"
                             onClick={(e) => { e.preventDefault(); switchView('home'); }}
                         >
-                            <h1 className="text-2xl md:text-3xl font-display tracking-tight">
-                                <span className="text-primary">Inningz</span>
-                            </h1>
+                            <Image
+                                src="/logo-full-transparent.png"
+                                alt="Inningz"
+                                width={400}
+                                height={120}
+                                priority
+                                className="hidden dark:block h-9 md:h-11 w-auto"
+                            />
+                            <Image
+                                src="/logo-full-dark.png"
+                                alt="Inningz"
+                                width={400}
+                                height={120}
+                                priority
+                                className="block dark:hidden h-9 md:h-11 w-auto"
+                            />
                         </Link>
 
                         {/* Desktop: inline nav tabs */}

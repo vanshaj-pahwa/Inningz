@@ -103,12 +103,12 @@ export default function MatchStickyBar<V extends string>({
               className="text-sm font-display font-bold stat-amber tabular-nums truncate min-w-0"
             />
             <div className="flex items-center gap-2 shrink-0">
-              {currentRunRate && (
+              {live && currentRunRate && (
                 <span className="text-[11px] font-display font-semibold text-cyan-400 tracking-wide">
                   CRR {currentRunRate}
                 </span>
               )}
-              {requiredRunRate && (
+              {live && requiredRunRate && (
                 <span className="text-[11px] font-display font-semibold text-orange-400 tracking-wide">
                   REQ {requiredRunRate}
                 </span>

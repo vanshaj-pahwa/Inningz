@@ -199,10 +199,13 @@
 
   /* Card effect - clean solid background */
   .surface-card {
-    @apply rounded-2xl bg-white border border-neutral-200;
+    @apply rounded-2xl bg-white border border-neutral-200/80;
+    /* Soft elevation so white cards lift off the light-grey page (light mode). */
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 12px -4px rgba(16, 24, 40, 0.08);
   }
   .dark .surface-card, .liquid-glass .surface-card {
     @apply bg-neutral-900 border-neutral-800;
+    box-shadow: none;
   }
   .midnight .surface-card {
     @apply bg-[hsl(230,30%,12%)] border-[hsl(230,20%,22%)];
@@ -830,6 +833,16 @@
     border: 1px solid transparent;
     -webkit-backdrop-filter: blur(9px) saturate(190%);
     backdrop-filter: blur(3px) saturate(190%) url(#liquid-glass);
+  }
+
+  /* Radix dropdown / select / popover surfaces read as glass too. */
+  .liquid-glass [role="menu"],
+  .liquid-glass [role="listbox"],
+  .liquid-glass [data-radix-popper-content-wrapper] [role="dialog"] {
+    background: rgba(18, 22, 33, 0.55);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+    border-color: rgba(255, 255, 255, 0.1);
   }
 
   .liquid-glass .glass-input {
