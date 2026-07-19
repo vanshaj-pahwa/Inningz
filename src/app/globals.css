@@ -665,16 +665,30 @@
     background: rgba(120, 120, 128, 0.24);
   }
 
-  /* Liquid Glass material: subtle translucent surfaces; the backdrop is
-     gently refracted by the #liquid-glass displacement map (Chromium only,
-     so -webkit- keeps a graceful blur). Kept minimal — a single soft edge. */
+  /* Ambient backdrop for Liquid Glass: soft colour glows over the graphite base
+     so the frosted panels have something to refract (glass over a flat wall
+     reads as no glass). Fixed so it stays put while the content scrolls. */
+  .liquid-glass body {
+    background-image:
+      radial-gradient(1100px 620px at 12% -8%, hsla(205, 90%, 55%, 0.16), transparent 60%),
+      radial-gradient(1000px 700px at 108% 6%, hsla(262, 80%, 62%, 0.12), transparent 55%),
+      radial-gradient(900px 900px at 50% 118%, hsla(190, 85%, 52%, 0.08), transparent 60%);
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+  }
+
+  /* Liquid Glass material: frosted translucent panels that refract the ambient
+     background behind them. A specular top edge + inset highlight give the
+     panel a real glass lip; the fill stays low so content reads through. */
   .liquid-glass .surface-card,
   .liquid-glass .score-hero {
-    background: rgba(190, 214, 255, 0.05);
-    -webkit-backdrop-filter: blur(9px) saturate(190%) brightness(1.06);
-    backdrop-filter: blur(3px) saturate(190%) brightness(1.06) url(#liquid-glass);
-    border: 1px solid transparent;
-    box-shadow: 0 14px 40px -22px rgba(0, 0, 0, 0.7);
+    background: hsla(220, 45%, 75%, 0.08);
+    -webkit-backdrop-filter: blur(14px) saturate(185%) brightness(1.06);
+    backdrop-filter: blur(14px) saturate(185%) brightness(1.06);
+    border: 1px solid hsla(210, 40%, 90%, 0.09);
+    box-shadow:
+      inset 0 1px 0 hsla(0, 0%, 100%, 0.08),
+      0 16px 44px -24px rgba(0, 0, 0, 0.75);
   }
 
   .liquid-glass .glass-nav,
