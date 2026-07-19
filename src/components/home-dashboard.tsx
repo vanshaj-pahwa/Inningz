@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -19,7 +19,7 @@ import FavoritesSection from '@/components/favorites-section';
 import { SeriesCard } from '@/components/series-schedule';
 import { usePlayerProfile } from '@/contexts/player-profile-context';
 import { motion } from 'framer-motion';
-import { ArrowRight, Tv } from 'lucide-react';
+import { ArrowRight, Tv, ChevronLeft, ChevronRight } from 'lucide-react';
 
 type RankingCategory = 'batting' | 'bowling' | 'all-rounder';
 type RankingFormat = 'test' | 'odi' | 't20';
@@ -35,6 +35,63 @@ const rankingFormats: { value: RankingFormat; label: string }[] = [
   { value: 'odi', label: 'ODI' },
   { value: 't20', label: 'T20' },
 ];
+
+// Horizontal, snap-scrolling row of match cards with edge arrows that appear
+// only when there's more to scroll in that direction (desktop).
+function MatchCarousel({ matches }: { matches: LiveMatch[] }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [canLeft, setCanLeft] = useState(false);
+  const [canRight, setCanRight] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => {
+      setCanLeft(el.scrollLeft > 8);
+      setCanRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 8);
+    };
+    update();
+    el.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    return () => {
+      el.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+    };
+  }, [matches.length]);
+
+  const scroll = (dir: -1 | 1) => {
+    const el = ref.current;
+    if (el) el.scrollBy({ left: dir * el.clientWidth * 0.85, behavior: 'smooth' });
+  };
+
+  const arrowClass =
+    'flex absolute top-1/2 -translate-y-1/2 z-20 w-8 h-8 md:w-9 md:h-9 items-center justify-center rounded-full surface-card shadow-lg text-foreground hover:bg-muted transition-colors';
+
+  return (
+    <div className="relative">
+      <div
+        ref={ref}
+        className="flex items-start gap-3 md:gap-4 overflow-x-auto no-scrollbar snap-x snap-mandatory"
+      >
+        {matches.map((m) => (
+          <div key={m.matchId} className="snap-start shrink-0 w-[280px] sm:w-[300px] md:w-[320px]">
+            <MatchCard match={m} header="series" />
+          </div>
+        ))}
+      </div>
+      {canLeft && (
+        <button type="button" onClick={() => scroll(-1)} aria-label="Scroll left" className={`${arrowClass} left-1`}>
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+      )}
+      {canRight && (
+        <button type="button" onClick={() => scroll(1)} aria-label="Scroll right" className={`${arrowClass} right-1`}>
+          <ChevronRight className="w-5 h-5" />
+        </button>
+      )}
+    </div>
+  );
+}
 
 export default function HomeDashboard() {
   const [liveMatches, setLiveMatches] = useState<LiveMatch[]>([]);
@@ -116,8 +173,8 @@ export default function HomeDashboard() {
     return () => { cancelled = true; };
   }, []);
 
-  // Surface today's matches at the top (Cricinfo-style) instead of making the
-  // user scroll to the Upcoming column to see what's on today.
+  // Surface today's matches at the top instead of making the user scroll to
+  // the Upcoming column to see what's on today.
   const isToday = (sd?: number) => {
     if (!sd) return false;
     const ms = sd < 10_000_000_000 ? sd * 1000 : sd;
@@ -147,19 +204,6 @@ export default function HomeDashboard() {
   });
   const laterUpcoming = upcomingMatches.filter((m) => !isToday(m.startDate));
 
-  // Cricinfo-style horizontal carousel of match cards (fixed-width, snap scroll).
-  // No negative-margin edge bleed: the dashboard root is overflow-hidden, which
-  // would clip it and cut the first card's left edge on mobile.
-  const carousel = (matches: LiveMatch[]) => (
-    <div className="flex items-start gap-3 md:gap-4 overflow-x-auto no-scrollbar snap-x snap-mandatory">
-      {matches.map((m) => (
-        <div key={m.matchId} className="snap-start shrink-0 w-[280px] sm:w-[300px] md:w-[320px]">
-          <MatchCard match={m} header="series" />
-        </div>
-      ))}
-    </div>
-  );
-
   return (
     <div className="space-y-6 md:space-y-8 pt-4 md:pt-6 overflow-hidden">
       {/* Favorites (chips strip) */}
@@ -173,7 +217,7 @@ export default function HomeDashboard() {
         <SectionSkeleton title="Live" rows={3} />
       ) : topMatches.length > 0 ? (
         <section className="overflow-hidden">
-          {carousel(topMatches)}
+          <MatchCarousel matches={topMatches} />
         </section>
       ) : null}
 
@@ -183,7 +227,7 @@ export default function HomeDashboard() {
       ) : recentMatches.length > 0 ? (
         <section className="overflow-hidden">
           <SectionHeader title="Recent" href="/?tab=recent" hrefLabel="See all" />
-          {carousel(recentMatches)}
+          <MatchCarousel matches={recentMatches} />
         </section>
       ) : null}
 
@@ -191,7 +235,7 @@ export default function HomeDashboard() {
       {!loading && laterUpcoming.length > 0 ? (
         <section className="overflow-hidden">
           <SectionHeader title="Upcoming" href="/?tab=upcoming" hrefLabel="See all" />
-          {carousel(laterUpcoming)}
+          <MatchCarousel matches={laterUpcoming} />
         </section>
       ) : null}
 

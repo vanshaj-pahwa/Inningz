@@ -2878,6 +2878,13 @@ export async function getMatchIdFromUrl(url: string) {
 
 
 
+// Team flag/logo URL from a Cricbuzz team object's imageId.
+function teamFlagFromImageId(team: any): string | undefined {
+  return team?.imageId
+    ? `https://static.cricbuzz.com/a/img/v1/72x52/i1/c${team.imageId}/${String(team.teamSName || 'team').toLowerCase()}.jpg`
+    : undefined;
+}
+
 export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]> {
   // seriesId can be either just the ID (9596) or the full path (9596/india-tour-of-australia-2025)
   // Remove '/matches' suffix if present (from URL path)
@@ -2939,7 +2946,8 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
                 }
                 teams.push({
                   name: matchInfo.team1.teamName,
-                  score: score1 || undefined
+                  score: score1 || undefined,
+                  flagUrl: teamFlagFromImageId(matchInfo.team1)
                 });
               }
 
@@ -2952,7 +2960,8 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
                 }
                 teams.push({
                   name: matchInfo.team2.teamName,
-                  score: score2 || undefined
+                  score: score2 || undefined,
+                  flagUrl: teamFlagFromImageId(matchInfo.team2)
                 });
               }
 
@@ -3042,7 +3051,8 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
                 }
                 teams.push({
                   name: matchInfo.team1.teamName,
-                  score: score1 || undefined
+                  score: score1 || undefined,
+                  flagUrl: teamFlagFromImageId(matchInfo.team1)
                 });
               }
 
@@ -3055,7 +3065,8 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
                 }
                 teams.push({
                   name: matchInfo.team2.teamName,
-                  score: score2 || undefined
+                  score: score2 || undefined,
+                  flagUrl: teamFlagFromImageId(matchInfo.team2)
                 });
               }
 
@@ -3123,14 +3134,14 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
                 for (const match of dateGroup.matchDetailsMap.match) {
                   const matchInfo = match.matchInfo;
                   if (!matchInfo) continue;
-                  const teams: { name: string; score?: string }[] = [];
+                  const teams: { name: string; score?: string; flagUrl?: string }[] = [];
                   if (matchInfo.team1) {
                     let score1 = '';
                     if (match.matchScore?.team1Score?.inngs1) {
                       const inngs = match.matchScore.team1Score.inngs1;
                       score1 = `${inngs.runs}${inngs.wickets !== undefined ? `/${inngs.wickets}` : ''} (${inngs.overs})`;
                     }
-                    teams.push({ name: matchInfo.team1.teamName, score: score1 || undefined });
+                    teams.push({ name: matchInfo.team1.teamName, score: score1 || undefined, flagUrl: teamFlagFromImageId(matchInfo.team1) });
                   }
                   if (matchInfo.team2) {
                     let score2 = '';
@@ -3138,7 +3149,7 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
                       const inngs = match.matchScore.team2Score.inngs1;
                       score2 = `${inngs.runs}${inngs.wickets !== undefined ? `/${inngs.wickets}` : ''} (${inngs.overs})`;
                     }
-                    teams.push({ name: matchInfo.team2.teamName, score: score2 || undefined });
+                    teams.push({ name: matchInfo.team2.teamName, score: score2 || undefined, flagUrl: teamFlagFromImageId(matchInfo.team2) });
                   }
                   const venue = matchInfo.venueInfo
                     ? `${matchInfo.venueInfo.ground}, ${matchInfo.venueInfo.city}`
@@ -3205,7 +3216,8 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
               }
               teams.push({
                 name: matchInfo.team1.teamName,
-                score: score1 || undefined
+                score: score1 || undefined,
+                flagUrl: teamFlagFromImageId(matchInfo.team1)
               });
             }
 
@@ -3218,7 +3230,8 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
               }
               teams.push({
                 name: matchInfo.team2.teamName,
-                score: score2 || undefined
+                score: score2 || undefined,
+                flagUrl: teamFlagFromImageId(matchInfo.team2)
               });
             }
 

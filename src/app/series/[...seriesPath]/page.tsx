@@ -11,6 +11,7 @@ import { ArrowLeft, Filter, ChevronDown, X } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import SeriesStatsDisplay from '@/components/series-stats';
 import PointsTableDisplay from '@/components/points-table';
+import MatchCard from '@/components/match-card';
 import { useRecentHistoryContext } from '@/contexts/recent-history-context';
 
 type SeriesView = 'matches' | 'stats' | 'points';
@@ -474,68 +475,15 @@ export default function SeriesPage() {
                     {/* Matches Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {group.matches.map((match, index) => {
-                        const matchIsLive = isLive(match.status);
-                        const matchIsComplete = isComplete(match.status);
                         const globalIndex = groupIndex * 10 + index;
-
                         return (
-                          <Link
+                          <div
                             key={match.matchId}
-                            href={`/match/${match.matchId}`}
                             className="stagger-in"
                             style={{ '--stagger-index': globalIndex } as React.CSSProperties}
                           >
-                            <div className={`
-                              surface-card card-hover p-5 h-full
-                              ${matchIsLive ? 'ring-1 ring-red-500/20' : ''}
-                            `}>
-                              <div className="flex items-center justify-between mb-4">
-                                <span className="text-xs font-medium text-muted-foreground truncate">
-                                  {match.title}
-                                </span>
-                                {matchIsLive && (
-                                  <span className="flex items-center gap-1.5 text-xs font-bold text-red-500 shrink-0">
-                                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                                    LIVE
-                                  </span>
-                                )}
-                              </div>
-
-                              <div className="space-y-3">
-                                {match.teams.map((team, idx) => (
-                                  <div key={idx} className="flex items-center justify-between gap-3">
-                                    <span className="text-sm font-semibold truncate text-foreground">
-                                      {team.name}
-                                    </span>
-                                    {team.score && (
-                                      <span className="font-display text-lg tabular-nums flex-shrink-0 text-foreground">
-                                        {team.score}
-                                      </span>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-
-                              {match.status && match.status.toLowerCase() !== 'status not available' && (
-                                <div className="mt-4 pt-3 border-t border-border/50">
-                                  <p className={`text-xs font-medium leading-relaxed ${matchIsLive
-                                    ? 'text-red-400'
-                                    : matchIsComplete
-                                      ? 'text-amber-400'
-                                      : 'text-muted-foreground'
-                                    }`}>
-                                    {match.status}
-                                  </p>
-                                </div>
-                              )}
-
-                              {match.venue && (
-                                <p className="text-xs text-muted-foreground mt-2 truncate">
-                                  {match.venue}
-                                </p>
-                              )}
-                            </div>
-                          </Link>
+                            <MatchCard match={match} header="series" />
+                          </div>
                         );
                       })}
                     </div>
