@@ -706,13 +706,15 @@
     backdrop-filter: blur(3px) saturate(190%) url(#liquid-glass);
   }
 
-  /* Radix dropdown / select / popover surfaces read as glass too. */
+  /* Radix dropdown / select / popover AND modal dialogs (player profile,
+     highlights, share) read as glass too. `[role="dialog"]` covers the modal
+     content that isn't inside a popper wrapper. */
   .liquid-glass [role="menu"],
   .liquid-glass [role="listbox"],
-  .liquid-glass [data-radix-popper-content-wrapper] [role="dialog"] {
-    background: rgba(18, 22, 33, 0.55);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    backdrop-filter: blur(20px) saturate(180%);
+  .liquid-glass [role="dialog"] {
+    background: rgba(18, 22, 33, 0.72);
+    -webkit-backdrop-filter: blur(22px) saturate(180%);
+    backdrop-filter: blur(22px) saturate(180%);
     border-color: rgba(255, 255, 255, 0.1);
   }
 

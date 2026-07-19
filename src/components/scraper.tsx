@@ -1461,7 +1461,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                         }`}>
                                                             <td className="px-2 md:px-4 py-2 md:py-3">
                                                                 <span
-                                                                    className={`text-xs md:text-sm font-medium cursor-pointer hover:text-primary transition-colors ${
+                                                                    className={`text-xs md:text-sm font-medium cursor-pointer hover:text-primary transition-colors whitespace-nowrap ${
                                                                         runs >= 50 ? 'stat-green' : ''
                                                                     }`}
                                                                     onClick={() => handleProfileClick(batsman.profileId, batsman.name)}
@@ -1521,7 +1521,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                         }`}>
                                                             <td className="px-2 md:px-4 py-2 md:py-3">
                                                                 <span
-                                                                    className={`text-xs md:text-sm font-medium cursor-pointer hover:text-primary transition-colors ${
+                                                                    className={`text-xs md:text-sm font-medium cursor-pointer hover:text-primary transition-colors whitespace-nowrap ${
                                                                         wkts >= 3 ? 'stat-orange' : ''
                                                                     }`}
                                                                     onClick={() => handleProfileClick(bowler.profileId, bowler.name)}
