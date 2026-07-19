@@ -4,6 +4,7 @@ import { ReactNode, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Download, Share2, Loader2, Check } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import { useShareCard } from '@/hooks/use-share-card';
 import GraphShareCard from './graph-share-card';
 
@@ -30,6 +31,8 @@ export default function GraphShareDialog({
 }: GraphShareDialogProps) {
   const captureRef = useRef<HTMLDivElement>(null);
   const { downloadCard, shareCard, isGenerating, isSharing, supportsNativeShare } = useShareCard();
+  const { resolvedTheme } = useTheme();
+  const mode = resolvedTheme === 'light' ? 'light' : 'dark';
   const [downloadSuccess, setDownloadSuccess] = useState(false);
 
   const cardType = `graph-${sectionLabel.toLowerCase().replace(/\s+/g, '-')}`;
@@ -71,6 +74,7 @@ export default function GraphShareDialog({
           <GraphShareCard
             ref={captureRef}
             title={sectionLabel}
+            mode={mode}
             matchTitle={matchTitle}
             seriesName={seriesName}
             sectionLabel={sectionLabel}
@@ -84,12 +88,13 @@ export default function GraphShareDialog({
         {/* Scaled preview — zoom affects layout so container auto-fits */}
         <div className="px-4 pb-4">
           <div
-            className="relative rounded-lg overflow-hidden border border-zinc-800 shadow-2xl bg-zinc-950 mx-auto"
+            className="relative rounded-lg overflow-hidden border border-border shadow-2xl bg-muted/40 mx-auto"
             style={{ width: 300, height: 'fit-content' }}
           >
             <div style={{ zoom: scaleFactor }}>
               <GraphShareCard
                 title={sectionLabel}
+                mode={mode}
                 matchTitle={matchTitle}
                 seriesName={seriesName}
                 sectionLabel={sectionLabel}
@@ -124,7 +129,7 @@ export default function GraphShareDialog({
             size="sm"
             onClick={handleShare}
             disabled={isLoading}
-            className="gap-2 bg-cyan-500 hover:bg-cyan-600 text-black"
+            className="gap-2"
           >
             {isSharing ? (
               <Loader2 className="w-4 h-4 animate-spin" />

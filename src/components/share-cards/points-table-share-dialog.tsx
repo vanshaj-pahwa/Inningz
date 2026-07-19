@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Download, Share2, Loader2, Check } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import { useShareCard } from '@/hooks/use-share-card';
 import PointsTableShareCard, { teamFlagProxyUrl, type PointsTableShareCardProps } from './points-table-share-card';
 
@@ -26,6 +27,8 @@ export default function PointsTableShareDialog({ open, onOpenChange, cardData }:
     const captureRef = useRef<HTMLDivElement>(null);
     const previewRef = useRef<HTMLDivElement>(null);
     const { downloadCard, shareCard, isGenerating, isSharing, supportsNativeShare } = useShareCard();
+    const { resolvedTheme } = useTheme();
+    const mode = resolvedTheme === 'light' ? 'light' : 'dark';
     const [downloadSuccess, setDownloadSuccess] = useState(false);
     const [previewHeight, setPreviewHeight] = useState(300);
     const [flagDataUrls, setFlagDataUrls] = useState<Record<number, string>>({});
@@ -111,13 +114,13 @@ export default function PointsTableShareDialog({ open, onOpenChange, cardData }:
                     style={{ position: 'fixed', left: '-9999px', top: '0', zIndex: -1, pointerEvents: 'none' }}
                     aria-hidden="true"
                 >
-                    <PointsTableShareCard ref={captureRef} {...cardData} flagDataUrls={flagDataUrls} />
+                    <PointsTableShareCard ref={captureRef} {...cardData} flagDataUrls={flagDataUrls} mode={mode} />
                 </div>
 
                 {/* Preview */}
                 <div className="px-4 pb-4">
                     <div
-                        className="relative rounded-lg overflow-hidden border border-zinc-800 shadow-2xl bg-zinc-950 mx-auto"
+                        className="relative rounded-lg overflow-hidden border border-border shadow-2xl bg-muted/40 mx-auto"
                         style={{ width: previewWidth, height: previewHeight }}
                     >
                         <div
@@ -130,7 +133,7 @@ export default function PointsTableShareDialog({ open, onOpenChange, cardData }:
                                 transform: `scale(${scaleFactor})`,
                             }}
                         >
-                            <PointsTableShareCard {...cardData} flagDataUrls={flagDataUrls} />
+                            <PointsTableShareCard {...cardData} flagDataUrls={flagDataUrls} mode={mode} />
                         </div>
                     </div>
                 </div>
@@ -157,7 +160,7 @@ export default function PointsTableShareDialog({ open, onOpenChange, cardData }:
                         size="sm"
                         onClick={handleShare}
                         disabled={isLoading || flagsLoading}
-                        className="gap-2 bg-cyan-500 hover:bg-cyan-600 text-black"
+                        className="gap-2"
                     >
                         {isSharing || flagsLoading ? (
                             <Loader2 className="w-4 h-4 animate-spin" />

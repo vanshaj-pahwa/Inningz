@@ -4,6 +4,7 @@ import { useRef, useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Download, Share2, Loader2, Check } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import { useShareCard } from '@/hooks/use-share-card';
 import StatShareCard, { type StatShareCardProps } from './stat-share-card';
 
@@ -25,6 +26,8 @@ export default function StatShareDialog({
     const { downloadCard, shareCard, isGenerating, isSharing, supportsNativeShare } =
         useShareCard();
     const [downloadSuccess, setDownloadSuccess] = useState(false);
+    const { resolvedTheme } = useTheme();
+    const mode = resolvedTheme === 'light' ? 'light' : 'dark';
     const [previewHeight, setPreviewHeight] = useState(300);
 
     const previewWidth = 300;
@@ -76,13 +79,13 @@ export default function StatShareDialog({
                     }}
                     aria-hidden="true"
                 >
-                    <StatShareCard ref={captureRef} {...cardData} />
+                    <StatShareCard ref={captureRef} {...cardData} mode={mode} />
                 </div>
 
                 {/* Card Preview */}
                 <div className="px-4 pb-4">
                     <div
-                        className="relative rounded-lg overflow-hidden border border-zinc-800 shadow-2xl bg-zinc-950 mx-auto"
+                        className="relative rounded-lg overflow-hidden border border-border shadow-2xl bg-muted/40 mx-auto"
                         style={{ width: previewWidth, height: previewHeight }}
                     >
                         <div
@@ -95,7 +98,7 @@ export default function StatShareDialog({
                                 transform: `scale(${scaleFactor})`,
                             }}
                         >
-                            <StatShareCard {...cardData} />
+                            <StatShareCard {...cardData} mode={mode} />
                         </div>
                     </div>
                 </div>
@@ -122,7 +125,7 @@ export default function StatShareDialog({
                         size="sm"
                         onClick={handleShare}
                         disabled={isLoading}
-                        className="gap-2 bg-cyan-500 hover:bg-cyan-600 text-black"
+                        className="gap-2"
                     >
                         {isSharing ? (
                             <Loader2 className="w-4 h-4 animate-spin" />

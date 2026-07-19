@@ -1,6 +1,7 @@
 'use client';
 
 import { forwardRef } from 'react';
+import { sharePalette, type ShareMode } from './share-palette';
 
 export interface QuickScoreCardProps {
   title: string;
@@ -18,23 +19,18 @@ export interface QuickScoreCardProps {
     team1: { name: string; probability: number };
     team2: { name: string; probability: number };
   };
+  /** Resolved app theme; anything other than 'light' uses the dark palette. */
+  mode?: ShareMode;
 }
 
 const QuickScoreCard = forwardRef<HTMLDivElement, QuickScoreCardProps>(
   (
-    {
-      title,
-      score,
-      status,
-      seriesName,
-      currentRunRate,
-      requiredRunRate,
-      previousInnings,
-      winProbability,
-    },
+    { title, score, status, seriesName, currentRunRate, requiredRunRate, previousInnings, winProbability, mode = 'dark' },
     ref
   ) => {
-    // Parse current score for better display
+    const c = sharePalette(mode);
+    const isLive = status.toLowerCase().includes('live');
+
     const scoreMatch = score?.match(/^([A-Za-z\s]+?)\s+(\d+\/\d+)/);
     const currentTeam = scoreMatch ? scoreMatch[1].trim() : '';
     const currentScore = scoreMatch ? scoreMatch[2] : score?.split('(')[0]?.trim() || score;
@@ -50,85 +46,49 @@ const QuickScoreCard = forwardRef<HTMLDivElement, QuickScoreCardProps>(
           height: 1080,
           position: 'relative',
           overflow: 'hidden',
-          background: 'linear-gradient(145deg, #09090b 0%, #18181b 50%, #09090b 100%)',
+          background: c.bg,
           fontFamily: 'var(--font-sans), "DM Sans", system-ui, -apple-system, sans-serif',
         }}
       >
-        {/* Ambient glow effects */}
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            pointerEvents: 'none',
-            background: 'radial-gradient(ellipse at top right, rgba(6, 182, 212, 0.12) 0%, transparent 50%)',
-          }}
-        />
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            pointerEvents: 'none',
-            background: 'radial-gradient(ellipse at bottom left, rgba(59, 130, 246, 0.08) 0%, transparent 50%)',
-          }}
-        />
-
-        {/* Content */}
-        <div style={{ position: 'relative', zIndex: 10, padding: 64, paddingTop: 64, paddingBottom: 120 }}>
-          {/* Series Name & Live Badge */}
-          <div style={{ marginBottom: 20 }}>
-            {status.toLowerCase().includes('live') && (
+        <div style={{ position: 'relative', zIndex: 10, padding: 64, paddingBottom: 120 }}>
+          {/* Series + Live */}
+          <div style={{ marginBottom: 24 }}>
+            {isLive && (
               <span style={{
-                display: 'inline-block',
-                padding: '8px 20px',
-                borderRadius: 8,
-                backgroundColor: '#dc2626',
-                color: '#ffffff',
-                fontSize: 18,
-                fontWeight: 700,
-                letterSpacing: '0.1em',
-                marginRight: 20,
-                verticalAlign: 'middle',
+                display: 'inline-block', padding: '8px 20px', borderRadius: 999,
+                backgroundColor: c.danger, color: '#ffffff', fontSize: 18, fontWeight: 700,
+                letterSpacing: '0.1em', marginRight: 20, verticalAlign: 'middle',
               }}>
                 LIVE
               </span>
             )}
             {seriesName && (
-              <span style={{
-                fontSize: 26,
-                color: '#a1a1aa',
-                fontWeight: 500,
-                verticalAlign: 'middle',
-              }}>
+              <span style={{ fontSize: 26, color: c.muted, fontWeight: 500, verticalAlign: 'middle' }}>
                 {seriesName}
               </span>
             )}
           </div>
 
-          {/* Full Match Title */}
+          {/* Title */}
           <h1 style={{
-            fontSize: 44,
-            fontWeight: 600,
-            lineHeight: 1.3,
-            color: '#fafafa',
-            margin: 0,
-            marginBottom: 48,
+            fontSize: 44, fontWeight: 600, lineHeight: 1.3, color: c.text, margin: 0, marginBottom: 44,
             fontFamily: 'var(--font-display), "DM Serif Display", Georgia, serif',
           }}>
             {title}
           </h1>
 
-          {/* Divider */}
-          <div style={{ height: 3, marginBottom: 48, background: 'linear-gradient(90deg, #06b6d4, transparent)', borderRadius: 2 }} />
+          {/* Hairline divider (flat, matches the app's surface separators) */}
+          <div style={{ height: 1, marginBottom: 44, background: c.border }} />
 
-          {/* Previous Innings */}
+          {/* Previous innings */}
           {previousInnings && previousInnings.length > 0 && (
-            <div style={{ marginBottom: 40 }}>
+            <div style={{ marginBottom: 36 }}>
               {previousInnings.map((inning, index) => (
                 <p key={index} style={{ margin: 0, marginBottom: 10, fontSize: 0 }}>
-                  <span style={{ fontSize: 32, fontWeight: 600, color: '#a1a1aa', verticalAlign: 'baseline' }}>
+                  <span style={{ fontSize: 32, fontWeight: 600, color: c.muted, verticalAlign: 'baseline' }}>
                     {inning.teamShortName || inning.teamName}
                   </span>
-                  <span style={{ fontSize: 56, fontWeight: 700, color: '#71717a', fontFamily: 'var(--font-display), "DM Serif Display", Georgia, serif', marginLeft: 24, verticalAlign: 'baseline' }}>
+                  <span style={{ fontSize: 52, fontWeight: 700, color: c.faint, fontFamily: 'var(--font-display), "DM Serif Display", Georgia, serif', marginLeft: 24, verticalAlign: 'baseline' }}>
                     {inning.score?.split('(')[0]?.trim()}
                   </span>
                 </p>
@@ -136,132 +96,83 @@ const QuickScoreCard = forwardRef<HTMLDivElement, QuickScoreCardProps>(
             </div>
           )}
 
-          {/* Current Team & Score - Balanced spacing */}
-          <div style={{ marginBottom: 36 }}>
+          {/* Current team + score (gold, serif — the hero) */}
+          <div style={{ marginBottom: 32 }}>
             {currentTeam && (
-              <p style={{ fontSize: 38, fontWeight: 600, marginBottom: 8, marginTop: 0, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <p style={{ fontSize: 38, fontWeight: 600, marginBottom: 8, marginTop: 0, color: c.muted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 {currentTeam}
               </p>
             )}
             <p style={{ margin: 0, fontSize: 0, lineHeight: 1 }}>
-              <span style={{ fontSize: 150, fontWeight: 700, color: '#f59e0b', fontFamily: 'var(--font-display), "DM Serif Display", Georgia, serif', lineHeight: 1, display: 'inline-block' }}>
+              <span style={{ fontSize: 150, fontWeight: 700, color: c.brand, fontFamily: 'var(--font-display), "DM Serif Display", Georgia, serif', lineHeight: 1, display: 'inline-block' }}>
                 {currentScore}
               </span>
               {overs && (
-                <span style={{ fontSize: 38, color: '#71717a', fontWeight: 500, marginLeft: 20, verticalAlign: 'middle' }}>
+                <span style={{ fontSize: 38, color: c.faint, fontWeight: 500, marginLeft: 20, verticalAlign: 'middle' }}>
                   ({overs} ov)
                 </span>
               )}
             </p>
           </div>
 
-          {/* Run Rates - Simple text */}
+          {/* Run rates — plain label + value, like the hero (no cyan/orange chips) */}
           {(currentRunRate || requiredRunRate) && (
-            <p style={{ margin: 0, marginBottom: 36, fontSize: 32, fontFamily: 'monospace', fontWeight: 700 }}>
+            <p style={{ margin: 0, marginBottom: 32, fontSize: 30, fontWeight: 600, fontFamily: 'var(--font-display), "DM Serif Display", Georgia, serif' }}>
               {currentRunRate && (
-                <span style={{ color: '#22d3ee', marginRight: 48 }}>
-                  CRR: {currentRunRate}
+                <span style={{ marginRight: 48 }}>
+                  <span style={{ color: c.muted }}>CRR </span>
+                  <span style={{ color: c.text }}>{currentRunRate}</span>
                 </span>
               )}
               {requiredRunRate && (
-                <span style={{ color: '#fb923c' }}>
-                  RRR: {requiredRunRate}
+                <span>
+                  <span style={{ color: c.muted }}>REQ </span>
+                  <span style={{ color: c.brand }}>{requiredRunRate}</span>
                 </span>
               )}
             </p>
           )}
 
           {/* Status */}
-          <p style={{ fontSize: 28, fontWeight: 500, color: '#a1a1aa', margin: 0, marginBottom: winProbability ? 48 : 0 }}>
+          <p style={{ fontSize: 28, fontWeight: 500, color: c.muted, margin: 0, marginBottom: winProbability ? 44 : 0 }}>
             {status}
           </p>
 
-          {/* Win Probability Bar - In content flow */}
+          {/* Win probability — flat success/danger fills */}
           {winProbability && (
             <div style={{ marginTop: 0 }}>
               <p style={{ margin: 0, marginBottom: 14, fontSize: 0 }}>
-                <span style={{ fontSize: 24, fontWeight: 600, color: '#22c55e' }}>
+                <span style={{ fontSize: 24, fontWeight: 600, color: c.success }}>
                   {winProbability.team1.name} {winProbability.team1.probability}%
                 </span>
-                <span style={{ fontSize: 24, fontWeight: 600, color: '#ef4444', float: 'right' }}>
+                <span style={{ fontSize: 24, fontWeight: 600, color: c.danger, float: 'right' }}>
                   {winProbability.team2.probability}% {winProbability.team2.name}
                 </span>
               </p>
-              <div style={{ height: 18, borderRadius: 9, overflow: 'hidden', backgroundColor: '#27272a', position: 'relative', clear: 'both' }}>
-                <div style={{ position: 'absolute', top: 0, left: 0, height: 18, width: `${winProbability.team1.probability}%`, background: 'linear-gradient(90deg, #22c55e, #4ade80)' }} />
-                <div style={{ position: 'absolute', top: 0, right: 0, height: 18, width: `${winProbability.team2.probability}%`, background: 'linear-gradient(90deg, #f87171, #ef4444)' }} />
+              <div style={{ height: 18, borderRadius: 9, overflow: 'hidden', backgroundColor: c.track, position: 'relative', clear: 'both' }}>
+                <div style={{ position: 'absolute', top: 0, left: 0, height: 18, width: `${winProbability.team1.probability}%`, background: c.success }} />
+                <div style={{ position: 'absolute', top: 0, right: 0, height: 18, width: `${winProbability.team2.probability}%`, background: c.danger }} />
               </div>
             </div>
           )}
         </div>
 
-        {/* Footer with branding - Absolutely positioned at bottom */}
+        {/* Footer — flat, hairline top border */}
         <div
           style={{
-            position: 'absolute',
-            bottom: 6,
-            left: 0,
-            right: 0,
-            zIndex: 10,
-            padding: '24px 64px',
-            backgroundColor: '#050505',
-            borderTop: '1px solid #27272a',
+            position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 10,
+            padding: '28px 64px', backgroundColor: c.footer, borderTop: `1px solid ${c.border}`,
           }}
         >
           <span style={{ fontSize: 0 }}>
-            <span
-              style={{
-                fontSize: 36,
-                fontWeight: 700,
-                color: '#06b6d4',
-                fontFamily: 'var(--font-display), "DM Serif Display", Georgia, serif',
-                letterSpacing: '-0.02em',
-                verticalAlign: 'baseline',
-              }}
-            >
+            <span style={{ fontSize: 36, fontWeight: 700, color: c.brand, fontFamily: 'var(--font-display), "DM Serif Display", Georgia, serif', letterSpacing: '-0.02em', verticalAlign: 'baseline' }}>
               Inningz
             </span>
-            <span
-              style={{
-                fontSize: 20,
-                fontWeight: 400,
-                color: '#525252',
-                fontFamily: '"DM Sans", system-ui, sans-serif',
-                marginLeft: 20,
-                verticalAlign: 'baseline',
-              }}
-            >
-              by
-            </span>
-            <span
-              style={{
-                fontSize: 22,
-                fontWeight: 500,
-                color: '#a1a1aa',
-                fontFamily: '"DM Sans", system-ui, sans-serif',
-                marginLeft: 8,
-                verticalAlign: 'baseline',
-              }}
-            >
-              Vanshaj
-            </span>
+            <span style={{ fontSize: 20, fontWeight: 400, color: c.faint, marginLeft: 20, verticalAlign: 'baseline' }}>by</span>
+            <span style={{ fontSize: 22, fontWeight: 500, color: c.muted, marginLeft: 8, verticalAlign: 'baseline' }}>Vanshaj</span>
           </span>
-          <span style={{ fontSize: 20, color: '#52525b', float: 'right', marginTop: 6 }}>
-            Live Cricket Scores
-          </span>
+          <span style={{ fontSize: 20, color: c.faint, float: 'right', marginTop: 6 }}>Live Cricket Scores</span>
         </div>
-
-        {/* Bottom accent */}
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: 6,
-            background: 'linear-gradient(90deg, #06b6d4, #0891b2, #06b6d4)',
-          }}
-        />
       </div>
     );
   }
