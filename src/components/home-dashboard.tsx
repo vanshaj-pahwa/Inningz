@@ -65,7 +65,7 @@ function MatchCarousel({ matches }: { matches: LiveMatch[] }) {
   };
 
   const arrowClass =
-    'flex absolute top-1/2 -translate-y-1/2 z-20 w-8 h-8 md:w-9 md:h-9 items-center justify-center rounded-full surface-card shadow-lg text-foreground hover:bg-muted transition-colors';
+    'flex absolute top-1/2 -translate-y-1/2 z-20 w-6 h-6 md:w-9 md:h-9 items-center justify-center rounded-full surface-card shadow-lg text-foreground hover:bg-muted transition-colors';
 
   return (
     <div className="relative">
@@ -81,12 +81,12 @@ function MatchCarousel({ matches }: { matches: LiveMatch[] }) {
       </div>
       {canLeft && (
         <button type="button" onClick={() => scroll(-1)} aria-label="Scroll left" className={`${arrowClass} left-1`}>
-          <ChevronLeft className="w-5 h-5" />
+          <ChevronLeft className="w-3.5 h-3.5 md:w-5 md:h-5" />
         </button>
       )}
       {canRight && (
         <button type="button" onClick={() => scroll(1)} aria-label="Scroll right" className={`${arrowClass} right-1`}>
-          <ChevronRight className="w-5 h-5" />
+          <ChevronRight className="w-3.5 h-3.5 md:w-5 md:h-5" />
         </button>
       )}
     </div>
@@ -185,17 +185,16 @@ export default function HomeDashboard() {
   const liveIds = new Set(liveMatches.map((m) => m.matchId));
   const todayUpcoming = upcomingMatches.filter((m) => isToday(m.startDate) && !liveIds.has(m.matchId));
 
-  // Order today's row by relevance: actively live → about-to-start (soonest) →
-  // paused live (stumps/rain) → finished results.
+  // Order today's row by relevance: live → about-to-start (soonest) → a Test day
+  // that's been stumped → finished results. A live match always outranks an
+  // upcoming one; the only live state that drops down is a Test at stumps
+  // (there's no more play today). Breaks like rain/lunch/innings-break stay live.
   const matchTier = (m: LiveMatch) => {
     const s = (m.status || '').toLowerCase();
-    const isResult = /won|drawn|\btied\b|abandon|no result|complete/.test(s);
-    const hasScore = (m.teams || []).some((t) => t.score && t.score !== 'N/A');
-    const isPaused = /stumps|lunch|\btea\b|drinks|rain|bad light|innings break|delay|wet|interrupt/.test(s);
-    if (isResult) return 3;
-    if (hasScore && !isPaused) return 0; // actively in progress
-    if (!hasScore) return 1; // upcoming
-    return 2; // paused live
+    if (/won|drawn|\btied\b|abandon|no result|complete/.test(s)) return 3; // finished
+    const stumped = /stumps|close of play|end of day/.test(s);
+    if (liveIds.has(m.matchId)) return stumped ? 2 : 0; // live (Test-at-stumps demoted)
+    return 1; // upcoming today
   };
   const topMatches = [...liveMatches, ...todayUpcoming].sort((a, b) => {
     const ta = matchTier(a), tb = matchTier(b);
@@ -214,7 +213,7 @@ export default function HomeDashboard() {
 
       {/* === LIVE & TODAY === */}
       {loading ? (
-        <SectionSkeleton title="Live" rows={3} />
+        <CarouselSkeleton />
       ) : topMatches.length > 0 ? (
         <section className="overflow-hidden">
           <MatchCarousel matches={topMatches} />
@@ -223,7 +222,7 @@ export default function HomeDashboard() {
 
       {/* === RECENT (carousel) === */}
       {loading ? (
-        <SectionSkeleton title="Recent" rows={3} />
+        <CarouselSkeleton title="Recent" />
       ) : recentMatches.length > 0 ? (
         <section className="overflow-hidden">
           <SectionHeader title="Recent" href="/?tab=recent" hrefLabel="See all" />
@@ -487,6 +486,29 @@ function RankingRow({ entry, accentBg }: { entry: RankingEntry; accentBg: string
 // ============================================================================
 // Skeletons + empty
 // ============================================================================
+
+// Loading placeholder that mirrors MatchCarousel: an optional section title
+// followed by a horizontal row of wide card skeletons (same widths as the real
+// cards). Used for the Live/Today and Recent rows, which are carousels.
+function CarouselSkeleton({ title, cards = 3 }: { title?: string; cards?: number }) {
+  return (
+    <section className="overflow-hidden">
+      {title && (
+        <div className="flex items-center gap-2 mb-3 md:mb-4">
+          <div className="skeleton h-3.5 md:h-4 w-24 rounded" />
+        </div>
+      )}
+      <div className="flex items-start gap-3 md:gap-4 overflow-hidden">
+        {Array.from({ length: cards }).map((_, i) => (
+          <div
+            key={i}
+            className="skeleton shrink-0 w-[280px] sm:w-[300px] md:w-[320px] h-52 rounded-2xl"
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
 
 function SectionSkeleton({ title, rows, compact }: { title: string; rows: number; compact?: boolean }) {
   return (
