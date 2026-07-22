@@ -9,6 +9,7 @@ import type { VenuePageData } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ArrowLeft, MapPin, ChevronRight } from 'lucide-react';
+import { buildMatchHref } from '@/lib/utils';
 
 export default function VenuePage() {
   const router = useRouter();
@@ -155,7 +156,7 @@ export default function VenuePage() {
                       {g.matches.map((m) => (
                         <Link
                           key={m.matchId}
-                          href={`/match/${m.matchId}`}
+                          href={buildMatchHref(m.matchId, m.teams)}
                           className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted/40 transition-colors"
                         >
                           <div className="min-w-0">

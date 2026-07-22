@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { MapPin } from 'lucide-react';
-import { formatScore, formatStartTime, buildVenueHref, buildSeriesHref, deriveMatchFormat, displayMatchFormat } from '@/lib/utils';
+import { formatScore, formatStartTime, buildVenueHref, buildSeriesHref, buildMatchHref, deriveMatchFormat, displayMatchFormat } from '@/lib/utils';
 import { rememberMatchFlags } from '@/lib/team-flags';
 import type { LiveMatch } from '@/app/actions';
 
@@ -138,7 +138,7 @@ export default function MatchCard({
           venue link (an <a> inside an <a> is invalid). Content is pointer-events-none
           so clicks fall through to this overlay; the venue link re-enables its own. */}
       <Link
-        href={`/match/${match.matchId}`}
+        href={buildMatchHref(match.matchId, match.title)}
         className="absolute inset-0 z-0 rounded-2xl"
         aria-label={match.title || 'Match details'}
         onClick={() => rememberMatchFlags(match.matchId, match.teams)}

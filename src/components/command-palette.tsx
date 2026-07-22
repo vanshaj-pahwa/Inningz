@@ -7,7 +7,7 @@ import { useMatches } from '@/contexts/matches-context';
 import { useRecentHistoryContext } from '@/contexts/recent-history-context';
 import { getSeriesSchedule } from '@/app/actions';
 import { Search } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, buildMatchHref } from '@/lib/utils';
 
 type SeriesLite = { name: string; seriesId: string; dateRange: string; category: string };
 
@@ -127,7 +127,7 @@ export default function CommandPaletteProvider({ children }: { children: React.R
                 kind: 'match',
                 title: m.title,
                 subtitle: m.status,
-                href: `/match/${m.matchId}`,
+                href: buildMatchHref(m.matchId, m.title),
                 group: 'Matches',
             });
         });
@@ -152,7 +152,7 @@ export default function CommandPaletteProvider({ children }: { children: React.R
                 h.type === 'match' ? 'recent-match' :
                     h.type === 'series' ? 'recent-series' : 'recent-player';
             const href =
-                h.type === 'match' ? `/match/${h.id}` :
+                h.type === 'match' ? buildMatchHref(h.id, h.title) :
                     h.type === 'series' ? `/series/${h.id}/${h.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}` :
                         `/compare?p1=${encodeURIComponent(h.id)}&name1=${encodeURIComponent(h.title)}`;
             out.push({

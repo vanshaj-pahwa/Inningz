@@ -2461,9 +2461,11 @@ export async function getScoreForMatchId(
     throw new Error('Could not extract match ID from the URL.');
   }
 
-  // Try multiple API endpoints
+  // Try multiple API endpoints. Some matches (The Hundred especially) return an
+  // empty envelope from `comm` but full data from `hcomm`, so keep both.
   const apiEndpoints = [
     `https://www.cricbuzz.com/api/mcenter/comm/${matchId}`,
+    `https://www.cricbuzz.com/api/mcenter/hcomm/${matchId}`,
     `https://www.cricbuzz.com/api/cricket-match/commentary/${matchId}`,
   ];
 
@@ -2493,7 +2495,16 @@ export async function getScoreForMatchId(
         continue;
       }
 
-      data = await response.json();
+      const candidate = await response.json();
+      // Some endpoints return HTTP 200 with an empty envelope for matches
+      // they don't serve. Keep the payload as a fallback but keep probing
+      // other endpoints in case one has real data.
+      const isEmptyEnvelope = candidate && candidate.matchHeader == null && candidate.miniscore == null;
+      if (isEmptyEnvelope) {
+        if (!data) data = candidate;
+        continue;
+      }
+      data = candidate;
       break;
     } catch (e: any) {
       if (e?.name === 'AbortError') {
@@ -2504,9 +2515,23 @@ export async function getScoreForMatchId(
     }
   }
 
-  // If all API endpoints failed, fall back to HTML parsing
-  if (!data) {
-    return await getScoreFromHtml(matchId);
+  // If all API endpoints failed, fall back to HTML parsing.
+  // Also fall back when the API responds but the payload is effectively empty
+  // (matchHeader null AND miniscore null): the upstream gates this endpoint
+  // for some matches — pre-tournament fixtures, older archives, and every match
+  // in The Hundred we tested — and returns a placeholder "Please Update the
+  // app to follow match updates" message. The HTML page has the real data
+  // in its __NEXT_DATA__ script.
+  const looksEmpty = data && data.matchHeader == null && data.miniscore == null;
+  if (!data || looksEmpty) {
+    try {
+      return await getScoreFromHtml(matchId);
+    } catch (e) {
+      // If HTML fallback also fails, re-throw so upstream error surfaces
+      // instead of returning the placeholder shape below.
+      if (!data) throw e;
+      console.warn('[getScoreForMatchId] HTML fallback failed, returning empty API response:', (e as Error)?.message);
+    }
   }
 
   const { matchHeader, miniscore, commentaryList, matchCommentary } = data;

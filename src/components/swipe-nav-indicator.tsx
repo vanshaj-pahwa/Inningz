@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useMatches } from '@/contexts/matches-context';
 import { useSwipe } from '@/hooks/use-swipe';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, buildMatchHref } from '@/lib/utils';
 
 interface SwipeNavIndicatorProps {
   currentMatchId: string;
@@ -18,12 +18,12 @@ export default function SwipeNavIndicator({ currentMatchId }: SwipeNavIndicatorP
   const { swiping, swipeDirection, swipeProgress } = useSwipe({
     onSwipeLeft: () => {
       if (next) {
-        router.push(`/match/${next.matchId}`);
+        router.push(buildMatchHref(next.matchId, next.title));
       }
     },
     onSwipeRight: () => {
       if (prev) {
-        router.push(`/match/${prev.matchId}`);
+        router.push(buildMatchHref(prev.matchId, prev.title));
       }
     },
     threshold: 80,
@@ -44,7 +44,7 @@ export default function SwipeNavIndicator({ currentMatchId }: SwipeNavIndicatorP
           {liveMatches.map((match, idx) => (
             <button
               key={match.matchId}
-              onClick={() => router.push(`/match/${match.matchId}`)}
+              onClick={() => router.push(buildMatchHref(match.matchId, match.title))}
               className={cn(
                 'w-2 h-2 rounded-full transition-all duration-200',
                 idx === currentIndex
@@ -84,7 +84,7 @@ export default function SwipeNavIndicator({ currentMatchId }: SwipeNavIndicatorP
       <div className="fixed bottom-4 left-4 right-4 z-40 flex justify-between pointer-events-none">
         {prev && (
           <button
-            onClick={() => router.push(`/match/${prev.matchId}`)}
+            onClick={() => router.push(buildMatchHref(prev.matchId, prev.title))}
             className="pointer-events-auto flex items-center gap-1 px-2 py-1 rounded-lg bg-card/80 backdrop-blur-sm border border-border text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
             <ChevronLeft className="w-3 h-3" />
@@ -94,7 +94,7 @@ export default function SwipeNavIndicator({ currentMatchId }: SwipeNavIndicatorP
         <div className="flex-1" />
         {next && (
           <button
-            onClick={() => router.push(`/match/${next.matchId}`)}
+            onClick={() => router.push(buildMatchHref(next.matchId, next.title))}
             className="pointer-events-auto flex items-center gap-1 px-2 py-1 rounded-lg bg-card/80 backdrop-blur-sm border border-border text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
             <span className="max-w-[80px] truncate">{next.teams[0]?.name?.split(' ')[0]}</span>

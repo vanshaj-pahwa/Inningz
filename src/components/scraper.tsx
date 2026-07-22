@@ -1231,12 +1231,12 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                     {(hasVenue || dateStr) && (
                                         <div className="flex items-center gap-x-2 md:gap-x-3 text-[11px] md:text-xs text-muted-foreground min-w-0">
                                             {hasVenue && (venueHref ? (
-                                                <Link href={venueHref} className="flex items-center gap-1.5 flex-1 min-w-0 hover:text-foreground hover:underline transition-colors">
+                                                <Link href={venueHref} className="flex items-center gap-1.5 min-w-0 hover:text-foreground hover:underline transition-colors">
                                                     <MapPin className="w-3.5 h-3.5 shrink-0 opacity-70" />
                                                     <span className="truncate">{data!.venue}</span>
                                                 </Link>
                                             ) : (
-                                                <span className="flex items-center gap-1.5 flex-1 min-w-0">
+                                                <span className="flex items-center gap-1.5 min-w-0">
                                                     <MapPin className="w-3.5 h-3.5 shrink-0 opacity-70" />
                                                     <span className="truncate">{data!.venue}</span>
                                                 </span>

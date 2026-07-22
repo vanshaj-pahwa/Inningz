@@ -14,6 +14,14 @@ const nextConfig = {
       },
     ],
   },
+  // Match URLs support an optional slug for readability + share previews:
+  //   /match/144673/southern-brave-vs-welsh-fire-2nd-match
+  // The slug is ignored server-side; the route handler only reads the id.
+  async rewrites() {
+    return [
+      { source: '/match/:matchId/:slug*', destination: '/match/:matchId' },
+    ];
+  },
 };
 
 module.exports = nextConfig;

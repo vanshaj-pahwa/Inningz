@@ -5,7 +5,7 @@ import type { RecentItem } from '@/hooks/use-recent-history';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, buildMatchHref } from '@/lib/utils';
 
 interface RecentHistoryProps {
   onPlayerClick?: (profileId: string, playerName: string) => void;
@@ -24,7 +24,7 @@ export default function RecentHistory({ onPlayerClick, className }: RecentHistor
     if (item.type === 'player' && onPlayerClick) {
       onPlayerClick(item.id, item.title);
     } else if (item.type === 'match') {
-      router.push(`/match/${item.id}`);
+      router.push(buildMatchHref(item.id, item.title));
     } else if (item.type === 'series') {
       router.push(`/series/${item.id}`);
     }

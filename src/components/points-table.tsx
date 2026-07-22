@@ -10,6 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { TableProperties, ChevronDown, ChevronRight, Share2 } from "lucide-react";
 import PointsTableShareDialog from '@/components/share-cards/points-table-share-dialog';
+import { buildMatchHref } from '@/lib/utils';
 
 interface PointsTableProps {
   seriesId: string;
@@ -364,7 +365,7 @@ function TeamRow({
                         className={`border-b border-border/10 last:border-0 transition-colors ${match.matchId ? 'cursor-pointer hover:bg-primary/10' : ''}`}
                         onClick={match.matchId ? (e) => {
                           e.stopPropagation();
-                          router.push(`/match/${match.matchId}`);
+                          router.push(buildMatchHref(match.matchId, match.matchName || match.opponent));
                         } : undefined}
                       >
                         <td className="py-2.5 px-4 text-sm text-foreground">

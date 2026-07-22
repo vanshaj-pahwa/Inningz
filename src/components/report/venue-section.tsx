@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { cn } from '@/lib/utils';
+import { cn, buildMatchHref } from '@/lib/utils';
 import type { VenueData, ForecastCard } from '@/app/actions';
 
 interface Props {
@@ -85,7 +85,7 @@ export default function VenueSection({ data }: Props) {
                         {data.recentMatches.rows.slice(0, 10).map((r, i) => (
                             <Link
                                 key={i}
-                                href={`/match/${r.matchId}`}
+                                href={buildMatchHref(r.matchId, r.label)}
                                 className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/30 transition-colors"
                             >
                                 <span className="text-xs font-medium text-foreground flex-1 min-w-0 truncate">{r.label}</span>

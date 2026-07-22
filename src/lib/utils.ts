@@ -78,3 +78,21 @@ export function buildSeriesHref(seriesName?: string, seriesUrl?: string): string
   const slug = (seriesName || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   return `/series/${id}/${slug}`;
 }
+
+// Slug-friendly match URL. Uses only the match title (e.g. "england-vs-india-1st-t20i")
+// so URLs stay short and readable. Falls back to /match/${id} when no title
+// is available. A rewrite in next.config.js accepts the optional slug segment
+// and forwards to the base route, so no data-fetching path changes.
+export function buildMatchHref(
+  matchId: string | number | undefined,
+  title?: string,
+): string {
+  const id = String(matchId ?? '').trim();
+  if (!id) return '/';
+  const slug = (title || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 80);
+  return slug ? `/match/${id}/${slug}` : `/match/${id}`;
+}
