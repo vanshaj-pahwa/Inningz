@@ -9,7 +9,7 @@ import { loadMoreCommentary as loadMoreCommentaryAction, getPlayerProfile, getPl
 import type { ScrapeCricbuzzUrlOutput, Commentary, PlayerProfile, PlayerHighlights } from '@/app/actions';
 import { useLiveScore } from '@/lib/data-layer';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { User, ArrowLeft, ChevronLeft, ChevronRight, ChevronUp, Share2, Trophy, MapPin } from "lucide-react";
+import { User, ArrowLeft, ChevronLeft, ChevronRight, ChevronUp, Share2, Trophy, MapPin, Clock } from "lucide-react";
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { cn, buildVenueHref } from '@/lib/utils';
@@ -98,15 +98,19 @@ function isLive(status: string): boolean {
         (!s.includes('won') && !s.includes('complete') && !s.includes('drawn') && !s.includes('tied'));
 }
 
-// Match a score's short code (e.g. "ENG", "WI") to a stored full team name
-// ("England", "West Indies") so we can show the batting side's flag. Handles
-// single-word names by prefix and multi-word names by initials.
+// Match a score's short code (e.g. "ENG", "WI", "INDU19") to a stored full team
+// name ("England", "West Indies", "India U19") so we can show the batting side's
+// flag. Handles single-word names by prefix and multi-word names by initials.
+// Age-group suffixes (U19/U16 etc.) are stripped from both sides so "INDU19"
+// still finds "India U19".
 function flagForShortCode(shortCode: string | undefined, teams: StoredTeam[] | null): string | null {
     if (!shortCode || !teams) return null;
-    const s = shortCode.toLowerCase().replace(/[^a-z]/g, '');
+    const stripAgeGroup = (v: string) => v.replace(/u\d+/g, '').replace(/\s+a\b/g, '');
+    const raw = shortCode.toLowerCase();
+    const s = stripAgeGroup(raw).replace(/[^a-z]/g, '');
     if (!s) return null;
     for (const t of teams) {
-        const name = t.name.toLowerCase();
+        const name = stripAgeGroup(t.name.toLowerCase()).trim();
         const noSpace = name.replace(/[^a-z]/g, '');
         const initials = name.split(/\s+/).map((w) => w[0] || '').join('');
         if (noSpace.startsWith(s) || initials === s || initials.startsWith(s)) return t.flagUrl;
@@ -481,9 +485,40 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
     }, [liveData]);
 
 
-    const matchUnavailable = data?.status === 'Match data not available' || data?.score === 'Score not available';
+    const matchStartMs = data?.matchStartTimestamp
+        ? (data.matchStartTimestamp < 10_000_000_000 ? data.matchStartTimestamp * 1000 : data.matchStartTimestamp)
+        : null;
+    const isUpcoming = !!matchStartMs && matchStartMs > Date.now();
+    const hasNoScore = data?.status === 'Match data not available' || data?.score === 'Score not available';
 
-    if (matchUnavailable || ((liveError || loadTimedOut) && !data)) {
+    if (isUpcoming && hasNoScore) {
+        const startAt = new Intl.DateTimeFormat(undefined, {
+            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+            hour12: false, timeZoneName: 'short',
+        }).format(new Date(matchStartMs!));
+        return (
+            <div className="max-w-md mx-auto px-4 min-h-[60vh] flex flex-col items-center justify-center text-center">
+                <div className="p-4 rounded-full bg-primary/10 mb-4">
+                    <Clock className="w-7 h-7 text-primary" />
+                </div>
+                <h2 className="text-xl font-display mb-1.5">{data?.title || 'Upcoming match'}</h2>
+                <p className="text-sm text-muted-foreground mb-1 max-w-xs">
+                    Match starts at {startAt}
+                </p>
+                {data?.venue && (
+                    <p className="inline-flex items-center gap-1 text-xs text-muted-foreground mb-5">
+                        <MapPin className="w-3 h-3" /> {data.venue}
+                    </p>
+                )}
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" onClick={() => refresh()} className="rounded-xl">Refresh</Button>
+                    <Button onClick={() => router.push('/')} className="rounded-xl">Back to Home</Button>
+                </div>
+            </div>
+        )
+    }
+
+    if ((hasNoScore && !isUpcoming) || ((liveError || loadTimedOut) && !data)) {
         return (
             <div className="max-w-md mx-auto px-4 min-h-[60vh] flex flex-col items-center justify-center text-center">
                 <div className="p-4 rounded-full bg-muted mb-4">
@@ -1310,7 +1345,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                 return (
                                                 <div key={index} className="flex items-baseline gap-2 opacity-50">
                                                     {invFlag && (
-                                                        <div className="rounded overflow-hidden w-5 h-3.5 flex-shrink-0 relative top-[2px]">
+                                                        <div className="rounded-[2px] overflow-hidden w-5 h-3.5 flex-shrink-0 relative top-[2px] ring-1 ring-black/5 dark:ring-white/10">
                                                             <Image src={invFlag} alt={inning.teamShortName || inning.teamName} width={20} height={14} unoptimized className="w-full h-full object-cover" />
                                                         </div>
                                                     )}

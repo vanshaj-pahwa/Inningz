@@ -117,13 +117,13 @@ export default function HomeDashboard() {
       ]);
 
       if (liveResult.success && liveResult.matches) {
-        setLiveMatches(liveResult.matches.slice(0, 3));
+        setLiveMatches(liveResult.matches);
       }
       if (recentResult.success && recentResult.matches) {
-        setRecentMatches(recentResult.matches.slice(0, 12));
+        setRecentMatches(recentResult.matches);
       }
       if (upcomingResult.success && upcomingResult.matches) {
-        setUpcomingMatches(upcomingResult.matches.slice(0, 12));
+        setUpcomingMatches(upcomingResult.matches);
       }
       setLoading(false);
     };

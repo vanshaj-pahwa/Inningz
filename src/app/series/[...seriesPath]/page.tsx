@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ArrowLeft, Filter, ChevronDown, X } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { deriveMatchFormat } from '@/lib/utils';
+import { deriveMatchFormat, displayMatchFormat } from '@/lib/utils';
 import SeriesStatsDisplay from '@/components/series-stats';
 import PointsTableDisplay from '@/components/points-table';
 import MatchCard from '@/components/match-card';
@@ -198,7 +198,7 @@ export default function SeriesPage() {
 
   // Formats actually present in this series (TEST, ODI, T20, ...), taken from the
   // real matchFormat field, falling back to a title-derived guess if absent.
-  const matchFmt = (m: LiveMatch) => m.matchFormat || deriveMatchFormat(m.title, m.seriesName) || null;
+  const matchFmt = (m: LiveMatch) => displayMatchFormat(m.matchFormat) || deriveMatchFormat(m.title, m.seriesName) || null;
   // Whether the series spans more than one format at all (decides if tabs show).
   const allFormats = Array.from(new Set(matches.map(matchFmt).filter(Boolean) as string[]));
 

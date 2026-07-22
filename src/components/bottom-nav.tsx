@@ -2,11 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { Flame, History, Calendar, Trophy, Home as HomeIcon } from 'lucide-react';
+import { Radio, History, Calendar, Trophy, Home as HomeIcon } from 'lucide-react';
 
 const items = [
   { label: 'Home', icon: HomeIcon, tab: null as string | null },
-  { label: 'Live', icon: Flame, tab: 'live' },
+  { label: 'Live', icon: Radio, tab: 'live' },
   { label: 'Recent', icon: History, tab: 'recent' },
   { label: 'Upcoming', icon: Calendar, tab: 'upcoming' },
   { label: 'Series', icon: Trophy, tab: 'series' },

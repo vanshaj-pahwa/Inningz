@@ -14,16 +14,16 @@ import RecentHistory from "@/components/recent-history";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 import { CommandPaletteTrigger } from "@/components/command-palette";
-import { Flame, History, Calendar, Trophy, Medal, Home as HomeIcon } from "lucide-react";
+import { Radio, History, Calendar, Trophy, Medal, Home as HomeIcon } from "lucide-react";
 import HomeDashboard from "@/components/home-dashboard";
 
 type View = 'home' | 'live' | 'recent' | 'upcoming' | 'series';
 
 const validViews: View[] = ['home', 'live', 'recent', 'upcoming', 'series'];
 
-const tabs: { value: View; label: string; icon: typeof Flame }[] = [
+const tabs: { value: View; label: string; icon: typeof Radio }[] = [
     { value: 'home', label: 'Home', icon: HomeIcon },
-    { value: 'live', label: 'Live', icon: Flame },
+    { value: 'live', label: 'Live', icon: Radio },
     { value: 'recent', label: 'Recent', icon: History },
     { value: 'upcoming', label: 'Upcoming', icon: Calendar },
     { value: 'series', label: 'Series', icon: Trophy },

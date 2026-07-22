@@ -4,12 +4,33 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { MapPin } from 'lucide-react';
-import { formatScore, formatStartTime, buildVenueHref, buildSeriesHref, deriveMatchFormat } from '@/lib/utils';
+import { formatScore, formatStartTime, buildVenueHref, buildSeriesHref, deriveMatchFormat, displayMatchFormat } from '@/lib/utils';
 import { rememberMatchFlags } from '@/lib/team-flags';
 import type { LiveMatch } from '@/app/actions';
 
 // Process-wide cache of a flag's two accent colours, keyed by flag URL.
 const flagColorCache = new Map<string, string[]>();
+// Concurrent-callers dedupe: N cards mounting at once for the same flag share
+// a single in-flight fetch instead of firing N identical requests.
+const flagColorInFlight = new Map<string, Promise<string[] | null>>();
+
+function fetchFlagColors(url: string): Promise<string[] | null> {
+  const cached = flagColorCache.get(url);
+  if (cached) return Promise.resolve(cached);
+  const inflight = flagColorInFlight.get(url);
+  if (inflight) return inflight;
+  const p = fetch(`/api/flag-colors?url=${encodeURIComponent(url)}`)
+    .then((r) => r.json())
+    .then((d: { colors?: string[] }) => {
+      const colors = d.colors?.length ? d.colors : null;
+      if (colors) flagColorCache.set(url, colors);
+      return colors;
+    })
+    .catch(() => null)
+    .finally(() => { flagColorInFlight.delete(url); });
+  flagColorInFlight.set(url, p);
+  return p;
+}
 
 // Colored format badge (T20 / ODI / TEST …) for at-a-glance segregation.
 const FORMAT_BADGE: Record<string, string> = {
@@ -18,6 +39,8 @@ const FORMAT_BADGE: Record<string, string> = {
   T10: 'bg-teal-500/15 text-teal-600 dark:text-teal-300',
   ODI: 'bg-blue-500/15 text-blue-600 dark:text-blue-300',
   TEST: 'bg-rose-500/15 text-rose-600 dark:text-rose-300',
+  '100': 'bg-pink-500/15 text-pink-600 dark:text-pink-300',
+  'List A': 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300',
 };
 
 const CATEGORY_DOT: Record<string, string> = {
@@ -80,7 +103,7 @@ export default function MatchCard({
     : 'text-muted-foreground';
   const venue = match.venue && match.venue !== 'N/A' && match.venue.trim() ? match.venue : null;
   const venueHref = buildVenueHref(match.venueUrl);
-  const format = match.matchFormat || deriveMatchFormat(match.title, match.seriesName);
+  const format = displayMatchFormat(match.matchFormat) || deriveMatchFormat(match.title, match.seriesName);
   const seriesHref = buildSeriesHref(match.seriesName, match.seriesUrl);
   // Leagues/domestic competitions have a points table; bilateral series don't.
   const showTable = category === 'league' || category === 'domestic';
@@ -101,14 +124,10 @@ export default function MatchCard({
   useEffect(() => {
     if (!winnerFlag || flagColorCache.has(winnerFlag)) return;
     let cancelled = false;
-    fetch(`/api/flag-colors?url=${encodeURIComponent(winnerFlag)}`)
-      .then((r) => r.json())
-      .then((d: { colors?: string[] }) => {
-        if (cancelled || !d.colors?.length) return;
-        flagColorCache.set(winnerFlag, d.colors);
-        setAccent(d.colors);
-      })
-      .catch(() => {});
+    fetchFlagColors(winnerFlag).then((colors) => {
+      if (cancelled || !colors) return;
+      setAccent(colors);
+    });
     return () => { cancelled = true; };
   }, [winnerFlag]);
   const hasAccent = !!accent && accent.length >= 2;

@@ -48,12 +48,26 @@ export function buildVenueHref(venueUrl?: string): string | null {
 // e.g. "England vs India, 3rd ODI" -> "ODI", "Final • T20 Blast" -> "T20".
 export function deriveMatchFormat(...parts: (string | undefined)[]): string | null {
   const s = ` ${parts.filter(Boolean).join(' ')} `.toLowerCase();
+  if (/the hundred|\bhundred men|\bhundred women/.test(s)) return '100';
   if (/\bt20i\b/.test(s)) return 'T20I';
-  if (/\bt20\b|twenty ?20|blast|premier league|major league|the hundred/.test(s)) return 'T20';
+  if (/\bt20\b|twenty ?20|blast|premier league|major league/.test(s)) return 'T20';
   if (/\bt10\b/.test(s)) return 'T10';
   if (/\bodi\b|one[- ]day international/.test(s)) return 'ODI';
   if (/\btest\b/.test(s)) return 'TEST';
+  if (/one[- ]day cup|list ?a\b/.test(s)) return 'List A';
   return null;
+}
+
+// Normalize a raw upstream `matchFormat` tag for display
+// (e.g. "HUN" -> "100" for The Hundred). Unknown tags pass through so they
+// still render instead of dropping to muted grey.
+export function displayMatchFormat(raw?: string | null): string | null {
+  if (!raw) return null;
+  const t = raw.trim().toUpperCase();
+  if (!t) return null;
+  if (t === 'HUN' || t === '100-BALL' || t === 'HUNDRED') return '100';
+  if (t === 'LA' || t === 'LIST-A' || t === 'LIST_A' || t === 'LISTA') return 'List A';
+  return t;
 }
 
 // Build the internal series-page href from a source series URL + name.
