@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { ThemeToggle } from '@/components/theme-toggle';
-import FollowingButton from '@/components/following-button';
 import PlayerProfileDisplay from '@/components/player-profile';
 import { ArrowLeft } from 'lucide-react';
 
@@ -120,10 +119,7 @@ export default function RankingsPage() {
                   />
                 </Link>
               </div>
-              <div className="flex items-center gap-1.5">
-                <FollowingButton />
-                <ThemeToggle />
-              </div>
+              <ThemeToggle />
             </div>
           </div>
         </div>

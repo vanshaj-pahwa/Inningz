@@ -12,7 +12,6 @@ import UpcomingMatches from "@/components/upcoming-matches";
 import SeriesSchedule from "@/components/series-schedule";
 import RecentHistory from "@/components/recent-history";
 import { ThemeToggle } from "@/components/theme-toggle";
-import FollowingButton from "@/components/following-button";
 
 import { CommandPaletteTrigger } from "@/components/command-palette";
 import { Radio, History, Calendar, Trophy, Medal, Home as HomeIcon } from "lucide-react";
@@ -125,7 +124,6 @@ function HomeContent() {
                                 <Medal className="w-4 h-4" />
                                 <span className="hidden sm:inline">Rankings</span>
                             </Link>
-                            <FollowingButton />
                             <ThemeToggle />
                         </div>
                     </div>

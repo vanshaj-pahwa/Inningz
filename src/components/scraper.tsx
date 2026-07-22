@@ -21,7 +21,6 @@ import { motion } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import MatchSquadsDisplay from './match-squads';
 import { ThemeToggle } from './theme-toggle';
-import FollowingButton from './following-button';
 
 import WinProbability from './win-probability';
 import MatchStickyBar from './match-sticky-bar';
@@ -1225,22 +1224,26 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                             if (!hasVenue && !dateStr && !hasToss) return null;
                             return (
                                 <div className="mt-2 md:mt-2.5 space-y-1.5">
+                                    {/* Single-row meta strip: venue on the left claims remaining
+                                        space and truncates with ellipsis; date stays pinned to the
+                                        right at its natural width. Prevents the older flex-wrap
+                                        layout from bumping the date onto its own row on mobile. */}
                                     {(hasVenue || dateStr) && (
-                                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] md:text-xs text-muted-foreground min-w-0">
+                                        <div className="flex items-center gap-x-2 md:gap-x-3 text-[11px] md:text-xs text-muted-foreground min-w-0">
                                             {hasVenue && (venueHref ? (
-                                                <Link href={venueHref} className="inline-flex items-center gap-1.5 max-w-full min-w-0 hover:text-foreground hover:underline transition-colors">
+                                                <Link href={venueHref} className="flex items-center gap-1.5 flex-1 min-w-0 hover:text-foreground hover:underline transition-colors">
                                                     <MapPin className="w-3.5 h-3.5 shrink-0 opacity-70" />
                                                     <span className="truncate">{data!.venue}</span>
                                                 </Link>
                                             ) : (
-                                                <span className="inline-flex items-center gap-1.5 max-w-full min-w-0">
+                                                <span className="flex items-center gap-1.5 flex-1 min-w-0">
                                                     <MapPin className="w-3.5 h-3.5 shrink-0 opacity-70" />
                                                     <span className="truncate">{data!.venue}</span>
                                                 </span>
                                             ))}
-                                            {hasVenue && dateStr && <span className="text-muted-foreground/40" aria-hidden>·</span>}
+                                            {hasVenue && dateStr && <span className="shrink-0 text-muted-foreground/40" aria-hidden>·</span>}
                                             {dateStr && (
-                                                <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                                                <span className="inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap">
                                                     <Clock className="w-3.5 h-3.5 shrink-0 opacity-70" />
                                                     {dateStr}
                                                 </span>
@@ -1277,13 +1280,11 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                         </div>
                         )}
                         <CommandPaletteTrigger />
-                        <FollowingButton />
                         <ThemeToggle />
                     </div>
                     {/* Mobile: theme toggle */}
                     <div className="shrink-0 md:hidden flex items-center gap-1.5">
                         <CommandPaletteTrigger />
-                        <FollowingButton />
                         <ThemeToggle />
                     </div>
                 </div>
