@@ -64,18 +64,16 @@ export default function RecentHistory({ onPlayerClick, className }: RecentHistor
               className={cn(
                 'flex items-center gap-2 px-3 py-2 rounded-xl border transition-all',
                 'bg-card/60 border-border hover:border-primary/30 hover:bg-muted/80',
-                'min-w-[150px] max-w-[260px]'
+                'w-[240px] h-[52px]'
               )}
             >
               <div className="flex-1 text-left overflow-hidden">
-                <p className="text-sm font-medium text-foreground truncate">
+                <p className="text-sm font-medium text-foreground truncate leading-tight">
                   {item.title}
                 </p>
-                {item.subtitle && (
-                  <p className="text-[10px] text-muted-foreground truncate">
-                    {item.subtitle}
-                  </p>
-                )}
+                <p className="text-[10px] text-muted-foreground truncate leading-tight mt-0.5">
+                  {item.subtitle || (item.type === 'series' ? 'Series' : item.type === 'player' ? 'Player' : 'Match')}
+                </p>
               </div>
             </button>
 

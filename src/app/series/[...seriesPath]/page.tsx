@@ -7,7 +7,7 @@ import { getSeriesMatches, getSeriesStats } from '@/app/actions';
 import type { LiveMatch, SeriesStatCategory } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ArrowLeft, Filter, ChevronDown, X } from 'lucide-react';
+import { ArrowLeft, Filter, ChevronDown, X, Calendar } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { deriveMatchFormat, displayMatchFormat } from '@/lib/utils';
 import SeriesStatsDisplay from '@/components/series-stats';
@@ -43,6 +43,7 @@ export default function SeriesPage() {
   const [teamFilter, setTeamFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('all');
   const [formatFilter, setFormatFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'upcoming' | 'past'>('all');
   const [showPast, setShowPast] = useState(false);
   const [hasTrackedSeries, setHasTrackedSeries] = useState(false);
   const [topRunScorer, setTopRunScorer] = useState<{ name: string; value: string } | null>(null);
@@ -50,11 +51,12 @@ export default function SeriesPage() {
   const [topPerformersLoading, setTopPerformersLoading] = useState(true);
   const headerRef = useRef<HTMLElement>(null);
 
-  const hasActiveFilter = dateFilter !== 'all' || teamFilter !== 'all' || formatFilter !== 'all';
+  const hasActiveFilter = dateFilter !== 'all' || teamFilter !== 'all' || formatFilter !== 'all' || statusFilter !== 'all';
   const resetFilters = () => {
     setDateFilter('all');
     setTeamFilter('all');
     setFormatFilter('all');
+    setStatusFilter('all');
   };
 
   useEffect(() => {
@@ -92,10 +94,12 @@ export default function SeriesPage() {
     fetchTopPerformers();
   }, [seriesId]);
 
-  // Track series in recent history
+  // Track series in recent history — skip if we don't have a real series
+  // name; a "Series" chip tells the user nothing.
   useEffect(() => {
     if (matches.length > 0 && seriesId && !hasTrackedSeries) {
-      const seriesName = matches[0].seriesName || 'Series';
+      const seriesName = matches[0].seriesName?.trim();
+      if (!seriesName) return;
       addSeries(seriesId, seriesName);
       setHasTrackedSeries(true);
     }
@@ -319,6 +323,7 @@ export default function SeriesPage() {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="outline" size="sm" className="rounded-xl gap-1.5 h-7 sm:h-8 text-[11px] sm:text-xs px-2.5">
+                          <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                           {dateFilter === 'all' ? 'All Dates' : dateFilter}
                           <ChevronDown className="h-2.5 w-2.5 sm:h-3 sm:w-3 opacity-50" />
                         </Button>
@@ -362,7 +367,8 @@ export default function SeriesPage() {
       <main className="max-w-7xl mx-auto px-4 md:px-6 py-8">
         {view === 'matches' && (
           <>
-            {/* Format tabs — reflect the formats present in the current date/team selection */}
+            {/* Format tabs stay on top since format applies to every section
+                (including today). Status filter moves below today's group. */}
             {!loading && !error && matches.length > 0 && allFormats.length > 1 && (
               <div className="flex items-center gap-1.5 flex-wrap mb-6">
                 {['all', ...availableFormats].map((f) => (
@@ -432,19 +438,34 @@ export default function SeriesPage() {
               </div>
             )}
 
-            {!loading && !error && matches.length > 0 && (
-              <div className="space-y-8">
-                {/* Today — elevated, primary-tinted container so it reads as "now" */}
-                {todayGroups.map((group) => {
-                  const anyLive = group.matches.some((m) => isLive(m.status));
-                  const shortDate = group.date.replace(/^\S+\s/, '').replace(/\s\d{4}$/, '');
-                  return (
+            {!loading && !error && matches.length > 0 && (() => {
+              const showUpcoming = statusFilter === 'all' || statusFilter === 'upcoming';
+              const showPastSection = statusFilter === 'all' || statusFilter === 'past';
+              const collapseThisRun = showPastSection && collapsePast && statusFilter !== 'past';
+              const hasFilterableBelow = futureGroups.length > 0 || pastGroups.length > 0;
+              const visibleBelowCount =
+                (showUpcoming ? futureGroups.reduce((n, g) => n + g.matches.length, 0) : 0) +
+                (showPastSection ? pastMatchCount : 0);
+              const nothingToShow = todayGroups.length === 0 && visibleBelowCount === 0;
+              if (nothingToShow) {
+                return (
+                  <div className="w-full flex flex-col items-center justify-center min-h-[40vh] p-8">
+                    <h3 className="text-xl font-display mb-2">No matches for this filter</h3>
+                    <p className="text-muted-foreground text-center max-w-sm text-sm">
+                      Try switching the status filter or clearing the date/team selection.
+                    </p>
+                  </div>
+                );
+              }
+              return (
+                <div className="space-y-8">
+                  {/* Today — always shown so it stays a fixed context anchor. */}
+                  {todayGroups.map((group) => (
                     <div key={group.date} className="rounded-2xl bg-primary/[0.03] ring-1 ring-primary/15 p-4 md:p-5">
                       <div className="flex items-center gap-3 mb-5">
                         <div className="h-px flex-1 bg-gradient-to-r from-primary/60 to-transparent" />
-                        <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-primary px-1">
-                          {anyLive && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />}
-                          Today · {shortDate}
+                        <span className="inline-flex items-center text-[10px] font-bold uppercase tracking-widest text-primary px-1">
+                          Today · {group.date}
                         </span>
                         <div className="h-px flex-1 bg-gradient-to-l from-primary/60 to-transparent" />
                       </div>
@@ -460,42 +481,64 @@ export default function SeriesPage() {
                         ))}
                       </div>
                     </div>
-                  );
-                })}
+                  ))}
 
-                {/* Future — chronological */}
-                {futureGroups.map((group, groupIndex) => (
-                  <DateGroupBlock key={group.date} group={group} baseStagger={(groupIndex + todayGroups.length) * 6} />
-                ))}
+                  {/* Status filter chips — sit between today and the rest, and
+                      only appear when there's future or past content to filter. */}
+                  {hasFilterableBelow && (
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {(['all', 'upcoming', 'past'] as const).map((s) => {
+                        const label = s === 'all' ? 'All matches' : s === 'upcoming' ? 'Upcoming matches' : 'Past matches';
+                        const active = statusFilter === s;
+                        return (
+                          <button
+                            key={s}
+                            onClick={() => setStatusFilter(s)}
+                            className={`px-3.5 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-all ${
+                              active ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
 
-                {/* Past — collapsed when there are many finished matches */}
-                {pastGroups.length > 0 && (
-                  <div>
-                    {collapsePast ? (
-                      <button
-                        type="button"
-                        onClick={() => setShowPast((v) => !v)}
-                        className="w-full flex items-center gap-3 py-3 text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        <div className="h-px flex-1 bg-border" />
-                        <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest">
-                          <ChevronDown className={`h-3 w-3 transition-transform ${showPast ? '' : '-rotate-90'}`} />
-                          {showPast ? 'Hide' : 'Show'} {pastMatchCount} past match{pastMatchCount === 1 ? '' : 'es'}
-                        </span>
-                        <div className="h-px flex-1 bg-border" />
-                      </button>
-                    ) : null}
-                    {(!collapsePast || showPast) && (
-                      <div className="space-y-8 mt-4">
-                        {pastGroups.map((group, groupIndex) => (
-                          <DateGroupBlock key={group.date} group={group} baseStagger={groupIndex * 6} />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
+                  {/* Future — chronological. Skipped when filter=past. */}
+                  {showUpcoming && futureGroups.map((group, groupIndex) => (
+                    <DateGroupBlock key={group.date} group={group} baseStagger={(groupIndex + todayGroups.length) * 6} />
+                  ))}
+
+                  {/* Past — collapsed when many finished matches AND status filter isn't past. */}
+                  {showPastSection && pastGroups.length > 0 && (
+                    <div>
+                      {collapseThisRun ? (
+                        <button
+                          type="button"
+                          onClick={() => setShowPast((v) => !v)}
+                          className="w-full flex items-center gap-3 py-3 text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <div className="h-px flex-1 bg-border" />
+                          <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest">
+                            <ChevronDown className={`h-3 w-3 transition-transform ${showPast ? '' : '-rotate-90'}`} />
+                            {showPast ? 'Hide' : 'Show'} {pastMatchCount} past match{pastMatchCount === 1 ? '' : 'es'}
+                          </span>
+                          <div className="h-px flex-1 bg-border" />
+                        </button>
+                      ) : null}
+                      {(!collapseThisRun || showPast) && (
+                        <div className="space-y-8 mt-4">
+                          {pastGroups.map((group, groupIndex) => (
+                            <DateGroupBlock key={group.date} group={group} baseStagger={groupIndex * 6} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </>
         )}
 

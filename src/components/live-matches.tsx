@@ -7,7 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "lucide-react";
 import SeriesDivider from "./series-divider";
-import MatchCard from "./match-card";
+import MatchCarousel from "./match-carousel";
 
 interface GroupedMatches {
   [seriesName: string]: LiveMatch[];
@@ -137,19 +137,10 @@ export default function LiveMatches() {
       {Object.entries(groupedMatches).map(([seriesName, seriesMatches]) => (
         <section key={seriesName}>
           <SeriesDivider name={seriesName} seriesUrl={seriesMatches[0]?.seriesUrl} />
-
-          {/* Match Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {seriesMatches.map((match, index) => (
-              <div
-                key={match.matchId}
-                className="stagger-in h-full"
-                style={{ '--stagger-index': index } as React.CSSProperties}
-              >
-                <MatchCard match={match} header={activeFilter === 'all' ? 'category' : 'none'} />
-              </div>
-            ))}
-          </div>
+          {/* Horizontal carousel keeps card density high — a 1-match series takes
+              a single card width instead of a full 3-col grid row; multi-match
+              series scroll horizontally. */}
+          <MatchCarousel matches={seriesMatches} header={activeFilter === 'all' ? 'category' : 'none'} />
         </section>
       ))}
     </div>

@@ -13,7 +13,7 @@ import { User, ArrowLeft, ChevronLeft, ChevronRight, ChevronUp, Share2, Trophy, 
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { cn, buildVenueHref } from '@/lib/utils';
-import FullScorecard from './full-scorecard';
+import FullScorecard, { prefetchScorecard } from './full-scorecard';
 import PlayerProfileDisplay from './player-profile';
 import AnimatedScore from './animated-score';
 import RainOverlay from './rain-overlay';
@@ -409,20 +409,21 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
         return () => { document.title = 'Inningz'; };
     }, [data?.score, data?.title]);
 
-    // Track match in recent history
+    // Track match in recent history — keep the full title (e.g. "England vs
+    // India, 1st T20I") so the chip actually tells the user which match it was.
     useEffect(() => {
         if (data && !hasTrackedMatch.current) {
-            // Use the match title (e.g., "Scotland vs West Indies, 3rd T20I")
-            let matchTitle = data.title || 'Match';
-            // Keep only team names part before the comma
-            const commaIndex = matchTitle.indexOf(',');
-            if (commaIndex > 0) {
-                matchTitle = matchTitle.substring(0, commaIndex).trim();
-            }
-            addMatch(matchId, matchTitle, data.seriesName || undefined);
+            const fullTitle = (data.title || 'Match').trim();
+            addMatch(matchId, fullTitle, data.seriesName || undefined);
             hasTrackedMatch.current = true;
         }
     }, [data, matchId, addMatch]);
+
+    // Prefetch the scorecard the moment we have a matchId so switching to the
+    // Scorecard tab is instant. Cheap: cached by matchId, in-flight dedupe.
+    useEffect(() => {
+        if (matchId) prefetchScorecard(matchId);
+    }, [matchId]);
 
     useEffect(() => {
         const fetchProfile = async () => {

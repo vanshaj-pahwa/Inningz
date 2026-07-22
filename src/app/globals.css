@@ -551,11 +551,14 @@
      screensaver grid. Speeds/sizes/opacities are set per-drop inline; three
      parallax layers give the animation depth. */
   @keyframes rain-fall {
+    /* Drop element's `top` is -25vh so the transform adds to that. Endpoints
+       here are pre-compensated: `translateY(calc(125vh - Xpx))` lands the drop
+       at `calc(100vh - Xpx)` — just above the water pool's top edge. */
     0%   { transform: translate3d(0, -25vh, 0); opacity: 0; }
     8%   { opacity: 1; }
-    88%  { transform: translate3d(-3.8vw, calc(100vh - 50px), 0); opacity: 1; }
-    94%  { transform: translate3d(-3.95vw, calc(100vh - 44px), 0); opacity: 0.4; }
-    100% { transform: translate3d(-4vw, calc(100vh - 40px), 0); opacity: 0; }
+    88%  { transform: translate3d(-3.8vw, calc(125vh - 55px), 0); opacity: 1; }
+    94%  { transform: translate3d(-3.95vw, calc(125vh - 48px), 0); opacity: 0.4; }
+    100% { transform: translate3d(-4vw, calc(125vh - 44px), 0); opacity: 0; }
   }
   .rain-drop {
     position: absolute;
