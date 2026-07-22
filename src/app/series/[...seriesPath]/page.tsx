@@ -43,38 +43,12 @@ export default function SeriesPage() {
   const [teamFilter, setTeamFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('all');
   const [formatFilter, setFormatFilter] = useState<string>('all');
+  const [showPast, setShowPast] = useState(false);
   const [hasTrackedSeries, setHasTrackedSeries] = useState(false);
   const [topRunScorer, setTopRunScorer] = useState<{ name: string; value: string } | null>(null);
   const [topWicketTaker, setTopWicketTaker] = useState<{ name: string; value: string } | null>(null);
   const [topPerformersLoading, setTopPerformersLoading] = useState(true);
   const headerRef = useRef<HTMLElement>(null);
-  const todayRef = useRef<HTMLDivElement>(null);
-  const hasScrolled = useRef(false);
-  const dateFilterInitialized = useRef(false);
-
-  const todayDateKey = new Date().toLocaleDateString('en-US', {
-    weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
-  }).toUpperCase().replace(',', '');
-
-  // Default date filter to today if today's matches exist alongside other dates
-  useEffect(() => {
-    if (loading || matches.length === 0 || dateFilterInitialized.current) return;
-    dateFilterInitialized.current = true;
-    const dateKeys = new Set<string>();
-    let hasToday = false;
-    for (const m of matches) {
-      if (!m.startDate) continue;
-      const ms = m.startDate < 10000000000 ? m.startDate * 1000 : m.startDate;
-      const d = new Date(ms);
-      if (isNaN(d.getTime())) continue;
-      const key = d.toLocaleDateString('en-US', {
-        weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
-      }).toUpperCase().replace(',', '');
-      dateKeys.add(key);
-      if (key === todayDateKey) hasToday = true;
-    }
-    if (hasToday && dateKeys.size > 1) setDateFilter(todayDateKey);
-  }, [loading, matches, todayDateKey]);
 
   const hasActiveFilter = dateFilter !== 'all' || teamFilter !== 'all' || formatFilter !== 'all';
   const resetFilters = () => {
@@ -82,35 +56,6 @@ export default function SeriesPage() {
     setTeamFilter('all');
     setFormatFilter('all');
   };
-
-  // Auto-scroll to today's date group — wait until the ref element has actual height (cards rendered)
-  useEffect(() => {
-    if (loading || matches.length === 0 || hasScrolled.current || view !== 'matches') return;
-
-    const check = () => {
-      const el = todayRef.current;
-      if (!el || el.offsetHeight < 50) return false; // cards not rendered yet
-      hasScrolled.current = true;
-      const targetY = Math.max(0, el.getBoundingClientRect().top + window.scrollY - (headerRef.current?.offsetHeight || 120));
-      const startY = window.scrollY;
-      const distance = targetY - startY;
-      if (Math.abs(distance) < 10) return true;
-      const duration = Math.min(5000, Math.max(2500, Math.abs(distance) * 2));
-      const startTime = performance.now();
-      const ease = (t: number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-      const step = (now: number) => {
-        const progress = Math.min((now - startTime) / duration, 1);
-        window.scrollTo(0, startY + distance * ease(progress));
-        if (progress < 1) requestAnimationFrame(step);
-      };
-      requestAnimationFrame(step);
-      return true;
-    };
-
-    // Wait for cards to render, then scroll
-    const timer = setTimeout(() => check(), 2500);
-    return () => clearTimeout(timer);
-  }, [loading, matches.length, view]);
 
   useEffect(() => {
     if (!seriesId) return;
@@ -243,45 +188,43 @@ export default function SeriesPage() {
   const effectiveFormat = formatFilter !== 'all' && availableFormats.includes(formatFilter) ? formatFilter : 'all';
   const filteredMatches = dateTeamFiltered.filter(m => effectiveFormat === 'all' || matchFmt(m) === effectiveFormat);
 
-  // Group matches by date
-  const groupMatchesByDate = (matchList: LiveMatch[]) => {
-    const groups: { date: string; timestamp: number; matches: LiveMatch[] }[] = [];
+  // Group matches by date, then partition into today / future / past so the
+  // list reads top-to-bottom as "what matters now → what's next → history".
+  type DateGroup = { date: string; timestamp: number; matches: LiveMatch[] };
+  const { todayGroups, futureGroups, pastGroups } = (() => {
     const dateMap = new Map<string, { timestamp: number; matches: LiveMatch[] }>();
-
-    matchList.forEach(match => {
+    filteredMatches.forEach(match => {
       const { dateKey, timestamp } = getMatchDateKey(match);
-
-      if (!dateMap.has(dateKey)) {
-        dateMap.set(dateKey, { timestamp, matches: [] });
-      }
+      if (!dateMap.has(dateKey)) dateMap.set(dateKey, { timestamp, matches: [] });
       dateMap.get(dateKey)!.matches.push(match);
     });
-
-    // Convert map to array and sort by date
-    dateMap.forEach((value, key) => {
-      groups.push({ date: key, timestamp: value.timestamp, matches: value.matches });
-    });
-
-    return groups.sort((a, b) => a.timestamp - b.timestamp);
-  };
-
-  const groupedMatches = groupMatchesByDate(filteredMatches);
-
-  const todayGroupIndex = (() => {
-    if (groupedMatches.length === 0) return -1;
-    const today = new Date();
-    const todayStr = today.toLocaleDateString('en-US', {
+    const now = new Date();
+    const todayKey = now.toLocaleDateString('en-US', {
       weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
     }).toUpperCase().replace(',', '');
-    for (let i = 0; i < groupedMatches.length; i++) {
-      if (groupedMatches[i].date === todayStr) return i;
-    }
-    const now = Date.now();
-    for (let i = 0; i < groupedMatches.length; i++) {
-      if (groupedMatches[i].timestamp > now) return i;
-    }
-    return groupedMatches.length - 1;
+    const todayStartMs = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const todayEndMs = todayStartMs + 86_400_000;
+
+    const all: DateGroup[] = [];
+    dateMap.forEach((v, date) => all.push({ date, timestamp: v.timestamp, matches: v.matches }));
+
+    const today = all.filter(g => g.date === todayKey);
+    const future = all
+      .filter(g => g.date !== todayKey && g.timestamp >= todayEndMs)
+      .sort((a, b) => a.timestamp - b.timestamp);
+    const past = all
+      .filter(g => g.date !== todayKey && g.timestamp < todayStartMs)
+      .sort((a, b) => b.timestamp - a.timestamp);
+    return { todayGroups: today, futureGroups: future, pastGroups: past };
   })();
+
+  const pastMatchCount = pastGroups.reduce((n, g) => n + g.matches.length, 0);
+  // Only collapse past matches when there's something above them worth reading
+  // first (today or future). When the series is over — no today, no future —
+  // past IS the content, so show it expanded instead of hiding it in an accordion
+  // that leaves the page looking empty.
+  const hasContentAbove = todayGroups.length > 0 || futureGroups.length > 0;
+  const collapsePast = hasContentAbove && pastMatchCount > 6;
 
   const tabs: { value: SeriesView; label: string; shortLabel: string; hidden?: boolean }[] = [
     { value: 'matches', label: 'Matches', shortLabel: 'Matches' },
@@ -491,34 +434,66 @@ export default function SeriesPage() {
 
             {!loading && !error && matches.length > 0 && (
               <div className="space-y-8">
-                {groupedMatches.map((group, groupIndex) => (
-                  <div key={group.date} ref={groupIndex === todayGroupIndex ? todayRef : undefined}>
-                    {/* Date Header */}
-                    <div className="flex items-center gap-3 mb-5">
-                      <div className="h-px flex-1 bg-gradient-to-r from-primary/30 to-transparent" />
-                      <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">
-                        {group.date}
-                      </h3>
-                      <div className="h-px flex-1 bg-gradient-to-l from-primary/30 to-transparent" />
-                    </div>
-
-                    {/* Matches Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {group.matches.map((match, index) => {
-                        const globalIndex = groupIndex * 10 + index;
-                        return (
+                {/* Today — elevated, primary-tinted container so it reads as "now" */}
+                {todayGroups.map((group) => {
+                  const anyLive = group.matches.some((m) => isLive(m.status));
+                  const shortDate = group.date.replace(/^\S+\s/, '').replace(/\s\d{4}$/, '');
+                  return (
+                    <div key={group.date} className="rounded-2xl bg-primary/[0.03] ring-1 ring-primary/15 p-4 md:p-5">
+                      <div className="flex items-center gap-3 mb-5">
+                        <div className="h-px flex-1 bg-gradient-to-r from-primary/60 to-transparent" />
+                        <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-primary px-1">
+                          {anyLive && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />}
+                          Today · {shortDate}
+                        </span>
+                        <div className="h-px flex-1 bg-gradient-to-l from-primary/60 to-transparent" />
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {group.matches.map((match, index) => (
                           <div
                             key={match.matchId}
                             className="stagger-in"
-                            style={{ '--stagger-index': globalIndex } as React.CSSProperties}
+                            style={{ '--stagger-index': index } as React.CSSProperties}
                           >
                             <MatchCard match={match} header="series" />
                           </div>
-                        );
-                      })}
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  );
+                })}
+
+                {/* Future — chronological */}
+                {futureGroups.map((group, groupIndex) => (
+                  <DateGroupBlock key={group.date} group={group} baseStagger={(groupIndex + todayGroups.length) * 6} />
                 ))}
+
+                {/* Past — collapsed when there are many finished matches */}
+                {pastGroups.length > 0 && (
+                  <div>
+                    {collapsePast ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowPast((v) => !v)}
+                        className="w-full flex items-center gap-3 py-3 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <div className="h-px flex-1 bg-border" />
+                        <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest">
+                          <ChevronDown className={`h-3 w-3 transition-transform ${showPast ? '' : '-rotate-90'}`} />
+                          {showPast ? 'Hide' : 'Show'} {pastMatchCount} past match{pastMatchCount === 1 ? '' : 'es'}
+                        </span>
+                        <div className="h-px flex-1 bg-border" />
+                      </button>
+                    ) : null}
+                    {(!collapsePast || showPast) && (
+                      <div className="space-y-8 mt-4">
+                        {pastGroups.map((group, groupIndex) => (
+                          <DateGroupBlock key={group.date} group={group} baseStagger={groupIndex * 6} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </>
@@ -539,6 +514,37 @@ export default function SeriesPage() {
           <PointsTableDisplay seriesId={seriesId} onAvailabilityChange={handlePointsAvailability} />
         </div>
       )}
+    </div>
+  );
+}
+
+function DateGroupBlock({
+  group,
+  baseStagger = 0,
+}: {
+  group: { date: string; matches: LiveMatch[] };
+  baseStagger?: number;
+}) {
+  return (
+    <div>
+      <div className="flex items-center gap-3 mb-5">
+        <div className="h-px flex-1 bg-gradient-to-r from-primary/30 to-transparent" />
+        <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">
+          {group.date}
+        </h3>
+        <div className="h-px flex-1 bg-gradient-to-l from-primary/30 to-transparent" />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {group.matches.map((match, index) => (
+          <div
+            key={match.matchId}
+            className="stagger-in"
+            style={{ '--stagger-index': baseStagger + index } as React.CSSProperties}
+          >
+            <MatchCard match={match} header="series" />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

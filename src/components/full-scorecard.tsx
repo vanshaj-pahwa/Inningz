@@ -14,6 +14,82 @@ import { Separator } from './ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import Image from 'next/image';
 
+type DismissalKind =
+    | 'not-out' | 'bowled' | 'lbw' | 'caught' | 'caught-and-bowled'
+    | 'stumped' | 'run-out' | 'hit-wicket' | 'retired' | 'other';
+
+interface ParsedDismissal {
+    kind: DismissalKind;
+    fielders?: string[];
+    bowler?: string;
+    raw: string;
+}
+
+// Break a scorecard dismissal string ("c Buttler b Rashid", "lbw b Curran",
+// "run out (Brook/Buttler)") into structured parts so the renderer can give
+// each role its own typographic weight and colour.
+function parseDismissal(text: string): ParsedDismissal {
+    const t = (text || '').trim();
+    const lower = t.toLowerCase();
+    if (!t || lower === 'not out' || lower === 'batting' || lower === '-') {
+        return { kind: 'not-out', raw: t };
+    }
+    let m: RegExpMatchArray | null;
+    if ((m = t.match(/^c\s*(?:and|&)\s*b\s+(.+)$/i))) return { kind: 'caught-and-bowled', bowler: m[1].trim(), raw: t };
+    if ((m = t.match(/^c\s+(.+?)\s+b\s+(.+)$/i)))     return { kind: 'caught', fielders: [m[1].trim()], bowler: m[2].trim(), raw: t };
+    if ((m = t.match(/^lbw\s+b\s+(.+)$/i)))            return { kind: 'lbw', bowler: m[1].trim(), raw: t };
+    if ((m = t.match(/^st\s+(.+?)\s+b\s+(.+)$/i)))     return { kind: 'stumped', fielders: [m[1].trim()], bowler: m[2].trim(), raw: t };
+    if ((m = t.match(/^hit\s*wicket\s+b\s+(.+)$/i)))   return { kind: 'hit-wicket', bowler: m[1].trim(), raw: t };
+    if ((m = t.match(/^b\s+(.+)$/i)))                  return { kind: 'bowled', bowler: m[1].trim(), raw: t };
+    if ((m = t.match(/^run\s*out\s*(?:\((.+)\))?$/i))) return { kind: 'run-out', fielders: m[1] ? m[1].split(/[\/,]/).map(s => s.trim()).filter(Boolean) : [], raw: t };
+    if (/^retired/i.test(t))                            return { kind: 'retired', raw: t };
+    return { kind: 'other', raw: t };
+}
+
+// Milestone tag shown beside a batter's name — the innings-defining moments
+// (duck, fifty, hundred, double-hundred). Asterisk denotes "still batting".
+function milestoneTag(runs: number, isNotOut: boolean): { label: string; className: string } | null {
+    if (runs === 0 && !isNotOut) {
+        return { label: '🦆', className: '' };
+    }
+    const suffix = isNotOut ? '*' : '';
+    if (runs >= 200) return { label: `${Math.floor(runs / 100) * 100}${suffix}`, className: 'bg-purple-500/15 text-purple-600 dark:text-purple-300' };
+    if (runs >= 100) return { label: `100${suffix}`, className: 'bg-green-500/15 text-green-700 dark:text-green-400' };
+    if (runs >= 50)  return { label: `50${suffix}`, className: 'bg-amber-500/15 text-amber-600 dark:text-amber-400' };
+    return null;
+}
+
+function DismissalCell({ text }: { text: string }) {
+    const d = parseDismissal(text);
+
+    if (d.kind === 'not-out') {
+        return <span className="text-emerald-600 dark:text-emerald-400 font-semibold">not out</span>;
+    }
+
+    const Bowler = ({ name }: { name?: string }) => <span className="font-semibold text-foreground">{name}</span>;
+    const Fielder = ({ name }: { name?: string }) => <span className="italic text-foreground">{name}</span>;
+
+    return (
+        <span className="text-muted-foreground">
+            {d.kind === 'bowled' && (<>b <Bowler name={d.bowler} /></>)}
+            {d.kind === 'lbw' && (<>lbw b <Bowler name={d.bowler} /></>)}
+            {d.kind === 'caught' && (<>c <Fielder name={d.fielders?.[0]} /> b <Bowler name={d.bowler} /></>)}
+            {d.kind === 'caught-and-bowled' && (<>c &amp; b <Bowler name={d.bowler} /></>)}
+            {d.kind === 'stumped' && (<>st <Fielder name={d.fielders?.[0]} /> b <Bowler name={d.bowler} /></>)}
+            {d.kind === 'hit-wicket' && (<>hit wicket b <Bowler name={d.bowler} /></>)}
+            {d.kind === 'run-out' && (
+                <>
+                    run out
+                    {d.fielders && d.fielders.length > 0 && (
+                        <> (<Fielder name={d.fielders.join(' / ')} />)</>
+                    )}
+                </>
+            )}
+            {(d.kind === 'retired' || d.kind === 'other') && d.raw}
+        </span>
+    );
+}
+
 export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
     const [scorecard, setScorecard] = useState<FullScorecard | null>(null);
     const [loading, setLoading] = useState(true);
@@ -153,29 +229,42 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                                                             </TableRow>
                                                         </TableHeader>
                                                         <TableBody>
-                                                            {inning.batsmen.map((batsman, i) => (
+                                                            {inning.batsmen.map((batsman, i) => {
+                                                                const isNotOut = parseDismissal(batsman.dismissal).kind === 'not-out';
+                                                                const runs = Number(batsman.runs);
+                                                                const tag = milestoneTag(runs, isNotOut);
+                                                                return (
                                                                 <TableRow key={i}
                                                                     className={`
                                                         transition-colors
-                                                        ${Number(batsman.runs) >= 50 ? 'bg-green-50/50 dark:bg-green-950/20' :
-                                                                            Number(batsman.runs) >= 30 ? 'bg-emerald-50/30 dark:bg-emerald-950/10' :
+                                                        ${isNotOut ? 'bg-emerald-500/[0.05] dark:bg-emerald-500/[0.06]' :
+                                                                            runs >= 50 ? 'bg-green-50/50 dark:bg-green-950/20' :
+                                                                            runs >= 30 ? 'bg-emerald-50/30 dark:bg-emerald-950/10' :
                                                                                 'even:bg-muted/30'}
                                                         hover:bg-muted/40
                                                     `}
                                                                 >
                                                                     <TableCell className="font-medium py-2 md:py-3 px-1 md:px-3">
-                                                                        <span
-                                                                            className={`
+                                                                        <span className="inline-flex items-center gap-1.5 flex-wrap">
+                                                                            <span
+                                                                                className={`
                                                             ${batsman.profileId ?
                                                                                     "cursor-pointer hover:text-primary transition-colors" : ""}
-                                                            ${Number(batsman.runs) >= 50 ? 'text-green-600 dark:text-green-400' : ''}
+                                                            ${isNotOut ? 'text-emerald-600 dark:text-emerald-400 font-semibold' :
+                                                                                runs >= 50 ? 'text-green-600 dark:text-green-400' : ''}
                                                         `}
-                                                                            onClick={() => handleProfileClick(batsman.profileId, batsman.name)}
-                                                                        >
-                                                                            {batsman.name}
+                                                                                onClick={() => handleProfileClick(batsman.profileId, batsman.name)}
+                                                                            >
+                                                                                {batsman.name}{isNotOut && <span className="ml-0.5">*</span>}
+                                                                            </span>
+                                                                            {tag && (
+                                                                                <span className={`inline-flex items-center h-4 px-1.5 rounded text-[10px] font-bold tracking-wide ${tag.className}`}>
+                                                                                    {tag.label}
+                                                                                </span>
+                                                                            )}
                                                                         </span>
                                                                     </TableCell>
-                                                                    <TableCell className="text-muted-foreground px-1 md:px-3">{batsman.dismissal}</TableCell>
+                                                                    <TableCell className="px-1 md:px-3"><DismissalCell text={batsman.dismissal} /></TableCell>
                                                                     <TableCell className="text-right font-bold px-1 md:px-3">{batsman.runs}</TableCell>
                                                                     <TableCell className="text-right px-1 md:px-3">{batsman.balls}</TableCell>
                                                                     <TableCell className="text-right px-1 md:px-3">{batsman.fours}</TableCell>
@@ -189,7 +278,8 @@ export default function FullScorecardDisplay({ matchId }: { matchId: string }) {
                                                                         </span>
                                                                     </TableCell>
                                                                 </TableRow>
-                                                            ))}
+                                                                );
+                                                            })}
                                                         </TableBody>
                                                     </Table>
                                                 </div>
