@@ -19,6 +19,11 @@ export default function AnimatedScore({ value, className, style }: AnimatedScore
         return <span className={className} style={style}>{value ?? ''}</span>;
     }
 
+    // When the overs group didn't parse (e.g. "(15 balls)" from The Hundred),
+    // the parser's whitespace consumption drops the space before the paren.
+    // Re-insert it so the score reads "WEF 21/0 (15 balls)" not "21/0(15 balls)".
+    const trailing = parsed.trailing;
+    const needsLeadingSpace = parsed.overs === null && trailing && !/^\s/.test(trailing);
     return (
         <span className={className} style={style}>
             {parsed.prefix}
@@ -31,7 +36,7 @@ export default function AnimatedScore({ value, className, style }: AnimatedScore
                     {' ov)'}
                 </>
             )}
-            {parsed.trailing}
+            {needsLeadingSpace ? ' ' : ''}{trailing}
         </span>
     );
 }

@@ -78,6 +78,7 @@ const ScrapeCricbuzzUrlOutputSchema = z.object({
   currentInningsId: z.number().optional(),
   seriesName: z.string().optional(),
   seriesId: z.string().optional(),
+  matchFormat: z.string().optional(),
   playerOfTheMatch: AwardPlayerSchema.optional(),
   playerOfTheSeries: AwardPlayerSchema.optional(),
   winProbability: z.object({
@@ -2881,6 +2882,7 @@ export async function getScoreForMatchId(
     currentInningsId: miniscore?.inningsId,
     seriesName: matchHeader?.seriesName || undefined,
     seriesId: matchHeader?.seriesId ? String(matchHeader.seriesId) : undefined,
+    matchFormat: matchHeader?.matchFormat,
     playerOfTheMatch: extractAwardPlayer(matchHeader?.playersOfTheMatch),
     playerOfTheSeries: extractAwardPlayer(matchHeader?.playersOfTheSeries),
     winProbability,

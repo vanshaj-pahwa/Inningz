@@ -12,7 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { User, ArrowLeft, ChevronLeft, ChevronRight, ChevronUp, Share2, Trophy, MapPin, Clock } from "lucide-react";
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { cn, buildVenueHref } from '@/lib/utils';
+import { cn, buildVenueHref, displayMatchFormat } from '@/lib/utils';
 import FullScorecard, { prefetchScorecard } from './full-scorecard';
 import PlayerProfileDisplay from './player-profile';
 import AnimatedScore from './animated-score';
@@ -119,8 +119,21 @@ function flagForShortCode(shortCode: string | undefined, teams: StoredTeam[] | n
     for (const t of teams) {
         const name = stripAgeGroup(t.name.toLowerCase()).trim();
         const noSpace = name.replace(/[^a-z]/g, '');
-        const initials = name.split(/\s+/).map((w) => w[0] || '').join('');
+        const words = name.split(/\s+/).filter(Boolean);
+        const initials = words.map((w) => w[0] || '').join('');
         if (noSpace.startsWith(s) || initials === s || initials.startsWith(s)) return t.flagUrl;
+        // Common multi-word abbreviation pattern: first N chars of word 1
+        // followed by the initial of each remaining word. Covers codes like
+        // "WEF" (Welsh Fire), "SOUW" (Southern Brave Women), "WELW" (Welsh
+        // Fire Women), "CSK" (Chennai Super Kings), and similar shortening
+        // conventions the upstream feed uses.
+        if (words.length > 0) {
+            const trailingInitials = words.slice(1).map((w) => w[0] || '').join('');
+            const maxN = Math.min(4, words[0].length);
+            for (let n = 1; n <= maxN; n++) {
+                if (words[0].slice(0, n) + trailingInitials === s) return t.flagUrl;
+            }
+        }
     }
     return null;
 }
@@ -1156,6 +1169,25 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
     const matchOver = !!data && /\bwon\b|complete|drawn|\btied\b|abandon|no result/i.test(data.status);
     const liveInnings = !!data && !notStarted && !matchOver;
 
+    // The Hundred format uses balls, not overs, and RPB (runs per ball) instead
+    // of CRR. Both the score suffix and the run-rate labels are format-aware.
+    const isHundred = displayMatchFormat(data?.matchFormat) === '100'
+        || /the hundred|\bhundred men|\bhundred women/i.test(`${data?.title || ''} ${data?.seriesName || ''}`);
+    // Convert a "(X.Y ov)" fragment into "(N balls)" for The Hundred.
+    // The upstream data is inconsistent: the current innings ships as raw
+    // ball count with a `.0` suffix (15.0 means 15 balls), while previous
+    // innings ship in normal 6-ball-over format (16.4 means 16*6+4 balls).
+    // Y=0 signals raw balls; Y>0 signals overs-and-balls.
+    const toHundredBalls = (label?: string) => label?.replace(/\((\d+)\.(\d+)\s*ov\)/i, (_m, oversWhole, oversPart) => {
+        const whole = Number(oversWhole);
+        const part = Number(oversPart);
+        const balls = part === 0 ? whole : whole * 6 + part;
+        return `(${balls} balls)`;
+    });
+    const heroScoreLabel = data?.score && isHundred ? toHundredBalls(data.score) : data?.score;
+    const rateLabelPrimary = isHundred ? 'RPB' : 'CRR';
+    const rateLabelRequired = isHundred ? 'RRPB' : 'REQ';
+
     const keyStatsBody = (
         <div className="divide-y divide-border/50">
             {data?.partnership && data.partnership !== '-' && (
@@ -1229,7 +1261,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                         right at its natural width. Prevents the older flex-wrap
                                         layout from bumping the date onto its own row on mobile. */}
                                     {(hasVenue || dateStr) && (
-                                        <div className="flex items-center gap-x-2 md:gap-x-3 text-[11px] md:text-xs text-muted-foreground min-w-0">
+                                        <div className="flex flex-col md:flex-row md:items-center gap-y-1 md:gap-y-0 md:gap-x-3 text-[11px] md:text-xs text-muted-foreground min-w-0">
                                             {hasVenue && (venueHref ? (
                                                 <Link href={venueHref} className="flex items-center gap-1.5 min-w-0 hover:text-foreground hover:underline transition-colors">
                                                     <MapPin className="w-3.5 h-3.5 shrink-0 opacity-70" />
@@ -1241,7 +1273,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                     <span className="truncate">{data!.venue}</span>
                                                 </span>
                                             ))}
-                                            {hasVenue && dateStr && <span className="shrink-0 text-muted-foreground/40" aria-hidden>·</span>}
+                                            {hasVenue && dateStr && <span className="hidden md:inline shrink-0 text-muted-foreground/40" aria-hidden>·</span>}
                                             {dateStr && (
                                                 <span className="inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap">
                                                     <Clock className="w-3.5 h-3.5 shrink-0 opacity-70" />
@@ -1395,7 +1427,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                     )}
                                                     <span className="text-sm font-semibold text-muted-foreground mr-1">{inning.teamShortName || inning.teamName}</span>
                                                     <span className="text-2xl md:text-3xl font-display tracking-tight text-muted-foreground/80">
-                                                        {inning.score}
+                                                        {isHundred ? toHundredBalls(inning.score) : inning.score}
                                                     </span>
                                                 </div>
                                                 );
@@ -1420,7 +1452,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                 {/* Fluid size + no-wrap keep the score on one line at every width;
                                                     the score is the page's highest-priority element. */}
                                                 <AnimatedScore
-                                                    value={data?.score}
+                                                    value={heroScoreLabel}
                                                     className={`whitespace-nowrap text-[clamp(1.5rem,8vw,2.5rem)] md:text-5xl lg:text-6xl font-display tracking-tight score-breathe ${heroAccent ? '' : 'stat-amber score-glow-effect'}`}
                                                     style={heroAccent ? { color: heroAccent } : undefined}
                                                 />
@@ -1458,13 +1490,13 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                     the start or once the match is over. */}
                                                 {liveInnings && (
                                                     <span className="text-base md:text-lg font-display font-semibold tracking-wide">
-                                                        <span className="text-muted-foreground">CRR</span>{' '}
+                                                        <span className="text-muted-foreground">{rateLabelPrimary}</span>{' '}
                                                         <span className="text-foreground">{data?.currentRunRate}</span>
                                                     </span>
                                                 )}
                                                 {liveInnings && data?.requiredRunRate && (
                                                     <span className="text-base md:text-lg font-display font-semibold tracking-wide">
-                                                        <span className="text-muted-foreground">REQ</span>{' '}
+                                                        <span className="text-muted-foreground">{rateLabelRequired}</span>{' '}
                                                         <span className="stat-amber">{data.requiredRunRate}</span>
                                                     </span>
                                                 )}
