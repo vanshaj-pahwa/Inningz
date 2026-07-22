@@ -553,8 +553,9 @@
   @keyframes rain-fall {
     0%   { transform: translate3d(0, -25vh, 0); opacity: 0; }
     8%   { opacity: 1; }
-    92%  { opacity: 1; }
-    100% { transform: translate3d(-4vw, 125vh, 0); opacity: 0; }
+    88%  { transform: translate3d(-3.8vw, calc(100vh - 50px), 0); opacity: 1; }
+    94%  { transform: translate3d(-3.95vw, calc(100vh - 44px), 0); opacity: 0.4; }
+    100% { transform: translate3d(-4vw, calc(100vh - 40px), 0); opacity: 0; }
   }
   .rain-drop {
     position: absolute;
