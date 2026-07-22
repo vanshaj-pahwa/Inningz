@@ -129,7 +129,11 @@ export function ThemeToggle() {
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="icon" className="relative h-10 w-10 rounded-xl">
+        <button
+          type="button"
+          aria-label="Toggle theme"
+          className="relative inline-flex items-center justify-center h-10 w-10 rounded-xl border border-border/60 bg-card/40 hover:bg-card/70 transition-colors text-muted-foreground"
+        >
           {/* Light theme icon */}
           <Sun className={`h-4 w-4 transition-all ${
             isLightTheme ? 'rotate-0 scale-100' : '-rotate-90 scale-0'
@@ -147,7 +151,7 @@ export function ThemeToggle() {
             isCustomTheme && currentTheme !== 'sepia' && currentTheme !== 'liquid-glass' ? 'rotate-0 scale-100' : 'rotate-90 scale-0'
           }`} />
           <span className="sr-only">Toggle theme</span>
-        </Button>
+        </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56 p-2">
         {/* System option */}

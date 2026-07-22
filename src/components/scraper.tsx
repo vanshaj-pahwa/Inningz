@@ -16,6 +16,7 @@ import { cn, buildVenueHref } from '@/lib/utils';
 import FullScorecard from './full-scorecard';
 import PlayerProfileDisplay from './player-profile';
 import AnimatedScore from './animated-score';
+import RainOverlay from './rain-overlay';
 import { motion } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import MatchSquadsDisplay from './match-squads';
@@ -29,6 +30,12 @@ import { useSwipe } from '@/hooks/use-swipe';
 import { ShareButton, StatShareDialog } from './share-cards';
 import BatterBreakdown from './batter-breakdown';
 import HeroMomentum, { type OverPoint } from './hero-momentum';
+
+// Module-scoped cache so the hero runs-per-over sparkline survives page
+// unmount/remount (navigating away from the match page and back). Without
+// it the sparkline flashes skeleton on return even though we've fetched it
+// this session.
+const heroOversCache = new Map<string, OverPoint[]>();
 import { getMatchFlags, rememberMatchFlags, pickVibrant, teamColorFor, type StoredTeam } from '@/lib/team-flags';
 import { VirtualCommentaryList } from './virtual-commentary-list';
 import PointsTableDisplay from './points-table';
@@ -130,6 +137,10 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
     const [lastTimestamp, setLastTimestamp] = useState<number | null>(null);
     const [statShareOpen, setStatShareOpen] = useState(false);
     const [statShareData, setStatShareData] = useState<{ headline?: string; text: string; snippetType?: string } | null>(null);
+    // Ambient rain animation — plays for a few seconds when we first see a
+    // rain-related status, then goes away. Ref keeps it a one-shot per view.
+    const [rainActive, setRainActive] = useState(false);
+    const rainShownRef = useRef(false);
     // Team flags stashed when the user opened this match from a list card; the
     // live feed itself doesn't carry the batting side's flag.
     const [storedFlags, setStoredFlags] = useState<StoredTeam[] | null>(null);
@@ -197,6 +208,19 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
         return () => clearTimeout(t);
     }, [liveData, liveError, matchId]);
 
+    // First time we see the status explicitly mention rain / wet conditions,
+    // play the rain overlay once. Ref keeps it from re-triggering. Kept tight
+    // on purpose — "abandoned" / "delay" / "stops play" can mean bad light or
+    // other non-weather causes, so we only fire on unambiguous rain signals.
+    useEffect(() => {
+        const status = (data?.status || '').toLowerCase();
+        const isRainy = /\brain\b|wet outfield|drizzl|shower|thunder|storm|weather/i.test(status);
+        if (isRainy && !rainShownRef.current) {
+            rainShownRef.current = true;
+            setRainActive(true);
+        }
+    }, [data?.status]);
+
     // The batting side's flag (from stored list-card flags) and its accent colours,
     // used to badge and colour the hero score. Declared here, above any early
     // return, so hook order stays stable.
@@ -220,7 +244,8 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
     // both the hero momentum sparkline and the share card (loaded on match open,
     // so it's ready by the time the user shares). null = still loading.
     const heroInningsId = data?.currentInningsId || 1;
-    const [heroOvers, setHeroOvers] = useState<OverPoint[] | null>(null);
+    const heroOversKey = `${matchId}:${heroInningsId}`;
+    const [heroOvers, setHeroOvers] = useState<OverPoint[] | null>(() => heroOversCache.get(heroOversKey) ?? null);
     useEffect(() => {
         let cancelled = false;
         getInningsOverData(matchId, heroInningsId)
@@ -228,19 +253,21 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                 if (cancelled) return;
                 if (res.success && res.data?.overs?.length) {
                     const list = res.data.overs;
-                    setHeroOvers(list.map((o, i) => ({
+                    const mapped = list.map((o, i) => ({
                         overNumber: o.overNumber,
                         runs: o.runs,
                         wickets: o.wickets,
                         wicketFell: i > 0 ? o.wickets > list[i - 1].wickets : o.wickets > 0,
-                    })));
+                    }));
+                    heroOversCache.set(heroOversKey, mapped);
+                    setHeroOvers(mapped);
                 } else {
                     setHeroOvers([]);
                 }
             })
             .catch(() => { if (!cancelled) setHeroOvers([]); });
         return () => { cancelled = true; };
-    }, [matchId, heroInningsId, data?.score]);
+    }, [matchId, heroInningsId, heroOversKey, data?.score]);
 
     // Dynamic views based on data availability
     const views: View[] = useMemo(() => {
@@ -1162,6 +1189,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
 
     return (
         <div className="w-full mx-auto px-2 md:px-6 lg:px-8">
+            <RainOverlay active={rainActive} duration={5000} onDone={() => setRainActive(false)} />
             {/* Header */}
             <div className="flex flex-col gap-2 mb-4 md:mb-6 py-3 md:py-4 gradient-border">
                 {/* Desktop: single row | Mobile: title row */}
@@ -1179,39 +1207,50 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                     : []),
                             ]}
                         />
-                        <h1 className="text-base md:text-2xl font-display tracking-tight text-foreground leading-tight line-clamp-2 md:truncate">
+                        <h1 className="text-lg md:text-2xl font-display tracking-tight text-foreground leading-tight line-clamp-2 md:truncate">
                             {data?.title}
                         </h1>
-                        <div className="text-[10px] md:text-xs text-muted-foreground mt-1 space-y-0.5">
-                            {(() => {
-                                const hasVenue = data?.venue && data.venue !== 'N/A' && data.venue.trim() !== '';
-                                const venueHref = hasVenue ? buildVenueHref(data.venueUrl) : null;
-                                const dateStr = data?.matchStartTimestamp
-                                    ? new Date(data.matchStartTimestamp).toLocaleDateString('en-US', {
-                                        weekday: 'short', year: 'numeric', month: 'short', day: 'numeric',
-                                        hour: '2-digit', minute: '2-digit', timeZoneName: 'short'
-                                    }).replace(/GMT\+5:30/, 'IST').replace(/GMT([+-]\d{1,2}):?(\d{2})?/, 'GMT$1')
-                                    : null;
-                                if (!hasVenue && !dateStr) return null;
-                                return (
-                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
-                                        {hasVenue && (venueHref ? (
-                                            <Link href={venueHref} className="inline-flex items-center gap-1 max-w-full min-w-0 hover:text-foreground hover:underline transition-colors">
-                                                <MapPin className="w-3 h-3 shrink-0" />
-                                                <span className="truncate">{data.venue}</span>
-                                            </Link>
-                                        ) : (
-                                            <span className="inline-flex items-center gap-1 max-w-full min-w-0">
-                                                <MapPin className="w-3 h-3 shrink-0" />
-                                                <span className="truncate">{data.venue}</span>
-                                            </span>
-                                        ))}
-                                        {dateStr && <span className="whitespace-nowrap">{dateStr}</span>}
-                                    </div>
-                                );
-                            })()}
-                            {data?.toss && data.toss !== 'N/A' && data.toss.trim() !== '' && <p className="truncate">{data.toss}</p>}
-                        </div>
+                        {(() => {
+                            const hasVenue = data?.venue && data.venue !== 'N/A' && data.venue.trim() !== '';
+                            const venueHref = hasVenue ? buildVenueHref(data.venueUrl) : null;
+                            const dateStr = data?.matchStartTimestamp
+                                ? new Date(data.matchStartTimestamp).toLocaleDateString('en-US', {
+                                    weekday: 'short', year: 'numeric', month: 'short', day: 'numeric',
+                                    hour: '2-digit', minute: '2-digit', timeZoneName: 'short'
+                                }).replace(/GMT\+5:30/, 'IST').replace(/GMT([+-]\d{1,2}):?(\d{2})?/, 'GMT$1')
+                                : null;
+                            const hasToss = !!(data?.toss && data.toss !== 'N/A' && data.toss.trim() !== '');
+                            if (!hasVenue && !dateStr && !hasToss) return null;
+                            return (
+                                <div className="mt-2 md:mt-2.5 space-y-1.5">
+                                    {(hasVenue || dateStr) && (
+                                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] md:text-xs text-muted-foreground min-w-0">
+                                            {hasVenue && (venueHref ? (
+                                                <Link href={venueHref} className="inline-flex items-center gap-1.5 max-w-full min-w-0 hover:text-foreground hover:underline transition-colors">
+                                                    <MapPin className="w-3.5 h-3.5 shrink-0 opacity-70" />
+                                                    <span className="truncate">{data!.venue}</span>
+                                                </Link>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1.5 max-w-full min-w-0">
+                                                    <MapPin className="w-3.5 h-3.5 shrink-0 opacity-70" />
+                                                    <span className="truncate">{data!.venue}</span>
+                                                </span>
+                                            ))}
+                                            {hasVenue && dateStr && <span className="text-muted-foreground/40" aria-hidden>·</span>}
+                                            {dateStr && (
+                                                <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                                                    <Clock className="w-3.5 h-3.5 shrink-0 opacity-70" />
+                                                    {dateStr}
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
+                                    {hasToss && (
+                                        <p className="text-[11px] md:text-xs text-muted-foreground truncate">{data!.toss}</p>
+                                    )}
+                                </div>
+                            );
+                        })()}
                     </div>
                     {/* Desktop: tabs + theme toggle inline with title */}
                     <div className="hidden md:flex items-center gap-3 shrink-0">

@@ -4,6 +4,12 @@ import { useEffect, useState } from 'react';
 import { getBallMapData } from '@/app/actions';
 import type { BallMapData } from '@/app/actions';
 
+// Module-scoped cache so the fetched ball map survives brief unmounts (parent
+// conditional flipping false for a tick, tab-switch on mobile, etc.). Without
+// this the skeleton would re-flash on every remount even though we already
+// have the data.
+const ballMapCache = new Map<string, BallMapData>();
+
 // The current at-crease batters, as surfaced by the live score feed. Fields are
 // optional to match the loosely-typed scraper output.
 interface CurrentBatsman {
@@ -133,20 +139,25 @@ export default function BatterBreakdown({
   inningsId: number;
   batsmen: CurrentBatsman[];
 }) {
-  const [ballMap, setBallMap] = useState<BallMapData | null>(null);
+  const cacheKey = `${matchId}:${inningsId}`;
+  const [ballMap, setBallMap] = useState<BallMapData | null>(() => ballMapCache.get(cacheKey) ?? null);
 
   // Refetch whenever a batter's line changes (i.e. a new ball has landed) so the
-  // breakdown tracks the live feed without its own polling timer.
+  // breakdown tracks the live feed without its own polling timer. Successful
+  // responses hydrate the module cache so remounts skip the skeleton.
   const sig = batsmen.map((b) => `${b.profileId}:${b.runs}:${b.balls}`).join('|');
   useEffect(() => {
     let cancelled = false;
     getBallMapData(matchId, inningsId)
       .then((res) => {
-        if (!cancelled && res.success && res.data) setBallMap(res.data);
+        if (!cancelled && res.success && res.data) {
+          ballMapCache.set(cacheKey, res.data);
+          setBallMap(res.data);
+        }
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [matchId, inningsId, sig]);
+  }, [matchId, inningsId, sig, cacheKey]);
 
   const withId = batsmen.filter((b) => b.profileId);
   if (withId.length === 0) return null;
