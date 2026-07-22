@@ -39,3 +39,6 @@ nul
 
 # Local-only product review notes (not deployed)
 product_review.md
+
+# Push subscription store (local dev only)
+.data/

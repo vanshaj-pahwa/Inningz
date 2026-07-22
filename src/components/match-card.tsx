@@ -7,6 +7,7 @@ import { MapPin } from 'lucide-react';
 import { formatScore, formatStartTime, buildVenueHref, buildSeriesHref, deriveMatchFormat, displayMatchFormat } from '@/lib/utils';
 import { rememberMatchFlags } from '@/lib/team-flags';
 import type { LiveMatch } from '@/app/actions';
+import MatchNotificationBell from './match-notification-bell';
 
 // Process-wide cache of a flag's two accent colours, keyed by flag URL.
 const flagColorCache = new Map<string, string[]>();
@@ -172,6 +173,7 @@ export default function MatchCard({
                   LIVE
                 </span>
               )}
+              <MatchNotificationBell match={match} className="pointer-events-auto relative z-[2]" />
             </span>
           </div>
         )}

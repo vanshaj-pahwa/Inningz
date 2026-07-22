@@ -21,6 +21,7 @@ import { motion } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import MatchSquadsDisplay from './match-squads';
 import { ThemeToggle } from './theme-toggle';
+import FollowingButton from './following-button';
 
 import WinProbability from './win-probability';
 import MatchStickyBar from './match-sticky-bar';
@@ -1276,11 +1277,13 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                         </div>
                         )}
                         <CommandPaletteTrigger />
+                        <FollowingButton />
                         <ThemeToggle />
                     </div>
                     {/* Mobile: theme toggle */}
                     <div className="shrink-0 md:hidden flex items-center gap-1.5">
                         <CommandPaletteTrigger />
+                        <FollowingButton />
                         <ThemeToggle />
                     </div>
                 </div>

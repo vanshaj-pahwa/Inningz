@@ -43,13 +43,14 @@ export default function MatchCarousel({ matches, header = 'category' }: MatchCar
     const arrowClass =
         'flex absolute top-1/2 -translate-y-1/2 z-20 w-6 h-6 md:w-9 md:h-9 items-center justify-center rounded-full surface-card shadow-lg text-foreground hover:bg-muted transition-colors';
 
-    // Single-match series: render at full container width so the card doesn't
-    // look adrift in a mostly-empty row.
+    // Single-match series: same card width the carousel uses, so it reads as
+    // a normal card sitting at the start of the row instead of stretching
+    // banner-style across the viewport.
     if (matches.length === 1) {
         const only = matches[0];
         return (
             <div
-                className="stagger-in"
+                className="stagger-in w-full sm:w-[300px] md:w-[320px]"
                 style={{ '--stagger-index': 0 } as React.CSSProperties}
             >
                 <MatchCard match={only} header={header} />
