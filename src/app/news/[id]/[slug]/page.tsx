@@ -11,6 +11,7 @@ import MatchCard from '@/components/match-card';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { buildNewsHref, toFaceCroppedThumb } from '@/lib/utils';
+import { NEWS_ARTICLE_BASE_URLS } from '@/lib/upstream';
 
 export default function NewsArticlePage() {
     const router = useRouter();
@@ -22,15 +23,15 @@ export default function NewsArticlePage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [related, setRelated] = useState<NewsItem[]>([]);
-    // Fallback hero image from the RSS feed (a proper .jpg from p.imgci.com)
-    // for stories whose scraped heroImageUrl is a video thumbnail that Next.js
-    // Image can't render (hotstar CDN, no file extension, no MIME sniff).
+    // Fallback hero image from the RSS feed (a proper .jpg from the news image
+    // CDN) for stories whose scraped heroImageUrl is a video thumbnail that
+    // Next.js Image can't render (no file extension, no MIME sniff).
     const [feedHeroImage, setFeedHeroImage] = useState<string | undefined>(undefined);
 
-    // Fetch the article + the feed in parallel. When the article fetch fails
-    // (usually a WAF 403 against the datacenter IP), synthesize a minimal
-    // article from the RSS entry so the reader still sees title, description
-    // and hero image — better than a "Story unavailable" wall.
+    // Fetch the article + the feed in parallel. When the server-side article
+    // fetch is blocked (WAF 403 against datacenter IPs), synthesize a minimal
+    // article from the RSS entry and let the client-side effect below fill in
+    // the body via a CORS proxy — the reader's residential IP isn't blocked.
     useEffect(() => {
         (async () => {
             setLoading(true);
@@ -49,7 +50,9 @@ export default function NewsArticlePage() {
             if (articleResult.success && articleResult.data) {
                 setArticle(articleResult.data);
             } else if (feedItem) {
-                // Synthesize a minimal article from the RSS entry.
+                // Synthesize a minimal article from the RSS entry — the reader
+                // still gets title, description and hero, plus a clear
+                // "Read on source" CTA (rendered below via `sourceUrl`).
                 setArticle({
                     id: feedItem.id,
                     slug: feedItem.slug,
@@ -75,6 +78,65 @@ export default function NewsArticlePage() {
         })();
     }, [id, slug]);
 
+
+    // Client-side body scrape via CORS proxy — kicks in when the server side
+    // couldn't reach the upstream (Vercel IP blocked at the edge). The user's
+    // browser IP is residential and generally passes the WAF; the proxy just
+    // returns raw HTML which we parse in-browser with the same regex the
+    // server-side scraper uses. Silent on failure — the RSS description +
+    // hero image + related sidebar remain as the base experience.
+    useEffect(() => {
+        if (!article) return;
+        if ((article.blocks?.length ?? 0) > 0) return; // server-side scrape worked
+        if (!slug) return;
+        let cancelled = false;
+        (async () => {
+            const bases = NEWS_ARTICLE_BASE_URLS.map(base => `${base}/story/${slug}-${id}`);
+            for (const target of bases) {
+                try {
+                    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(target)}`;
+                    const html = await fetch(proxyUrl).then(r => r.ok ? r.text() : '');
+                    if (cancelled || !html || !html.includes('ci-story')) continue;
+                    const blocks: NewsBlock[] = [];
+                    const paragraphs: string[] = [];
+                    const inlineSafe = /^\/?(?:b|strong|i|em|u|br|ul|ol|li|sub|sup)$/i;
+                    const paraRe = /<(?:span|p)[^>]*\bci-html-content\b[^>]*>\s*<div[^>]*>([\s\S]*?)<\/div>\s*<\/(?:span|p)>/g;
+                    let m: RegExpExecArray | null;
+                    while ((m = paraRe.exec(html)) !== null) {
+                        const raw = m[1];
+                        const headingM = raw.match(/<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/);
+                        if (headingM) {
+                            const text = headingM[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+                            if (text) blocks.push({ type: 'heading', text });
+                            continue;
+                        }
+                        const cleaned = raw
+                            .replace(/<a\s[^>]*>([\s\S]*?)<\/a>/gi, (_x, inner) => `<u>${inner}</u>`)
+                            .replace(/<(\/?)([a-z0-9]+)(?:\s[^>]*)?>/gi, (_x, close, tag) =>
+                                inlineSafe.test((close || '') + tag) ? `<${close || ''}${tag.toLowerCase()}>` : ''
+                            )
+                            .replace(/\s+/g, ' ')
+                            .trim();
+                        if (!cleaned) continue;
+                        blocks.push({ type: 'paragraph', html: cleaned });
+                        paragraphs.push(cleaned.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim());
+                    }
+                    if (cancelled || blocks.length === 0) continue;
+                    const wordCount = paragraphs.reduce((n, p) => n + p.split(/\s+/).filter(Boolean).length, 0);
+                    const readTimeMinutes = Math.max(1, Math.round(wordCount / 220));
+                    setArticle(prev => prev ? {
+                        ...prev,
+                        blocks,
+                        paragraphs,
+                        wordCount,
+                        readTimeMinutes,
+                    } : prev);
+                    return;
+                } catch { /* try next base */ }
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [article, id, slug]);
 
     const publishedLabel = article?.publishedAt ? formatDate(article.publishedAt) : null;
 
