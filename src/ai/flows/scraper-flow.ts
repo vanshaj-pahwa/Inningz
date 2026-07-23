@@ -5,7 +5,7 @@
 import { z } from 'zod';
 import * as cheerio from 'cheerio';
 import { decodeHtmlEntities } from '@/lib/html-entities';
-import { UPSTREAM_BASE_URL, UPSTREAM_STATIC_URL, UPSTREAM_IMG_URL, upstreamUrl, playerFaceImageUrl, teamFlagImageUrl } from '@/lib/upstream';
+import { UPSTREAM_BASE_URL, UPSTREAM_STATIC_URL, UPSTREAM_IMG_URL, NEWS_FEED_URL, upstreamUrl, playerFaceImageUrl, teamFlagImageUrl } from '@/lib/upstream';
 
 const CommentarySchema = z.object({
   type: z.enum(['live', 'user', 'stat', 'snippet']),
@@ -4926,4 +4926,548 @@ export async function scrapeAllPlayersForecast(matchId: string): Promise<AllPlay
         })),
     }));
   return { playersByRole };
+}
+
+// ============================================
+// News
+// ============================================
+
+const NewsItemSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  title: z.string(),
+  description: z.string().optional(),
+  imageUrl: z.string().optional(),
+  link: z.string(),
+  publishedAt: z.string().optional(),
+});
+
+const NewsFeedSchema = z.object({
+  source: z.string(),
+  fetchedAt: z.string(),
+  items: z.array(NewsItemSchema),
+});
+
+const MostReadItemSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  title: z.string(),
+  description: z.string().optional(),
+  imageUrl: z.string().optional(),
+  publishedAt: z.string().optional(),
+});
+
+const NewsBlockSchema = z.discriminatedUnion('type', [
+  // Paragraph text is `html` because the source uses inline <b>, <i>, <u>, <a>
+  // that carry meaningful emphasis (probable XI lists, form-guide, quotes).
+  // The client sanitises this to a safelist before rendering.
+  z.object({ type: z.literal('paragraph'), html: z.string() }),
+  z.object({ type: z.literal('heading'), text: z.string() }),
+  z.object({
+    type: z.literal('image'),
+    imageUrl: z.string(),
+    caption: z.string().optional(),
+    credit: z.string().optional(),
+  }),
+]);
+export type NewsBlock = z.infer<typeof NewsBlockSchema>;
+
+const NewsArticleSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  title: z.string(),
+  category: z.string().optional(),
+  description: z.string().optional(),
+  author: z.string().optional(),
+  wordCount: z.number().default(0),
+  readTimeMinutes: z.number().default(0),
+  publishedAt: z.string().optional(),
+  heroImageUrl: z.string().optional(),
+  heroImageCaption: z.string().optional(),
+  paragraphs: z.array(z.string()).default([]),
+  blocks: z.array(NewsBlockSchema).default([]),
+  tags: z.array(z.object({ label: z.string() })).default([]),
+  related: z.array(z.object({
+    id: z.string(),
+    slug: z.string(),
+    title: z.string(),
+    imageUrl: z.string().optional(),
+  })).default([]),
+  mostRead: z.array(MostReadItemSchema).default([]),
+  video: z.object({
+    title: z.string(),
+    description: z.string().optional(),
+    thumbnailUrl: z.string(),
+    duration: z.string().optional(),
+    sourceUrl: z.string(),
+    // Embed URL for in-app playback. Falls back to sourceUrl if the source
+    // doesn't ship a dedicated /embed/ page.
+    embedUrl: z.string().optional(),
+  }).optional(),
+});
+
+export type NewsMostReadItem = z.infer<typeof MostReadItemSchema>;
+
+export type NewsItem = z.infer<typeof NewsItemSchema>;
+export type NewsFeed = z.infer<typeof NewsFeedSchema>;
+export type NewsArticle = z.infer<typeof NewsArticleSchema>;
+
+// News feed source is env-configurable. The default points at a public RSS
+// endpoint (open even when the upstream HTML pages are behind a WAF), which
+// carries the same headlines with a cover image and canonical URL.
+export async function scrapeCricketNews(): Promise<NewsFeed> {
+  const url = NEWS_FEED_URL;
+  const response = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'application/rss+xml, application/xml, text/xml',
+    },
+    cache: 'no-store',
+  });
+  if (!response.ok) throw new Error(`Failed to fetch news feed: ${response.statusText}`);
+  const xml = await response.text();
+
+  const items: NewsItem[] = [];
+  // Match each <item>…</item> block, then pull field-by-field. Handles
+  // CDATA-wrapped values (`<![CDATA[...]]>`) and plain text alike.
+  const itemRe = /<item>([\s\S]*?)<\/item>/g;
+  let m: RegExpExecArray | null;
+  const pick = (block: string, tag: string): string | undefined => {
+    const re = new RegExp(`<${tag}(?:\\s[^>]*)?>\\s*(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?\\s*<\\/${tag}>`, 'i');
+    const found = block.match(re);
+    return found ? found[1].trim() : undefined;
+  };
+  while ((m = itemRe.exec(xml)) !== null) {
+    const block = m[1];
+    const title = pick(block, 'title');
+    if (!title) continue;
+    const description = pick(block, 'description');
+    const link = pick(block, 'url') || pick(block, 'link') || '';
+    const publishedAt = pick(block, 'pubDate');
+    // Prefer <media:content url="..."> — that's the largest asset (typically
+    // 1400x2100). Fall back to <coverImages> only if the media tag is absent.
+    let imageUrl: string | undefined;
+    const mediaMatch = block.match(/<media:content[^>]*\burl="([^"]+)"/i);
+    if (mediaMatch) imageUrl = mediaMatch[1];
+    if (!imageUrl) imageUrl = pick(block, 'coverImages');
+    if (imageUrl && imageUrl.startsWith('http://')) imageUrl = 'https://' + imageUrl.slice(7);
+    // Extract the numeric story id + slug from the URL.
+    //   new-style: /story/some-slug-here-1547145  → id=1547145, slug=some-slug-here
+    //   old-style: /ci/content/story/1547145.html → id=1547145, slug='' (fallback)
+    let id = '';
+    let slug = '';
+    const newStyle = link.match(/\/story\/(.+)-(\d+)(?:$|[/?#])/);
+    if (newStyle) {
+      slug = newStyle[1];
+      id = newStyle[2];
+    } else {
+      const oldStyle = link.match(/\/story\/(\d+)(?:\.html)?/);
+      if (oldStyle) id = oldStyle[1];
+    }
+    if (!id) continue;
+    items.push({
+      id,
+      slug,
+      title: decodeXml(title),
+      description: description ? decodeXml(description) : undefined,
+      imageUrl,
+      link,
+      publishedAt,
+    });
+    if (items.length >= 100) break;
+  }
+
+  // Prefer the RSS channel's own title as the source label; fall back to the
+  // feed URL's hostname so the UI always has something meaningful to show.
+  const channelTitleMatch = xml.match(/<channel>[\s\S]*?<title(?:\s[^>]*)?>\s*(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?\s*<\/title>/i);
+  let source = channelTitleMatch ? channelTitleMatch[1].trim() : '';
+  if (!source) {
+    try { source = new URL(url).hostname.replace(/^www\./, ''); } catch { source = 'News'; }
+  }
+
+  return NewsFeedSchema.parse({
+    source,
+    fetchedAt: new Date().toISOString(),
+    items,
+  });
+}
+
+// Given HTML starting with an opening `<div ...>`, return the index just
+// past the matching `</div>`. Naive stack — sufficient for the small,
+// well-formed panels we scan.
+function findMatchingCloseDiv(html: string): number {
+  const divOpenRe = /<div[\s>]/gi;
+  const divCloseRe = /<\/div>/gi;
+  divOpenRe.lastIndex = 0;
+  divCloseRe.lastIndex = 0;
+  let depth = 0;
+  let pos = 0;
+  while (pos < html.length) {
+    divOpenRe.lastIndex = pos;
+    divCloseRe.lastIndex = pos;
+    const openMatch = divOpenRe.exec(html);
+    const closeMatch = divCloseRe.exec(html);
+    if (!closeMatch) return html.length;
+    if (openMatch && openMatch.index < closeMatch.index) {
+      depth++;
+      pos = openMatch.index + 1;
+    } else {
+      depth--;
+      pos = closeMatch.index + '</div>'.length;
+      if (depth === 0) return pos;
+    }
+  }
+  return html.length;
+}
+
+function decodeXml(s: string): string {
+  return s
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'");
+}
+
+// Decode common HTML entities (superset of decodeXml for scraped body text).
+function decodeHtml(s: string): string {
+  return decodeXml(s)
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&hellip;/g, '…')
+    .replace(/&mdash;/g, '—')
+    .replace(/&ndash;/g, '–')
+    .replace(/&rsquo;/g, "'")
+    .replace(/&lsquo;/g, "'")
+    .replace(/&rdquo;/g, '"')
+    .replace(/&ldquo;/g, '"')
+    .replace(/&#x27;/g, "'")
+    .replace(/&#x2F;/g, '/')
+    .replace(/&#(\d+);/g, (_m, n) => String.fromCharCode(Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi, (_m, h) => String.fromCharCode(parseInt(h, 16)));
+}
+
+// Fetch a full news article by story id + slug. Works against the upstream
+// story page — needs browser-realistic headers to get past the edge WAF.
+export async function scrapeCricketNewsArticle(id: string, slug: string): Promise<NewsArticle> {
+  if (!id) throw new Error('Missing story id');
+  // The upstream serves two URL shapes for the same article. New-style with a
+  // slug is what the RSS provides; the old numeric URL is a reliable fallback
+  // when we only have the id.
+  const url = slug
+    ? `https://www.cricinfo.com/story/${slug}-${id}`
+    : `https://www.cricinfo.com/ci/content/story/${id}.html`;
+
+  const response = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Sec-Fetch-Dest': 'document',
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-Site': 'none',
+      'Sec-Fetch-User': '?1',
+      'Upgrade-Insecure-Requests': '1',
+    },
+    cache: 'no-store',
+  });
+  if (!response.ok) throw new Error(`Failed to fetch article ${id}: ${response.status}`);
+  const html = await response.text();
+  const $ = cheerio.load(html);
+
+  const article = $('article.ci-story').first();
+  if (!article.length) throw new Error(`Article ${id} has no ci-story block`);
+
+  const title = decodeHtml(article.find('h1').first().text().trim());
+  // Category — prefer the genre link's `title` attr from the article header
+  // (values: "News", "Preview", "Feature", "Interview" — reader-facing signal).
+  let category: string | undefined;
+  const genreLinkM = html.match(/<a\s+href="\/genre\/[^"]+"\s+title="([^"]+)"[^>]*>[\s\S]{0,200}?<\/a>/);
+  if (genreLinkM) category = decodeHtml(genreLinkM[1]);
+  const description = article
+    .find('header .ds-text-compact-m p, header .ds-text-typo-mid2 p')
+    .first().text().trim() || undefined;
+  // Author byline — pulled from the header author link's inner span (the
+  // second author-link occurrence carries the name; the first wraps the
+  // avatar with no text).
+  let author: string | undefined;
+  const authorLinkM = html.match(/<a\s+href="\/author\/[^"]+"\s+title="([^"]{2,80})"/);
+  if (authorLinkM) author = decodeHtml(authorLinkM[1]);
+  const publishedAt = article.find('[data-behavior="date_time"]').attr('data-date') || undefined;
+
+  // Hero image — largest available render. The upstream uses Cloudinary
+  // transforms like `t_ds_wide_w_1280` in the img src; rewrite to a bare
+  // `f_auto` URL so the CDN serves the best format without a size cap.
+  //
+  // Fall back to the video thumbnail when the lead media is a video rather
+  // than a still image, so the hero slot never renders empty.
+  let heroImageUrl = article.find('figure.ci-story-lead-image img').first().attr('src') || undefined;
+  if (!heroImageUrl) {
+    heroImageUrl = article.find('meta[itemprop="thumbnailUrl"]').first().attr('content') || undefined;
+  }
+  if (heroImageUrl) {
+    heroImageUrl = heroImageUrl.replace(/\/image\/upload\/[^/]*\//, '/image/upload/f_auto/');
+  }
+  const heroImageCaption = article.find('figure.ci-story-lead-image p, .inline-video-player .ds-text-compact-s')
+    .first().text().trim().replace(/\s+/g, ' ') || undefined;
+
+  // Body extraction — build a position-ordered array of blocks so the
+  // rendered article preserves the upstream's rhythm: heading, paragraphs,
+  // inline image, more paragraphs, another image, and so on. The upstream
+  // markup is deliberately invalid (<p><div></div></p>) which trips DOM-based
+  // parsing, so we anchor everything on raw HTML.
+  type BodyMatch =
+    | { idx: number; kind: 'para'; html: string }
+    | { idx: number; kind: 'heading'; text: string }
+    | { idx: number; kind: 'image'; imageUrl: string; caption?: string; credit?: string };
+  const bodyMatches: BodyMatch[] = [];
+  const paragraphs: string[] = [];
+
+  // Pass 1 — paragraphs and headings. Upstream ships them as
+  //   <span class="ci-html-content"><div>…</div></span>
+  // (invalid HTML — `<span>` on the server, promoted to `<p>` on the client).
+  const paraRe = /<(?:span|p)[^>]*\bci-html-content\b[^>]*>\s*<div[^>]*>([\s\S]*?)<\/div>\s*<\/(?:span|p)>/g;
+  let paraMatch: RegExpExecArray | null;
+  while ((paraMatch = paraRe.exec(html)) !== null) {
+    const raw = paraMatch[1];
+    // Heading? The upstream nests an h2/h3 in a paragraph wrapper for section
+    // headings ("Big picture", "Form guide", etc.). Detect and lift.
+    const headingM = raw.match(/<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/);
+    if (headingM) {
+      const headingText = headingM[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      if (headingText) bodyMatches.push({ idx: paraMatch.index, kind: 'heading', text: decodeHtml(headingText) });
+      continue;
+    }
+    // Preserve inline emphasis (bold, italic, underline) and line breaks so
+    // the rendered paragraph reads the same as the source. Every other tag
+    // (script, style, div wrappers, images-in-body, etc.) is stripped.
+    const inlineSafe = /^\/?(?:b|strong|i|em|u|br|ul|ol|li|sub|sup)$/i;
+    const cleanedHtml = raw
+      .replace(/<a\s[^>]*>([\s\S]*?)<\/a>/gi, (_m, inner) => `<u>${inner}</u>`)
+      .replace(/<(\/?)([a-z0-9]+)(?:\s[^>]*)?>/gi, (m, close, tag) => inlineSafe.test((close || '') + tag) ? `<${close || ''}${tag.toLowerCase()}>` : '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (cleanedHtml) {
+      bodyMatches.push({ idx: paraMatch.index, kind: 'para', html: cleanedHtml });
+      // Plain-text fallback for the flat `paragraphs` field (used by
+      // description ledes, word count, etc.).
+      const plain = cleanedHtml.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+      if (plain) paragraphs.push(decodeHtml(plain));
+    }
+  }
+
+  // Pass 2 — inline `<aside>` image cards. The visible <img> src is a lazy
+  // placeholder; the real URL lives in a schema.org ImageObject JSON-LD block
+  // *inside* each aside, near the end (`</aside>` closes just after it).
+  const asideRe = /<aside[^>]*\bds-mt-4 ds-mb-8\b[^>]*>([\s\S]*?)<\/aside>/g;
+  let asideMatch: RegExpExecArray | null;
+  while ((asideMatch = asideRe.exec(html)) !== null) {
+    const asideBody = asideMatch[1];
+    const ldM = asideBody.match(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/);
+    let imageUrl: string | undefined;
+    let caption: string | undefined;
+    if (ldM) {
+      try {
+        const ld = JSON.parse(ldM[1]);
+        if (ld && ld['@type'] === 'ImageObject' && ld.contentUrl) {
+          imageUrl = String(ld.contentUrl);
+          if (ld.caption) caption = String(ld.caption);
+        }
+      } catch { /* malformed JSON — fall back to alt attr */ }
+    }
+    if (!caption) {
+      const altM = asideMatch[1].match(/<img[^>]*\balt="([^"]+)"/);
+      if (altM) caption = decodeHtml(altM[1]);
+    }
+    // Credit — the last text span in the caption row (e.g. "BCCI", "Getty").
+    let credit: string | undefined;
+    const captionSpans = Array.from(asideMatch[1].matchAll(/<span[^>]*>([^<]+)<\/span>/g)).map(m => m[1].trim());
+    for (let i = captionSpans.length - 1; i >= 0; i--) {
+      const s = captionSpans[i];
+      if (!s || s === '•') continue;
+      if (caption && caption.includes(s)) continue;
+      credit = decodeHtml(s);
+      break;
+    }
+    if (imageUrl) {
+      bodyMatches.push({ idx: asideMatch.index, kind: 'image', imageUrl, caption, credit });
+    }
+  }
+
+  // Merge in position order — this is what gives the article its rhythm.
+  bodyMatches.sort((a, b) => a.idx - b.idx);
+  const blocks: NewsBlock[] = bodyMatches.map((bm) => {
+    if (bm.kind === 'image') {
+      return { type: 'image', imageUrl: bm.imageUrl, caption: bm.caption, credit: bm.credit };
+    }
+    if (bm.kind === 'heading') return { type: 'heading', text: bm.text };
+    return { type: 'paragraph', html: bm.html };
+  });
+
+  // Word count from paragraphs (strip tags first) + headings; ~220 wpm.
+  const wordCount = blocks.reduce((sum, b) => {
+    if (b.type === 'paragraph') {
+      const plain = b.html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      return sum + plain.split(/\s+/).filter(Boolean).length;
+    }
+    if (b.type === 'heading') return sum + b.text.split(/\s+/).filter(Boolean).length;
+    return sum;
+  }, 0);
+  const readTimeMinutes = Math.max(1, Math.round(wordCount / 220));
+
+  const tags: { label: string }[] = [];
+  article.find('a[href^="/cricketers/"], a[href^="/team/"], a[href^="/series/"]').each((_, el) => {
+    const label = $(el).find('span').last().text().trim() || $(el).text().trim();
+    if (label && !tags.some(t => t.label === label)) tags.push({ label });
+  });
+
+  // Related stories — the upstream drops a boxed list of "Related" story
+  // links inside the article body. Extract from raw HTML anchored on the
+  // "Related" panel header so we grab both the thumbnail image and the title
+  // from each row (cheerio's DOM would work for these but we mirror the
+  // Most Read approach for consistency across sidebar/related widgets).
+  const related: { id: string; slug: string; title: string; imageUrl?: string }[] = [];
+  const seenRelated = new Set<string>();
+  const relatedHeaderIdx = html.indexOf('>Related<');
+  if (relatedHeaderIdx !== -1) {
+    const before = html.slice(0, relatedHeaderIdx);
+    const panelStart = before.lastIndexOf('<div class="ds-w-full');
+    if (panelStart !== -1) {
+      const remaining = html.slice(panelStart);
+      const panelEnd = findMatchingCloseDiv(remaining);
+      const panelHtml = remaining.slice(0, panelEnd);
+      const anchorRe = /<a\s+href="\/story\/([^"]+?)-(\d+)"[^>]*>([\s\S]*?)<\/a>/g;
+      let am: RegExpExecArray | null;
+      while ((am = anchorRe.exec(panelHtml)) !== null) {
+        if (related.length >= 6) break;
+        const rSlug = am[1];
+        const rId = am[2];
+        if (rId === id || seenRelated.has(rId)) continue;
+        const inner = am[3];
+        const titleM = inner.match(/<p[^>]*>([\s\S]*?)<\/p>/);
+        if (!titleM) continue;
+        const rTitle = titleM[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+        if (!rTitle || rTitle.length < 8) continue;
+        const imgM = inner.match(/<img[^>]*\bsrc="([^"]+)"/);
+        let rImage = imgM ? imgM[1] : undefined;
+        if (rImage && rImage.includes('lazyimage')) rImage = undefined;
+        if (rImage) rImage = rImage.replace(/\/image\/upload\/[^/]*\//, '/image/upload/f_auto/');
+        seenRelated.add(rId);
+        related.push({ id: rId, slug: rSlug, title: decodeHtml(rTitle), imageUrl: rImage });
+      }
+    }
+  }
+
+  // Most Read widget — the upstream renders a dedicated sidebar on every
+  // article page listing the currently-trending stories. The panel is anchored
+  // on a "Most Read" header inside a `.ds-w-full` card. Do the extraction on
+  // raw HTML for the same reason as the paragraph body — the surrounding
+  // markup uses `<p><div>` nesting that cheerio's DOM parser mangles.
+  const mostRead: NewsMostReadItem[] = [];
+  const seenMostRead = new Set<string>();
+  const mrHeaderIdx = html.indexOf('>Most Read<');
+  if (mrHeaderIdx !== -1) {
+    // Find the panel start by walking back from the header to the opening
+    // `<div class="ds-w-full ...">` that wraps the widget.
+    const before = html.slice(0, mrHeaderIdx);
+    const panelStart = before.lastIndexOf('<div class="ds-w-full');
+    if (panelStart !== -1) {
+      // The panel ends at its matching </div>; a simple heuristic is enough
+      // here because the widget is short and self-contained.
+      const remaining = html.slice(panelStart);
+      const panelEnd = findMatchingCloseDiv(remaining);
+      const panelHtml = remaining.slice(0, panelEnd);
+
+      // Each row is an `<a href="/story/..."` block. Iterate to grab id/slug,
+      // title (`<p class="ds-text-title-s ..."`), optional description and image.
+      const anchorRe = /<a\s+href="\/story\/([^"]+?)-(\d+)"[^>]*>([\s\S]*?)<\/a>/g;
+      let am: RegExpExecArray | null;
+      while ((am = anchorRe.exec(panelHtml)) !== null) {
+        if (mostRead.length >= 6) break;
+        const rSlug = am[1];
+        const rId = am[2];
+        if (seenMostRead.has(rId)) continue;
+        const inner = am[3];
+
+        const titleM = inner.match(/<p[^>]*\bds-text-title-s\b[^>]*>([\s\S]*?)<\/p>/) ||
+          inner.match(/<p[^>]*\bds-font-semi-bold\b[^>]*>([\s\S]*?)<\/p>/);
+        if (!titleM) continue;
+        const rTitle = titleM[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+        if (!rTitle) continue;
+
+        // Description sits under a `<p class="ds-text-compact-s">` wrapper
+        // that contains the same `<div>` nesting quirk as body paragraphs.
+        const descM = inner.match(/<p[^>]*\bds-text-compact-s\b[^>]*>\s*<div[^>]*>([\s\S]*?)<\/div>\s*<\/p>/) ||
+          inner.match(/<p[^>]*\bds-text-compact-s\b[^>]*>([\s\S]*?)<\/p>/);
+        const rDescription = descM
+          ? descM[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() || undefined
+          : undefined;
+
+        const imgM = inner.match(/<img[^>]*\bsrc="([^"]+)"/);
+        let rImage = imgM ? imgM[1] : undefined;
+        if (rImage && rImage.includes('lazyimage')) rImage = undefined;
+        if (rImage) rImage = rImage.replace(/\/image\/upload\/[^/]*\//, '/image/upload/f_auto/');
+
+        const dateM = inner.match(/<span[^>]*\bds-text-compact-xs\b[^>]*>\s*<span[^>]*>([^<]+)<\/span>/);
+        const rDate = dateM ? dateM[1].trim() : undefined;
+
+        seenMostRead.add(rId);
+        mostRead.push({
+          id: rId,
+          slug: rSlug,
+          title: decodeHtml(rTitle),
+          description: rDescription ? decodeHtml(rDescription) : undefined,
+          imageUrl: rImage,
+          publishedAt: rDate,
+        });
+      }
+    }
+  }
+
+  // Video hero — some stories lead with a video instead of a still image. The
+  // upstream doesn't embed the player in the initial HTML (it wires up hotstar
+  // via JS after mount), so we can only carry the metadata + source URL and
+  // render our own "click to watch" card that opens the source video page.
+  let video: NewsArticle['video'];
+  const voIdx = html.search(/schema\.org\/VideoObject/i);
+  if (voIdx !== -1) {
+    const block = html.slice(voIdx, voIdx + 2000);
+    const pick = (prop: string) => {
+      const re = new RegExp(`<meta[^>]*itemProp="${prop}"[^>]*content="([^"]+)"`, 'i');
+      const m = block.match(re);
+      return m ? decodeHtml(m[1]) : undefined;
+    };
+    const vName = pick('name');
+    const vThumb = pick('thumbnailUrl');
+    const vSource = pick('contentURL');
+    if (vName && vThumb && vSource) {
+      video = {
+        title: vName,
+        description: pick('description'),
+        thumbnailUrl: vThumb,
+        duration: pick('duration'),
+        sourceUrl: vSource,
+      };
+    }
+  }
+
+  return NewsArticleSchema.parse({
+    id,
+    slug,
+    title,
+    category,
+    description,
+    author,
+    wordCount,
+    readTimeMinutes,
+    publishedAt,
+    heroImageUrl,
+    heroImageCaption,
+    paragraphs,
+    blocks,
+    tags: tags.slice(0, 6),
+    related: related.slice(0, 6),
+    mostRead,
+    video,
+  });
 }

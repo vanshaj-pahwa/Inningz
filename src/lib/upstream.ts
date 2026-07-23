@@ -13,6 +13,8 @@ function requireEnv(name: string, value: string | undefined): string {
 export const UPSTREAM_BASE_URL = requireEnv('NEXT_PUBLIC_UPSTREAM_BASE_URL', process.env.NEXT_PUBLIC_UPSTREAM_BASE_URL);
 export const UPSTREAM_STATIC_URL = requireEnv('NEXT_PUBLIC_UPSTREAM_STATIC_URL', process.env.NEXT_PUBLIC_UPSTREAM_STATIC_URL);
 export const UPSTREAM_IMG_URL = requireEnv('NEXT_PUBLIC_UPSTREAM_IMG_URL', process.env.NEXT_PUBLIC_UPSTREAM_IMG_URL);
+export const NEWS_FEED_URL = requireEnv('NEXT_PUBLIC_NEWS_FEED_URL', process.env.NEXT_PUBLIC_NEWS_FEED_URL);
+export const NEWS_IMG_URL = requireEnv('NEXT_PUBLIC_NEWS_IMG_URL', process.env.NEXT_PUBLIC_NEWS_IMG_URL);
 
 // Shortcuts for the most common URL shapes used across the app.
 export const upstreamUrl = (path: string) => `${UPSTREAM_BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;

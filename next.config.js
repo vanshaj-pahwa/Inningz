@@ -10,6 +10,10 @@ const nextConfig = {
       { protocol: 'https', hostname: upstreamHost('NEXT_PUBLIC_UPSTREAM_STATIC_URL', 'static.cricbuzz.com'), pathname: '/**' },
       { protocol: 'https', hostname: upstreamHost('NEXT_PUBLIC_UPSTREAM_BASE_URL', 'www.cricbuzz.com'), pathname: '/**' },
       { protocol: 'https', hostname: upstreamHost('NEXT_PUBLIC_UPSTREAM_IMG_URL', 'img1.cricbuzz.com'), pathname: '/**' },
+      { protocol: 'https', hostname: upstreamHost('NEXT_PUBLIC_NEWS_IMG_URL', 'p.imgci.com'), pathname: '/**' },
+      { protocol: 'https', hostname: 'img1.hscicdn.com', pathname: '/**' },
+      { protocol: 'https', hostname: 'wassets.hscicdn.com', pathname: '/**' },
+      { protocol: 'https', hostname: 'img1.hotstarext.com', pathname: '/**' },
     ],
   },
   // Match URLs support an optional slug for readability + share previews:

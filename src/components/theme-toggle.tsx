@@ -134,21 +134,22 @@ export function ThemeToggle() {
           aria-label="Toggle theme"
           className="relative inline-flex items-center justify-center h-10 w-10 rounded-xl border border-border/60 bg-card/40 hover:bg-card/70 transition-colors text-muted-foreground"
         >
-          {/* Light theme icon */}
+          {/* Icon set — all four states are gated by `mounted` so the server
+              always renders the default (Moon) icon and the client only swaps
+              in the real theme's icon after hydration. Without the gate, the
+              server renders theme=undefined while the client immediately reads
+              localStorage, causing a hydration className mismatch. */}
           <Sun className={`h-4 w-4 transition-all ${
-            isLightTheme ? 'rotate-0 scale-100' : '-rotate-90 scale-0'
+            mounted && isLightTheme ? 'rotate-0 scale-100' : '-rotate-90 scale-0'
           }`} />
-          {/* Dark/custom theme icon */}
           <Moon className={`absolute h-4 w-4 transition-all ${
-            !isLightTheme && !isCustomTheme ? 'rotate-0 scale-100' : 'rotate-90 scale-0'
+            !mounted || (!isLightTheme && !isCustomTheme) ? 'rotate-0 scale-100' : 'rotate-90 scale-0'
           }`} />
-          {/* Liquid Glass icon */}
           <Droplets className={`absolute h-4 w-4 transition-all ${
-            currentTheme === 'liquid-glass' ? 'rotate-0 scale-100' : 'rotate-90 scale-0'
+            mounted && currentTheme === 'liquid-glass' ? 'rotate-0 scale-100' : 'rotate-90 scale-0'
           }`} />
-          {/* Custom theme icon */}
           <Palette className={`absolute h-4 w-4 transition-all ${
-            isCustomTheme && currentTheme !== 'sepia' && currentTheme !== 'liquid-glass' ? 'rotate-0 scale-100' : 'rotate-90 scale-0'
+            mounted && isCustomTheme && currentTheme !== 'sepia' && currentTheme !== 'liquid-glass' ? 'rotate-0 scale-100' : 'rotate-90 scale-0'
           }`} />
           <span className="sr-only">Toggle theme</span>
         </button>

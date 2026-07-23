@@ -69,11 +69,17 @@ import {
     type WinProbHistory as WinProbHistoryType,
     scrapeICCRankings as scrapeICCRankingsFlow,
     scrapeICCTeamRankings as scrapeICCTeamRankingsFlow,
+    scrapeCricketNews as scrapeCricketNewsFlow,
+    scrapeCricketNewsArticle as scrapeCricketNewsArticleFlow,
     type RankingsData as RankingsDataType,
     type RankingEntry as RankingEntryType,
     type AwardPlayer as AwardPlayerType,
     type TeamRankingsData as TeamRankingsDataType,
     type TeamRankingEntry as TeamRankingEntryType,
+    type NewsFeed as NewsFeedType,
+    type NewsItem as NewsItemType,
+    type NewsArticle as NewsArticleType,
+    type NewsBlock as NewsBlockType,
 } from '@/ai/flows/scraper-flow';
 
 import {
@@ -653,6 +659,89 @@ export async function getICCTeamRankings(
 ): Promise<{ success: boolean; data?: TeamRankingsDataType; error?: string }> {
     try {
         const data = await scrapeICCTeamRankingsFlow(format);
+        return { success: true, data };
+    } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : 'An unexpected error occurred.';
+        return { success: false, error: errorMessage };
+    }
+}
+
+export type NewsFeed = NewsFeedType;
+export type NewsItem = NewsItemType;
+export type NewsArticle = NewsArticleType;
+export type NewsBlock = NewsBlockType;
+
+// Cache the feed for 5 minutes — the news list only refreshes a few times an
+// hour, and this keeps us well under the source's rate expectations.
+const getCricketNewsCached = unstable_cache(
+    async () => scrapeCricketNewsFlow(),
+    ['cricket-news:v1'],
+    { revalidate: 300, tags: ['cricket-news'] }
+);
+
+export async function getCricketNews(): Promise<{ success: boolean; data?: NewsFeedType; error?: string }> {
+    try {
+        const data = await getCricketNewsCached();
+        // Fire-and-forget: warm the article cache for the top 10 stories so
+        // the reader's first click opens sub-500ms instead of waiting on the
+        // upstream fetch + parse. Failures are swallowed — we're just filling
+        // the cache, and the list page has already returned to the caller.
+        if (data?.items?.length) {
+            const topTen = data.items.slice(0, 10).filter(i => i.slug);
+            Promise.allSettled(topTen.map(item =>
+                getCricketNewsArticleCached(item.id, item.slug)()
+            )).catch(() => {});
+        }
+        return { success: true, data };
+    } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : 'An unexpected error occurred.';
+        return { success: false, error: errorMessage };
+    }
+}
+
+// Article bodies rarely change once published — cache aggressively (1 hour)
+// so revisiting a story is instant. Keyed by id+slug so the cache doesn't
+// collide between different variants of the same article URL.
+const getCricketNewsArticleCached = (id: string, slug: string) => unstable_cache(
+    async () => scrapeCricketNewsArticleFlow(id, slug),
+    ['cricket-news-article:v6', id, slug],
+    { revalidate: 3600, tags: ['cricket-news-article', `cricket-news-article:${id}`] }
+);
+
+export async function getCricketNewsArticle(id: string, slug: string): Promise<{ success: boolean; data?: NewsArticleType; error?: string }> {
+    try {
+        const data = await getCricketNewsArticleCached(id, slug)();
+        return { success: true, data };
+    } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : 'An unexpected error occurred.';
+        return { success: false, error: errorMessage };
+    }
+}
+
+// Fetch the current Most Read list by piggy-backing on any recent article
+// page (the widget is global, not per-story). Cached separately so the /news
+// list can display real popularity data without waiting for a story fetch.
+const getCricketNewsMostReadCached = unstable_cache(
+    async () => {
+        const feed = await scrapeCricketNewsFlow();
+        for (const item of feed.items) {
+            if (!item.slug) continue;
+            try {
+                const article = await scrapeCricketNewsArticleFlow(item.id, item.slug);
+                if (article.mostRead.length > 0) return article.mostRead;
+            } catch {
+                continue;
+            }
+        }
+        return [];
+    },
+    ['cricket-news-most-read:v2'],
+    { revalidate: 600, tags: ['cricket-news', 'cricket-news-most-read'] }
+);
+
+export async function getCricketNewsMostRead(): Promise<{ success: boolean; data?: NewsArticleType['mostRead']; error?: string }> {
+    try {
+        const data = await getCricketNewsMostReadCached();
         return { success: true, data };
     } catch (e) {
         const errorMessage = e instanceof Error ? e.message : 'An unexpected error occurred.';

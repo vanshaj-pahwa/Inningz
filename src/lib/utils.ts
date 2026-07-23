@@ -96,3 +96,39 @@ export function buildMatchHref(
     .slice(0, 80);
   return slug ? `/match/${id}/${slug}` : `/match/${id}`;
 }
+
+export function buildNewsHref(id: string | undefined, slug?: string): string {
+  const storyId = String(id ?? '').trim();
+  if (!storyId) return '/news';
+  const cleaned = (slug || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 80);
+  return cleaned ? `/news/${storyId}/${cleaned}` : `/news/${storyId}/story`;
+}
+
+// Cricket news photos need smart crops — a single-face crop (`g_face`) cuts
+// out the second person from multi-captain photos, drops the ball from action
+// shots, and misses the trophy in celebration shots. Cloudinary's `g_auto`
+// uses whole-image saliency detection and picks the right subject regardless
+// of what's in the frame. Confirmed available on the upstream's Cloudinary
+// account.
+export function toFaceCroppedThumb(
+  url: string | undefined,
+  opts: { width?: number; aspect?: string } = {},
+): string | undefined {
+  if (!url) return undefined;
+  const { width = 600, aspect = '4:3' } = opts;
+  const transform = `c_fill,g_auto,ar_${aspect},w_${width},q_auto,f_auto`;
+  // Raw p.imgci.com asset URL — map to the Cloudinary upload host.
+  const rawM = url.match(/^https?:\/\/p\.imgci\.com\/(db\/PICTURES\/[^\s"']+\.jpg)$/i);
+  if (rawM) return `https://img1.hscicdn.com/image/upload/${transform}/lsci/${rawM[1]}`;
+  // Already-Cloudinary URL — replace whatever transform is in the path with
+  // our face-crop one (the transform segment is the path segment right after
+  // `/image/upload/`).
+  const cloudM = url.match(/^(https?:\/\/img1\.hscicdn\.com\/image\/upload\/)([^/]+)\/(.+)$/i);
+  if (cloudM) return `${cloudM[1]}${transform}/${cloudM[3]}`;
+  return url;
+}
+

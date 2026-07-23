@@ -14,7 +14,7 @@ import RecentHistory from "@/components/recent-history";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 import { CommandPaletteTrigger } from "@/components/command-palette";
-import { Radio, History, Calendar, Trophy, Medal, Home as HomeIcon } from "lucide-react";
+import { Radio, History, Calendar, Trophy, Medal, Newspaper, Home as HomeIcon } from "lucide-react";
 import HomeDashboard from "@/components/home-dashboard";
 
 type View = 'home' | 'live' | 'recent' | 'upcoming' | 'series';
@@ -58,10 +58,11 @@ function HomeContent() {
 
     return (
         <div className="min-h-screen stadium-glow">
-            {/* Sticky Header - Glass Nav */}
+            {/* Two-tier masthead: top row is publication-level (logo + section jumps),
+                second row is the contextual "matches" sub-nav (Home / Live / …). */}
             <header className="sticky top-0 z-50 w-full glass-nav">
                 <div className="max-w-7xl mx-auto px-4 md:px-6">
-                    {/* Top row: Logo + Actions */}
+                    {/* Row 1 — Publication strip */}
                     <div className="flex items-center justify-between h-14 md:h-16">
                         <Link
                             href="/"
@@ -86,9 +87,36 @@ function HomeContent() {
                             />
                         </Link>
 
-                        {/* Desktop: inline nav tabs */}
-                        <LayoutGroup id="desktop-nav">
-                            <nav className="hidden lg:flex items-center gap-1 p-1 rounded-xl" style={{ background: 'rgba(120, 120, 128, 0.12)' }}>
+                        <div className="flex items-center gap-1.5">
+                            <CommandPaletteTrigger />
+                            <Link
+                                href="/news"
+                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                            >
+                                <Newspaper className="w-4 h-4" />
+                                <span className="hidden sm:inline">News</span>
+                            </Link>
+                            <Link
+                                href="/rankings"
+                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                            >
+                                <Medal className="w-4 h-4" />
+                                <span className="hidden sm:inline">Rankings</span>
+                            </Link>
+                            <ThemeToggle />
+                        </div>
+                    </div>
+
+                    {/* Row 2 — Match sub-nav, centered under the publication
+                        strip. Reuses the app's segmented-pill treatment so it
+                        reads consistently with the tabs on /rankings and inside
+                        the match page. */}
+                    <LayoutGroup id="desktop-nav">
+                        <nav
+                            className="hidden lg:flex items-center justify-center pb-2"
+                            aria-label="Match views"
+                        >
+                            <div className="flex items-center gap-1 p-1 rounded-xl" style={{ background: 'rgba(120, 120, 128, 0.12)' }}>
                                 {tabs.map((tab) => {
                                     const Icon = tab.icon;
                                     const isActive = view === tab.value;
@@ -104,49 +132,6 @@ function HomeContent() {
                                                     layoutId="desktop-nav-active"
                                                     transition={{ type: 'spring', stiffness: 360, damping: 30 }}
                                                     className="absolute inset-0 rounded-lg bg-primary/15 ring-1 ring-primary/30"
-                                                />
-                                            )}
-                                            <Icon className={`relative z-10 w-4 h-4 ${isActive && tab.value === 'live' ? 'animate-pulse' : ''}`} />
-                                            <span className="relative z-10">{tab.label}</span>
-                                        </button>
-                                    );
-                                })}
-                            </nav>
-                        </LayoutGroup>
-
-                        {/* Actions */}
-                        <div className="flex items-center gap-1.5">
-                            <CommandPaletteTrigger />
-                            <Link
-                                href="/rankings"
-                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                            >
-                                <Medal className="w-4 h-4" />
-                                <span className="hidden sm:inline">Rankings</span>
-                            </Link>
-                            <ThemeToggle />
-                        </div>
-                    </div>
-
-                    {/* Mobile: iOS-style segmented control */}
-                    <LayoutGroup id="mobile-nav">
-                        <nav className="hidden">
-                            <div className="flex p-1 rounded-lg bg-muted">
-                                {tabs.map((tab) => {
-                                    const Icon = tab.icon;
-                                    const isActive = view === tab.value;
-                                    return (
-                                        <button
-                                            key={tab.value}
-                                            onClick={() => switchView(tab.value)}
-                                            aria-current={isActive ? 'page' : undefined}
-                                            className={`relative flex-1 flex flex-col items-center justify-center gap-0.5 py-2 rounded-md text-[10px] font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${isActive ? 'text-white' : 'text-muted-foreground'}`}
-                                        >
-                                            {isActive && (
-                                                <motion.span
-                                                    layoutId="mobile-nav-active"
-                                                    transition={{ type: 'spring', stiffness: 360, damping: 30 }}
-                                                    className="absolute inset-0 rounded-md bg-primary"
                                                 />
                                             )}
                                             <Icon className={`relative z-10 w-4 h-4 ${isActive && tab.value === 'live' ? 'animate-pulse' : ''}`} />

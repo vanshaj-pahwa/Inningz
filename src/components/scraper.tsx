@@ -886,7 +886,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                             <Share2 className="w-3 h-3 text-muted-foreground" />
                         </button>
                         <div className="flex items-start justify-between gap-2">
-                            <p className={`text-xs text-muted-foreground flex-1 ${isShortText ? 'text-center font-medium' : ''}`} dangerouslySetInnerHTML={{ __html: formatCommentaryHtml(comment.text) }} />
+                            <p className={`text-[13px] md:text-sm leading-relaxed text-muted-foreground flex-1 ${isShortText ? 'text-center font-medium' : ''}`} dangerouslySetInnerHTML={{ __html: formatCommentaryHtml(comment.text) }} />
                             <button
                                 onClick={() => {
                                     setStatShareData({ text: comment.text, snippetType: 'stat' });
@@ -908,7 +908,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                     isShortText ? 'py-2 px-4' : 'py-3 px-4 commentary-item'
                 )}>
                     <div className={cn(
-                        'text-xs leading-relaxed',
+                        'text-[13px] md:text-sm leading-relaxed',
                         isShortText
                             ? 'text-center font-medium text-muted-foreground italic'
                             : 'text-foreground/90 [&_b]:text-foreground [&_b]:font-semibold'
@@ -1126,7 +1126,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                             );
                         })}
                     </div>
-                    <div className="text-sm text-foreground/60 flex-1 leading-relaxed [&_b]:text-foreground [&_b]:font-semibold">
+                    <div className="text-[13px] md:text-sm text-foreground/60 flex-1 leading-relaxed [&_b]:text-foreground [&_b]:font-semibold">
                         <span dangerouslySetInnerHTML={{ __html: formatCommentaryHtml(formatBallText(text)) }} />
                     </div>
                 </div>
@@ -1768,12 +1768,14 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                     />
                                 )}
 
-                                {/* Commentary - visible on mobile always, on desktop only when no scorecard */}
+                                {/* Commentary - visible on mobile always, on desktop only when no scorecard.
+                                    Content inside is constrained to a readable line-length (65-75 chars)
+                                    via `max-w-3xl` — full-viewport commentary at 140+ chars is unreadable. */}
                                 <div className={`surface-card overflow-hidden ${data && (data.batsmen.length !== 0 || data.bowlers.length !== 0) ? 'xl:hidden' : ''}`}>
                                     <div className="px-4 py-3 border-b border-border/50 section-header-gradient">
                                         <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Commentary</h3>
                                     </div>
-                                    <div className="p-3">
+                                    <div className="p-3 max-w-3xl mx-auto w-full">
                                         <VirtualCommentaryList
                                             commentary={data?.commentary || []}
                                             renderItem={renderCommentaryItem}
@@ -1795,13 +1797,16 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                 )}
                             </div>
 
-                            {/* Right Column: Commentary - Desktop only, sticky */}
+                            {/* Right Column: Commentary - Desktop only, sticky.
+                                Fixed height (viewport minus sticky top + header
+                                + padding) so the panel always fills the desktop
+                                viewport regardless of commentary item count. */}
                             {data && (data.batsmen.length !== 0 || data.bowlers.length !== 0) && (
                                 <div className="hidden xl:block">
                                     <div className="sticky top-4">
-                                        <div className="surface-card overflow-hidden">
+                                        <div className="surface-card overflow-hidden flex flex-col h-[calc(100vh-2rem)]">
                                             {/* Commentary Header with gradient accent */}
-                                            <div className="relative px-4 py-3 border-b border-border/50">
+                                            <div className="relative px-4 py-3 border-b border-border/50 shrink-0">
                                                 <div className="absolute inset-0 commentary-header-gradient"></div>
                                                 <div className="relative flex items-center justify-between">
                                                     <h3 className="text-xs font-bold uppercase tracking-widest text-primary">Commentary</h3>
@@ -1813,12 +1818,13 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                                     )}
                                                 </div>
                                             </div>
-                                            {/* Commentary Feed */}
-                                            <div className="p-3">
+                                            {/* Commentary Feed — flex-1 fills the remaining
+                                                card height; the list itself handles scrolling. */}
+                                            <div className="p-3 flex-1 min-h-0 flex flex-col">
                                                 <VirtualCommentaryList
                                                     commentary={data?.commentary || []}
                                                     renderItem={renderCommentaryItem}
-                                                    containerClassName="max-h-[calc(100vh-200px)]"
+                                                    containerClassName="flex-1 min-h-0"
                                                     onLoadMore={loadMoreCommentary}
                                                     loadingMore={loadingMore}
                                                     hasMore={lastTimestamp !== null && lastTimestamp !== 0}

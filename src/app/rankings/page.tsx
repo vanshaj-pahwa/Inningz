@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { ThemeToggle } from '@/components/theme-toggle';
 import PlayerProfileDisplay from '@/components/player-profile';
-import { ArrowLeft, ArrowUp, ArrowDown, Minus } from 'lucide-react';
+import { ArrowLeft, ArrowUp, ArrowDown, Minus, Newspaper } from 'lucide-react';
 
 type Format = 'test' | 'odi' | 't20';
 type Category = 'batting' | 'bowling' | 'all-rounder' | 'teams';
@@ -195,7 +195,16 @@ export default function RankingsPage() {
                 />
               </Link>
             </div>
-            <ThemeToggle />
+            <div className="flex items-center gap-1.5">
+              <Link
+                href="/news"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                <Newspaper className="w-4 h-4" />
+                <span className="hidden sm:inline">News</span>
+              </Link>
+              <ThemeToggle />
+            </div>
           </div>
         </div>
       </header>
