@@ -545,7 +545,7 @@ function ArticleBody({ blocks, fallbackParagraphs, bodyLoading }: { blocks: News
                 return (
                     <p
                         key={i}
-                        className="text-[16px] md:text-[17px] leading-[1.75] md:leading-[1.9] text-foreground/90 mb-5 md:mb-6 last:mb-0 [&_b]:font-semibold [&_strong]:font-semibold [&_i]:italic [&_em]:italic [&_u]:underline [&_u]:decoration-primary/50 [&_u]:underline-offset-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:my-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:my-3 [&_li]:mb-1"
+                        className="text-[16px] md:text-[17px] leading-[1.75] md:leading-[1.9] text-foreground/90 mb-5 md:mb-6 last:mb-0 [&_b]:font-semibold [&_strong]:font-semibold [&_i]:italic [&_em]:italic [&_u]:underline [&_u]:decoration-primary/50 [&_u]:underline-offset-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:my-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:my-3 [&_li]:mb-1 [&_q]:italic [&_q]:text-foreground [&_q]:font-medium [&_q]:before:content-[''] [&_q]:after:content-[''] [&_q]:bg-primary/[0.06] [&_q]:rounded [&_q]:px-1 [&_q]:py-[0.05em] [&_q]:decoration-primary/50"
                         dangerouslySetInnerHTML={{ __html: b.html }}
                     />
                 );

@@ -177,6 +177,22 @@ test('live: HTML mode returns JSON-LD ImageObject records for Zimbabwe preview',
     assert.ok(records.length >= 1, `expected >=1 body-image record, got ${records.length}`);
 });
 
+test('paragraph decorators: quotes wrapped in <q>, underscores as italic', () => {
+    const md = `Title: X\n\nMarkdown Content:\n## Section\n\nZimbabwe fielded four seamers and a spinner. "This is not your typical Harare Sports Club wicket," Sikandar Raza said. "There are runs in this wicket."\n\n_Toss:_ India chose to bowl vs Zimbabwe.\n\nThe **captain** noted: "we are hoping to put those on the board."\n`;
+    const parsed = parseJinaArticle(md);
+    const paras = parsed.blocks.filter(b => b.type === 'paragraph') as Array<{ html: string }>;
+    assert.ok(paras.length >= 3, `expected >=3 paragraph blocks, got ${paras.length}`);
+
+    const allHtml = paras.map(p => p.html).join('\n');
+    assert.match(allHtml, /<q>"This is not your typical Harare Sports Club wicket,"<\/q>/);
+    assert.match(allHtml, /<q>"There are runs in this wicket\."<\/q>/);
+    assert.match(allHtml, /<q>"we are hoping to put those on the board\."<\/q>/);
+    assert.match(allHtml, /<i>Toss:<\/i>/);
+    assert.match(allHtml, /<b>captain<\/b>/);
+    // Word-internal underscores must not become italic.
+    assert.doesNotMatch(allHtml, /<i>Toss<\/i>_India/);
+});
+
 test('no anchor -> empty', () => {
     const parsed = parseJinaArticle('# Title\n\nA paragraph.\n');
     assert.strictEqual(parsed.paragraphs.length, 0);

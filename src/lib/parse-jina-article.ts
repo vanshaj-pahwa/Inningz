@@ -119,6 +119,20 @@ function applyBold(escaped: string): string {
     return escaped.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
 }
 
+// Turn `_text_` into `<i>text</i>`. Skips underscores inside identifiers
+// (`snake_case`, `some_var`) via lookarounds; non-greedy so multiple italic
+// spans on one line resolve independently.
+function applyItalic(escaped: string): string {
+    return escaped.replace(/(?<![\w_])_(\S(?:[^_\n]*?\S)?)_(?![\w_])/g, '<i>$1</i>');
+}
+
+// Wrap balanced straight/curly double-quoted spans in <q>. The quote marks
+// stay inside the tag so the reader still sees them; the tag exists purely
+// as a styling hook for the article body renderer.
+function wrapQuotes(html: string): string {
+    return html.replace(/(["“])([^"“”\n]{3,400}?)(["”])/g, '<q>$1$2$3</q>');
+}
+
 function stripMarkdownLinks(line: string): string {
     return line
         .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
@@ -126,10 +140,14 @@ function stripMarkdownLinks(line: string): string {
         .trim();
 }
 
+function decorate(escaped: string): string {
+    return wrapQuotes(applyItalic(applyBold(escaped)));
+}
+
 function toParagraphHtml(rawLine: string): string {
     // Preserve **bold** through the escape by using a placeholder, then apply.
     const withoutLinks = stripMarkdownLinks(rawLine);
-    return applyBold(escapeHtml(withoutLinks));
+    return decorate(escapeHtml(withoutLinks));
 }
 
 export function parseJinaArticle(md: string): ParsedJinaArticle {
@@ -205,7 +223,7 @@ export function parseJinaArticle(md: string): ParsedJinaArticle {
     const flushList = () => {
         if (listBuffer.length === 0) return;
         const itemsHtml = listBuffer
-            .map(text => `<li>${applyBold(escapeHtml(text))}</li>`)
+            .map(text => `<li>${decorate(escapeHtml(text))}</li>`)
             .join('');
         blocks.push({ type: 'paragraph', html: `<ul>${itemsHtml}</ul>` });
         for (const t of listBuffer) paragraphs.push(t);
