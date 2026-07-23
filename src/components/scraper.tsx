@@ -1770,7 +1770,9 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
 
                                 {/* Commentary - visible on mobile always, on desktop only when no scorecard.
                                     Content inside is constrained to a readable line-length (65-75 chars)
-                                    via `max-w-3xl` — full-viewport commentary at 140+ chars is unreadable. */}
+                                    via `max-w-3xl` — full-viewport commentary at 140+ chars is unreadable.
+                                    Height is viewport-relative so the panel always scrolls internally
+                                    rather than pushing the whole page down. */}
                                 <div className={`surface-card overflow-hidden ${data && (data.batsmen.length !== 0 || data.bowlers.length !== 0) ? 'xl:hidden' : ''}`}>
                                     <div className="px-4 py-3 border-b border-border/50 section-header-gradient">
                                         <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Commentary</h3>
@@ -1779,7 +1781,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                                         <VirtualCommentaryList
                                             commentary={data?.commentary || []}
                                             renderItem={renderCommentaryItem}
-                                            containerClassName="max-h-[32rem]"
+                                            containerClassName="h-[65vh] md:h-[70vh]"
                                             onLoadMore={loadMoreCommentary}
                                             loadingMore={loadingMore}
                                             hasMore={lastTimestamp !== null && lastTimestamp !== 0}

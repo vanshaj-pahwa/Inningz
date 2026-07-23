@@ -93,7 +93,7 @@ export function VirtualCommentaryList({
         <div className="space-y-0">
             <div
                 ref={parentRef}
-                className={`overflow-y-auto hide-scrollbar ${containerClassName}`}
+                className={`overflow-y-auto commentary-scroll ${containerClassName}`}
             >
                 <div
                     style={{

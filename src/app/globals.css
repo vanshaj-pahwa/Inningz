@@ -495,6 +495,27 @@
     scrollbar-width: none;
   }
 
+  /* Subtle scrollbar for scrollable content that benefits from a visible
+     scroll indicator (commentary lists, etc.). Thin thumb, muted color,
+     fades in on hover for a lighter default look. */
+  .commentary-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border) / 0.6) transparent;
+  }
+  .commentary-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+  .commentary-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .commentary-scroll::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border) / 0.6);
+    border-radius: 3px;
+  }
+  .commentary-scroll:hover::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border) / 0.9);
+  }
+
   .sr-only {
     position: absolute;
     width: 1px;

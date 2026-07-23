@@ -31,9 +31,7 @@ function MomentumSparkline({ overs, accent }: { overs: OverPoint[]; accent?: str
 
   const recent = overs.slice(-18);
   const runs = recent.map((o) => o.runs);
-  const rawMax = Math.max(...runs);
-  const max = Math.max(rawMax, 6);
-  const rawMin = Math.min(...runs);
+  const max = Math.max(Math.max(...runs), 6);
   const firstOver = recent[0].overNumber;
   const lastOver = recent[recent.length - 1].overNumber;
 
@@ -59,7 +57,7 @@ function MomentumSparkline({ overs, accent }: { overs: OverPoint[]; accent?: str
       <div className="flex items-baseline justify-between gap-2">
         <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Runs per over</span>
         <span className="text-[10px] text-muted-foreground/70 tabular-nums">
-          {rawMin}–{rawMax} · ov {firstOver}–{lastOver}
+          Ov {firstOver}–{lastOver}
         </span>
       </div>
       <div

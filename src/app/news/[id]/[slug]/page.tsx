@@ -27,27 +27,53 @@ export default function NewsArticlePage() {
     // Image can't render (hotstar CDN, no file extension, no MIME sniff).
     const [feedHeroImage, setFeedHeroImage] = useState<string | undefined>(undefined);
 
+    // Fetch the article + the feed in parallel. When the article fetch fails
+    // (usually a WAF 403 against the datacenter IP), synthesize a minimal
+    // article from the RSS entry so the reader still sees title, description
+    // and hero image — better than a "Story unavailable" wall.
     useEffect(() => {
         (async () => {
             setLoading(true);
             setError(null);
-            const result = await getCricketNewsArticle(id, slug || '');
-            if (result.success && result.data) setArticle(result.data);
-            else setError(result.error || 'Failed to load article');
+            const [articleResult, feedResult] = await Promise.all([
+                getCricketNewsArticle(id, slug || ''),
+                getCricketNews(),
+            ]);
+            const feedItem = feedResult.success && feedResult.data
+                ? feedResult.data.items.find(i => i.id === id)
+                : undefined;
+            if (feedResult.success && feedResult.data) {
+                setRelated(feedResult.data.items.filter(i => i.id !== id).slice(0, 8));
+                if (feedItem?.imageUrl) setFeedHeroImage(feedItem.imageUrl);
+            }
+            if (articleResult.success && articleResult.data) {
+                setArticle(articleResult.data);
+            } else if (feedItem) {
+                // Synthesize a minimal article from the RSS entry.
+                setArticle({
+                    id: feedItem.id,
+                    slug: feedItem.slug,
+                    title: feedItem.title,
+                    description: feedItem.description,
+                    publishedAt: feedItem.publishedAt,
+                    heroImageUrl: feedItem.imageUrl,
+                    heroImageCaption: undefined,
+                    category: undefined,
+                    author: undefined,
+                    wordCount: 0,
+                    readTimeMinutes: 0,
+                    paragraphs: [],
+                    blocks: [],
+                    tags: [],
+                    related: [],
+                    mostRead: [],
+                });
+            } else {
+                setError(articleResult.error || 'Failed to load article');
+            }
             setLoading(false);
         })();
     }, [id, slug]);
-
-    useEffect(() => {
-        (async () => {
-            const feed = await getCricketNews();
-            if (feed.success && feed.data) {
-                setRelated(feed.data.items.filter(i => i.id !== id).slice(0, 8));
-                const self = feed.data.items.find(i => i.id === id);
-                if (self?.imageUrl) setFeedHeroImage(self.imageUrl);
-            }
-        })();
-    }, [id]);
 
 
     const publishedLabel = article?.publishedAt ? formatDate(article.publishedAt) : null;

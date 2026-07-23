@@ -16,6 +16,15 @@ export const UPSTREAM_IMG_URL = requireEnv('NEXT_PUBLIC_UPSTREAM_IMG_URL', proce
 export const NEWS_FEED_URL = requireEnv('NEXT_PUBLIC_NEWS_FEED_URL', process.env.NEXT_PUBLIC_NEWS_FEED_URL);
 export const NEWS_IMG_URL = requireEnv('NEXT_PUBLIC_NEWS_IMG_URL', process.env.NEXT_PUBLIC_NEWS_IMG_URL);
 
+// News article hosts — comma-separated list of URL bases tried in order.
+// The first response that carries the article block wins. Multiple candidates
+// because the source publishes at more than one subdomain and datacenter IPs
+// (Vercel / AWS) can be blocked on some combinations but not others.
+export const NEWS_ARTICLE_BASE_URLS = requireEnv(
+    'NEXT_PUBLIC_NEWS_ARTICLE_BASE_URLS',
+    process.env.NEXT_PUBLIC_NEWS_ARTICLE_BASE_URLS,
+).split(',').map(s => s.trim()).filter(Boolean);
+
 // Shortcuts for the most common URL shapes used across the app.
 export const upstreamUrl = (path: string) => `${UPSTREAM_BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
 export const staticUrl = (path: string) => `${UPSTREAM_STATIC_URL}${path.startsWith('/') ? '' : '/'}${path}`;

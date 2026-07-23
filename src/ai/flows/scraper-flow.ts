@@ -5,7 +5,7 @@
 import { z } from 'zod';
 import * as cheerio from 'cheerio';
 import { decodeHtmlEntities } from '@/lib/html-entities';
-import { UPSTREAM_BASE_URL, UPSTREAM_STATIC_URL, UPSTREAM_IMG_URL, NEWS_FEED_URL, upstreamUrl, playerFaceImageUrl, teamFlagImageUrl } from '@/lib/upstream';
+import { UPSTREAM_BASE_URL, UPSTREAM_STATIC_URL, UPSTREAM_IMG_URL, NEWS_FEED_URL, NEWS_ARTICLE_BASE_URLS, upstreamUrl, playerFaceImageUrl, teamFlagImageUrl } from '@/lib/upstream';
 
 const CommentarySchema = z.object({
   type: z.enum(['live', 'user', 'stat', 'snippet']),
@@ -5151,30 +5151,47 @@ function decodeHtml(s: string): string {
 // story page — needs browser-realistic headers to get past the edge WAF.
 export async function scrapeCricketNewsArticle(id: string, slug: string): Promise<NewsArticle> {
   if (!id) throw new Error('Missing story id');
-  // The upstream serves two URL shapes for the same article. New-style with a
-  // slug is what the RSS provides; the old numeric URL is a reliable fallback
-  // when we only have the id.
-  const url = slug
-    ? `https://www.cricinfo.com/story/${slug}-${id}`
-    : `https://www.cricinfo.com/ci/content/story/${id}.html`;
+  // Try multiple URL shapes. Some datacenter IPs (Vercel / AWS) are blocked
+  // at the edge for one subdomain but not the other, and the legacy
+  // `/ci/content/story/{id}.html` route sometimes bypasses the newer route's
+  // bot check. Loop the candidates and use whichever returns 200.
+  const candidates: string[] = [];
+  for (const base of NEWS_ARTICLE_BASE_URLS) {
+    if (slug) candidates.push(`${base}/story/${slug}-${id}`);
+  }
+  for (const base of NEWS_ARTICLE_BASE_URLS) {
+    candidates.push(`${base}/ci/content/story/${id}.html`);
+  }
 
-  const response = await fetch(url, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Sec-Fetch-Dest': 'document',
-      'Sec-Fetch-Mode': 'navigate',
-      'Sec-Fetch-Site': 'none',
-      'Sec-Fetch-User': '?1',
-      'Upgrade-Insecure-Requests': '1',
-    },
-    cache: 'no-store',
-  });
-  if (!response.ok) throw new Error(`Failed to fetch article ${id}: ${response.status}`);
-  const html = await response.text();
+  const commonHeaders = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Sec-Fetch-Dest': 'document',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Site': 'none',
+    'Sec-Fetch-User': '?1',
+    'Upgrade-Insecure-Requests': '1',
+    'Cache-Control': 'max-age=0',
+  } as const;
+
+  let html = '';
+  let lastStatus = 0;
+  for (const candidate of candidates) {
+    try {
+      const r = await fetch(candidate, { headers: commonHeaders, cache: 'no-store' });
+      lastStatus = r.status;
+      if (r.ok) {
+        html = await r.text();
+        if (html.includes('ci-story')) break;
+        html = '';
+      }
+    } catch { /* try next */ }
+  }
+  if (!html) throw new Error(`Failed to fetch article ${id}: ${lastStatus || 'no response'}`);
+
   const $ = cheerio.load(html);
-
   const article = $('article.ci-story').first();
   if (!article.length) throw new Error(`Article ${id} has no ci-story block`);
 
