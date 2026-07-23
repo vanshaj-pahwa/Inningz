@@ -1,0 +1,27 @@
+// Centralised upstream endpoints. Override in `.env.local` to point at a
+// staging mirror or a proxy; leave unset in production. Two hosts because the
+// upstream splits its HTML/API pages (WWW) from its image CDN (STATIC/IMG),
+// and both can be routed independently.
+// These are `NEXT_PUBLIC_*` because the URLs are embedded in image `src`
+// attributes on client components — Next.js only ships variables with that
+// prefix to the browser. Not secret, and safe to expose.
+function requireEnv(name: string, value: string | undefined): string {
+    if (!value) throw new Error(`Missing required env var: ${name} — set it in .env.local`);
+    return value;
+}
+
+export const UPSTREAM_BASE_URL = requireEnv('NEXT_PUBLIC_UPSTREAM_BASE_URL', process.env.NEXT_PUBLIC_UPSTREAM_BASE_URL);
+export const UPSTREAM_STATIC_URL = requireEnv('NEXT_PUBLIC_UPSTREAM_STATIC_URL', process.env.NEXT_PUBLIC_UPSTREAM_STATIC_URL);
+export const UPSTREAM_IMG_URL = requireEnv('NEXT_PUBLIC_UPSTREAM_IMG_URL', process.env.NEXT_PUBLIC_UPSTREAM_IMG_URL);
+
+// Shortcuts for the most common URL shapes used across the app.
+export const upstreamUrl = (path: string) => `${UPSTREAM_BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+export const staticUrl = (path: string) => `${UPSTREAM_STATIC_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+
+// Player face image (225x225 profile crop).
+export const playerFaceImageUrl = (faceImageId: string | number) =>
+    `${UPSTREAM_STATIC_URL}/a/img/v1/225x225/i1/c${faceImageId}/player.jpg`;
+
+// Team flag (72x52 badge, used everywhere the app shows a flag).
+export const teamFlagImageUrl = (imageId: string | number, teamShortName: string) =>
+    `${UPSTREAM_STATIC_URL}/a/img/v1/72x52/i1/c${imageId}/${teamShortName.toLowerCase()}.jpg`;

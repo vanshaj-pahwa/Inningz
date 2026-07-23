@@ -8,9 +8,10 @@ import {
   getRecentMatches,
   getUpcomingMatches,
   getICCRankings,
+  getICCTeamRankings,
   getSeriesSchedule,
 } from '@/app/actions';
-import type { LiveMatch, RankingsData, RankingEntry, CricketSeries } from '@/app/actions';
+import type { LiveMatch, RankingsData, RankingEntry, CricketSeries, TeamRankingsData, TeamRankingEntry } from '@/app/actions';
 import { formatScore } from '@/lib/utils';
 import MatchCard from '@/components/match-card';
 import { useDashboardPreferences } from '@/contexts/dashboard-preferences-context';
@@ -30,6 +31,12 @@ const rankingCategoryConfig: Record<RankingCategory, { noun: string; accent: str
   batting: { noun: 'Batters', accent: 'text-[hsl(var(--brand))]', ring: 'bg-[hsl(var(--brand)/0.12)]' },
   bowling: { noun: 'Bowlers', accent: 'text-[hsl(var(--info))]', ring: 'bg-[hsl(var(--info)/0.12)]' },
   'all-rounder': { noun: 'All-Rounders', accent: 'text-[hsl(var(--six))]', ring: 'bg-[hsl(var(--six)/0.12)]' },
+};
+
+const teamRankingConfig = {
+  noun: 'Teams',
+  accent: 'text-[hsl(var(--success))]',
+  ring: 'bg-[hsl(var(--success)/0.12)]',
 };
 
 const rankingFormats: { value: RankingFormat; label: string }[] = [
@@ -100,6 +107,7 @@ export default function HomeDashboard() {
   const [recentMatches, setRecentMatches] = useState<LiveMatch[]>([]);
   const [upcomingMatches, setUpcomingMatches] = useState<LiveMatch[]>([]);
   const [rankings, setRankings] = useState<Partial<Record<RankingCategory, RankingsData>>>({});
+  const [teamRankings, setTeamRankings] = useState<TeamRankingsData | null>(null);
   const [rankingFormat, setRankingFormat] = useState<RankingFormat>('odi');
   const [series, setSeries] = useState<CricketSeries[]>([]);
   const [loading, setLoading] = useState(true);
@@ -138,10 +146,11 @@ export default function HomeDashboard() {
     let cancelled = false;
     setRankingsLoading(true);
     const fetchRankings = async () => {
-      const [batting, bowling, allRounder] = await Promise.all([
+      const [batting, bowling, allRounder, teams] = await Promise.all([
         getICCRankings(rankingFormat, 'batting'),
         getICCRankings(rankingFormat, 'bowling'),
         getICCRankings(rankingFormat, 'all-rounder'),
+        getICCTeamRankings(rankingFormat),
       ]);
       if (cancelled) return;
       const next: Partial<Record<RankingCategory, RankingsData>> = {};
@@ -149,6 +158,7 @@ export default function HomeDashboard() {
       if (bowling.success && bowling.data) next.bowling = bowling.data;
       if (allRounder.success && allRounder.data) next['all-rounder'] = allRounder.data;
       setRankings(next);
+      setTeamRankings(teams.success && teams.data ? teams.data : null);
       setRankingsLoading(false);
     };
     fetchRankings();
@@ -264,7 +274,7 @@ export default function HomeDashboard() {
             <FormatSwitcher value={rankingFormat} onChange={setRankingFormat} />
           }
         />
-        {/* Mobile: horizontal scroll; Desktop: 3-col grid */}
+        {/* Mobile: horizontal scroll; Desktop: 4-col grid */}
         <div className="md:hidden flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 no-scrollbar">
           {(['batting', 'bowling', 'all-rounder'] as RankingCategory[]).map((cat) => (
             <div key={cat} className="snap-start shrink-0 w-[85%] xs:w-[80%]">
@@ -276,9 +286,12 @@ export default function HomeDashboard() {
               />
             </div>
           ))}
+          <div className="snap-start shrink-0 w-[85%] xs:w-[80%]">
+            <TeamRankingsWidget format={rankingFormat} data={teamRankings ?? undefined} loading={rankingsLoading} />
+          </div>
           <div className="shrink-0 w-1" />
         </div>
-        <div className="hidden md:grid grid-cols-3 gap-4">
+        <div className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-4">
           {(['batting', 'bowling', 'all-rounder'] as RankingCategory[]).map((cat) => (
             <RankingsWidget
               key={cat}
@@ -288,6 +301,7 @@ export default function HomeDashboard() {
               loading={rankingsLoading}
             />
           ))}
+          <TeamRankingsWidget format={rankingFormat} data={teamRankings ?? undefined} loading={rankingsLoading} />
         </div>
       </section>
 
@@ -438,6 +452,96 @@ function RankingsWidget({
         </ul>
       )}
     </div>
+  );
+}
+
+function TeamRankingsWidget({
+  format,
+  data,
+  loading,
+}: {
+  format: RankingFormat;
+  data?: TeamRankingsData;
+  loading: boolean;
+}) {
+  const cfg = teamRankingConfig;
+  const formatLabel = format === 't20' ? 'T20' : format.toUpperCase();
+  const entries = data?.entries?.slice(0, 3) ?? [];
+  return (
+    <div className="surface-card p-3 md:p-4">
+      <div className="flex items-center justify-between mb-3">
+        <span className={`text-[10px] md:text-[11px] font-bold uppercase tracking-widest ${cfg.accent}`}>
+          {formatLabel} {cfg.noun}
+        </span>
+        <Link
+          href={`/rankings?format=${format}&category=teams`}
+          className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+        >
+          All teams
+        </Link>
+      </div>
+
+      {loading ? (
+        <div className="space-y-2">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="flex items-center gap-3">
+              <div className="skeleton w-6 h-4 rounded" />
+              <div className="skeleton w-8 h-8 rounded-full" />
+              <div className="skeleton flex-1 h-4 rounded" />
+              <div className="skeleton w-10 h-4 rounded" />
+            </div>
+          ))}
+        </div>
+      ) : entries.length === 0 ? (
+        <p className="text-xs text-muted-foreground italic py-2">Team rankings unavailable</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {entries.map((t) => (
+            <TeamRankingRow key={t.teamId} entry={t} accentBg={cfg.ring} />
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function TeamRankingRow({ entry, accentBg }: { entry: TeamRankingEntry; accentBg: string }) {
+  return (
+    <li>
+      <Link
+        href={`/rankings?format=${entry.rank}&category=teams`}
+        className="w-full flex items-center gap-2.5 py-1 px-1 rounded-lg hover:bg-muted/40 transition-colors -mx-1 text-left"
+      >
+        <span className={`shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-[11px] font-mono font-bold ${accentBg}`}>
+          {entry.rank}
+        </span>
+        {entry.imageUrl ? (
+          <Image
+            src={entry.imageUrl}
+            alt={entry.teamName}
+            width={28}
+            height={28}
+            className="w-7 h-7 rounded-full object-cover shrink-0 border border-border/50"
+            unoptimized
+          />
+        ) : (
+          <div className="w-7 h-7 rounded-full bg-muted shrink-0" />
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="text-[12px] md:text-[13px] font-semibold text-foreground truncate leading-tight">
+            {entry.teamName}
+          </p>
+          {entry.matches && (
+            <p className="text-[10px] text-muted-foreground truncate leading-tight">
+              Matches: {entry.matches}
+            </p>
+          )}
+        </div>
+        <span className="font-mono tabular-nums text-xs md:text-sm font-bold text-foreground shrink-0">
+          {entry.rating}
+        </span>
+      </Link>
+    </li>
   );
 }
 

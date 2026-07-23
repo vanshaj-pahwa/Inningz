@@ -1,4 +1,5 @@
 import sharp from 'sharp';
+import { UPSTREAM_STATIC_URL } from '@/lib/upstream';
 
 // Colours never change per team, so memoise by flag URL for the process lifetime.
 const cache = new Map<string, { colors: string[] }>();
@@ -12,7 +13,7 @@ export async function GET(request: Request) {
   // Only our known flag host, to avoid this becoming an open image proxy.
   let host = '';
   try { host = new URL(url).host; } catch { /* invalid */ }
-  if (host !== 'static.cricbuzz.com') {
+  if (host !== (new URL(UPSTREAM_STATIC_URL)).host) {
     return Response.json({ colors: [] }, { status: 400 });
   }
 

@@ -8,7 +8,7 @@ interface ChartZoomModalProps {
     title?: string;
     inlineHeight?: number;
     modalHeight?: number;
-    renderChart: (height: number) => ReactNode;
+    renderChart: (height: number, opts: { zoomed: boolean }) => ReactNode;
     className?: string;
     /** Skip the default muted background + padding (for non-recharts custom charts). */
     bare?: boolean;
@@ -40,7 +40,7 @@ export default function ChartZoomModal({
                 <ZoomIn className="w-3.5 h-3.5" />
             </button>
 
-            {renderChart(inlineHeight)}
+            {renderChart(inlineHeight, { zoomed: false })}
 
             <Dialog open={open} onOpenChange={setOpen}>
                 <DialogContent className="max-w-6xl w-[95vw] p-4 md:p-6 max-h-[95vh] overflow-y-auto">
@@ -49,10 +49,13 @@ export default function ChartZoomModal({
                             <DialogTitle className="text-base md:text-lg font-display tracking-tight">
                                 {title}
                             </DialogTitle>
+                            <p className="md:hidden text-[11px] text-muted-foreground mt-1">
+                                Swipe left/right to see every over.
+                            </p>
                         </DialogHeader>
                     )}
-                    <div className={bare ? 'mt-2' : 'rounded-xl bg-muted/20 p-2 pt-4 mt-2'}>
-                        {renderChart(modalHeight)}
+                    <div className={`min-w-0 max-w-full overflow-hidden ${bare ? 'mt-2' : 'rounded-xl bg-muted/20 p-2 pt-4 mt-2'}`}>
+                        {renderChart(modalHeight, { zoomed: true })}
                     </div>
                 </DialogContent>
             </Dialog>

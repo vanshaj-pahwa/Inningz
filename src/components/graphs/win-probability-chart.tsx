@@ -16,6 +16,7 @@ import {
 import type { WinProbHistory } from '@/app/actions';
 import { cn } from '@/lib/utils';
 import ChartZoomModal from './chart-zoom-modal';
+import { useOverTicks, ZOOMED_OVER_WIDTH } from '@/hooks/use-over-ticks';
 
 interface WinProbabilityChartProps {
   data: WinProbHistory;
@@ -66,6 +67,9 @@ export default function WinProbabilityChart({ data }: WinProbabilityChartProps) 
   });
 
   const indexedData = chartData.map((d, i) => ({ ...d, idx: i, overLabel: `${d.displayOver}` }));
+  const inlineIdxTicks = useOverTicks(indexedData.map(d => d.idx));
+  const allIdxTicks = indexedData.map(d => d.idx);
+  const scrollMinWidth = indexedData.length * ZOOMED_OVER_WIDTH;
 
   const filters = [
     { key: 'both' as const, label: 'Both' },
@@ -75,7 +79,7 @@ export default function WinProbabilityChart({ data }: WinProbabilityChartProps) 
 
   // Grid / reference lines / axes / tooltip are identical for the line and area
   // views, so share them across both charts.
-  const axisChildren = [
+  const axisChildrenFor = (zoomed: boolean) => [
     <CartesianGrid key="grid" strokeDasharray="4 4" stroke="hsl(var(--border) / 0.5)" />,
     <ReferenceLine key="ref50" y={50} stroke="hsl(var(--border))" strokeDasharray="2 2" />,
     inningsBreakIndex > 0 ? (
@@ -84,9 +88,12 @@ export default function WinProbabilityChart({ data }: WinProbabilityChartProps) 
     <XAxis
       key="x"
       dataKey="idx"
+      type="number"
+      domain={[0, indexedData.length - 1]}
       tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-      tickFormatter={(idx: number) => indexedData[idx]?.overLabel || ''}
-      interval="preserveStartEnd"
+      tickFormatter={(idx: number) => indexedData[Math.round(idx)]?.overLabel || ''}
+      ticks={zoomed ? allIdxTicks : inlineIdxTicks}
+      interval={0}
       axisLine={{ stroke: 'hsl(var(--border) / 0.5)' }}
       tickLine={false}
     />,
@@ -153,7 +160,9 @@ export default function WinProbabilityChart({ data }: WinProbabilityChartProps) 
       </div>
 
       {/* Chart */}
-      <ChartZoomModal title="Win Probability" renderChart={(height) => (
+      <ChartZoomModal title="Win Probability" renderChart={(height, opts) => {
+        const axisChildren = axisChildrenFor(opts.zoomed);
+        const chartInner = (
         <>
           <ResponsiveContainer width="100%" height={height}>
             {chartType === 'area' ? (
@@ -248,7 +257,16 @@ export default function WinProbabilityChart({ data }: WinProbabilityChartProps) 
             )}
           </div>
         </>
-      )} />
+        );
+        if (opts.zoomed) {
+          return (
+            <div className="overflow-x-auto">
+              <div style={{ minWidth: `${scrollMinWidth}px` }}>{chartInner}</div>
+            </div>
+          );
+        }
+        return chartInner;
+      }} />
 
       {/* Legend */}
       <div className="flex flex-wrap gap-x-5 gap-y-2 items-center text-xs">

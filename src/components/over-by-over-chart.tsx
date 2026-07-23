@@ -12,6 +12,8 @@ import {
   Cell,
 } from 'recharts';
 import type { InningsOverData } from '@/app/actions';
+import { useOverTicks, ZOOMED_OVER_WIDTH } from '@/hooks/use-over-ticks';
+import ChartZoomModal from './graphs/chart-zoom-modal';
 
 interface OverByOverChartProps {
   data: InningsOverData;
@@ -20,9 +22,7 @@ interface OverByOverChartProps {
 export default function OverByOverChart({ data }: OverByOverChartProps) {
   const [showCumulative, setShowCumulative] = useState(false);
 
-  if (!data.overs || data.overs.length === 0) return null;
-
-  const chartData = data.overs.map(o => ({
+  const chartData = (data.overs || []).map(o => ({
     over: o.overNumber,
     runs: o.runs,
     wickets: o.wickets,
@@ -30,37 +30,28 @@ export default function OverByOverChart({ data }: OverByOverChartProps) {
     summary: o.overSummary,
   }));
 
+  const inlineTicks = useOverTicks(chartData.map(d => d.over));
+  const allOverTicks = chartData.map(d => d.over);
+
+  if (chartData.length === 0) return null;
+
   const maxWickets = Math.max(...chartData.map(d => d.wickets));
   const topMargin = maxWickets > 0 ? 5 + maxWickets * 8 : 5;
+  const scrollMinWidth = chartData.length * ZOOMED_OVER_WIDTH;
 
-  return (
-    <div className="w-full">
-      <div className="flex items-center justify-between mb-3">
-        <h4 className="text-xs md:text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-          Runs per Over
-        </h4>
-        <button
-          data-hide-in-share
-          onClick={() => setShowCumulative(!showCumulative)}
-          className={`
-            text-[10px] md:text-xs px-2.5 py-1 rounded-full transition-colors
-            ${showCumulative
-              ? 'bg-green-500/20 text-green-400'
-              : 'bg-muted/50 text-muted-foreground hover:text-foreground'
-            }
-          `}
-        >
-          {showCumulative ? 'Cumulative On' : 'Show Cumulative'}
-        </button>
-      </div>
-      <ResponsiveContainer width="100%" height={200}>
+  const renderChart = (height: number, opts: { zoomed: boolean }) => {
+    const ticks = opts.zoomed ? allOverTicks : inlineTicks;
+    const chart = (
+      <ResponsiveContainer width="100%" height={height}>
         <ComposedChart data={chartData} margin={{ top: topMargin, right: 5, left: -10, bottom: 0 }}>
           <XAxis
             dataKey="over"
+            type="category"
             tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
             axisLine={{ stroke: 'hsl(var(--border))' }}
             tickLine={false}
-            interval="preserveStartEnd"
+            ticks={ticks}
+            interval={0}
           />
           <YAxis
             yAxisId="runs"
@@ -85,6 +76,8 @@ export default function OverByOverChart({ data }: OverByOverChartProps) {
             yAxisId="runs"
             radius={[3, 3, 0, 0]}
             maxBarSize={20}
+            minPointSize={2}
+            isAnimationActive={false}
             label={({ x, y, width, index }: { x: number; y: number; width: number; index: number }) => {
               const w = chartData[index]?.wickets ?? 0;
               if (w === 0) return null;
@@ -126,6 +119,38 @@ export default function OverByOverChart({ data }: OverByOverChartProps) {
           )}
         </ComposedChart>
       </ResponsiveContainer>
+    );
+    if (opts.zoomed) {
+      return (
+        <div className="overflow-x-auto">
+          <div style={{ minWidth: `${scrollMinWidth}px` }}>{chart}</div>
+        </div>
+      );
+    }
+    return chart;
+  };
+
+  return (
+    <div className="w-full">
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="text-xs md:text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+          Runs per Over
+        </h4>
+        <button
+          data-hide-in-share
+          onClick={() => setShowCumulative(!showCumulative)}
+          className={`
+            text-[10px] md:text-xs px-2.5 py-1 rounded-full transition-colors
+            ${showCumulative
+              ? 'bg-green-500/20 text-green-400'
+              : 'bg-muted/50 text-muted-foreground hover:text-foreground'
+            }
+          `}
+        >
+          {showCumulative ? 'Cumulative On' : 'Show Cumulative'}
+        </button>
+      </div>
+      <ChartZoomModal title="Runs per Over" inlineHeight={200} bare renderChart={renderChart} />
       <div className="flex gap-4 mt-2 justify-center">
         <span className="flex items-center gap-1.5 text-[10px] md:text-xs text-muted-foreground">
           <span className="w-2.5 h-2.5 rounded-sm bg-indigo-500 inline-block" />

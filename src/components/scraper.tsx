@@ -36,6 +36,35 @@ import HeroMomentum, { type OverPoint } from './hero-momentum';
 // it the sparkline flashes skeleton on return even though we've fetched it
 // this session.
 const heroOversCache = new Map<string, OverPoint[]>();
+
+// Minimal top-of-page chrome shown around the "match unavailable" and
+// "upcoming" empty states. Without this the user lands on a bare centered
+// card with only the mobile bottom nav, which reads as a broken page.
+function StrandedPage({ children }: { children: React.ReactNode }) {
+    return (
+        <div className="min-h-screen flex flex-col">
+            <header className="sticky top-0 z-20 border-b border-border/40 bg-background/85 backdrop-blur">
+                <div className="max-w-6xl mx-auto px-4 h-12 flex items-center justify-between">
+                    <Link
+                        href="/"
+                        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                        aria-label="Back to home"
+                    >
+                        <ArrowLeft className="w-4 h-4" />
+                        <span className="hidden sm:inline">Home</span>
+                    </Link>
+                    <Link href="/" className="font-display text-base tracking-tight">
+                        Inningz
+                    </Link>
+                    <div className="w-12" />
+                </div>
+            </header>
+            <div className="flex-1 max-w-md mx-auto w-full px-4 py-10 flex flex-col items-center justify-center text-center">
+                {children}
+            </div>
+        </div>
+    );
+}
 import { getMatchFlags, rememberMatchFlags, pickVibrant, teamColorFor, type StoredTeam } from '@/lib/team-flags';
 import { VirtualCommentaryList } from './virtual-commentary-list';
 import PointsTableDisplay from './points-table';
@@ -532,13 +561,22 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
     const isUpcoming = !!matchStartMs && matchStartMs > Date.now();
     const hasNoScore = data?.status === 'Match data not available' || data?.score === 'Score not available';
 
+    // Retry that also resets our own "loading timed out" flag so the skeleton
+    // reappears while the poll is in-flight. Without the reset, clicking "Try
+    // again" was a no-op — the timeout stayed true and the same error card
+    // stayed on screen for the whole retry.
+    const handleRetry = () => {
+        setLoadTimedOut(false);
+        refresh();
+    };
+
     if (isUpcoming && hasNoScore) {
         const startAt = new Intl.DateTimeFormat(undefined, {
             month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
             hour12: false, timeZoneName: 'short',
         }).format(new Date(matchStartMs!));
         return (
-            <div className="max-w-md mx-auto px-4 min-h-[60vh] flex flex-col items-center justify-center text-center">
+            <StrandedPage>
                 <div className="p-4 rounded-full bg-primary/10 mb-4">
                     <Clock className="w-7 h-7 text-primary" />
                 </div>
@@ -552,16 +590,16 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                     </p>
                 )}
                 <div className="flex items-center gap-2">
-                    <Button variant="outline" onClick={() => refresh()} className="rounded-xl">Refresh</Button>
+                    <Button variant="outline" onClick={handleRetry} className="rounded-xl">Refresh</Button>
                     <Button onClick={() => router.push('/')} className="rounded-xl">Back to Home</Button>
                 </div>
-            </div>
+            </StrandedPage>
         )
     }
 
     if ((hasNoScore && !isUpcoming) || ((liveError || loadTimedOut) && !data)) {
         return (
-            <div className="max-w-md mx-auto px-4 min-h-[60vh] flex flex-col items-center justify-center text-center">
+            <StrandedPage>
                 <div className="p-4 rounded-full bg-muted mb-4">
                     <Trophy className="w-7 h-7 text-muted-foreground" />
                 </div>
@@ -570,10 +608,10 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                     We couldn&apos;t load this match. It may have ended or the link is no longer valid.
                 </p>
                 <div className="flex items-center gap-2">
-                    <Button variant="outline" onClick={() => refresh()} className="rounded-xl">Try again</Button>
+                    <Button variant="outline" onClick={handleRetry} className="rounded-xl">Try again</Button>
                     <Button onClick={() => router.push('/')} className="rounded-xl">Back to Home</Button>
                 </div>
-            </div>
+            </StrandedPage>
         )
     }
 

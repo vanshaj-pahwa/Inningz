@@ -9,20 +9,11 @@ import SeriesDivider from "./series-divider";
 import MatchCarousel from "./match-carousel";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "lucide-react";
+import MatchFilterBar, { getMatchCategory, countByCategory, type MatchFilter } from "./match-filter-bar";
 
 interface GroupedMatches {
   [seriesName: string]: LiveMatch[];
 }
-
-type MatchFilter = 'all' | 'international' | 'league' | 'domestic' | 'women';
-
-const filters: { value: MatchFilter; label: string }[] = [
-  { value: 'all', label: 'All' },
-  { value: 'international', label: 'International' },
-  { value: 'league', label: 'League' },
-  { value: 'domestic', label: 'Domestic' },
-  { value: 'women', label: 'Women' },
-];
 
 export default function UpcomingMatches() {
   const [matches, setMatches] = useState<LiveMatch[]>([]);
@@ -31,22 +22,6 @@ export default function UpcomingMatches() {
   const [activeFilter, setActiveFilter] = useState<MatchFilter>('all');
   const [reloadKey, setReloadKey] = useState(0);
 
-  const getMatchCategory = (match: LiveMatch): MatchFilter => {
-    // Use scraped matchType if available
-    if (match.matchType) {
-      return match.matchType.toLowerCase() as MatchFilter;
-    }
-    // Fallback to hardcoded logic if matchType not scraped
-    const title = match.title.toLowerCase();
-    const seriesName = (match.seriesName || '').toLowerCase();
-    const combined = `${title} ${seriesName}`;
-    if (combined.includes('women')) return 'women';
-    if (combined.includes('ipl') || combined.includes('bbl') || combined.includes('psl') ||
-      combined.includes('cpl') || combined.includes('league') || combined.includes('t20 league')) return 'league';
-    if (combined.includes('test') || combined.includes('odi') || combined.includes('t20i') ||
-      combined.includes('international') || combined.includes('world cup') || combined.includes('icc')) return 'international';
-    return 'domestic';
-  };
 
   const filterMatches = (matches: LiveMatch[]): LiveMatch[] => {
     if (activeFilter === 'all') return matches;
@@ -76,10 +51,12 @@ export default function UpcomingMatches() {
     return acc;
   }, {} as GroupedMatches);
 
+  const counts = countByCategory(matches);
+
   if (loading) {
     return (
       <div className="space-y-6">
-        <FilterBar activeFilter={activeFilter} setActiveFilter={setActiveFilter} />
+        <MatchFilterBar activeFilter={activeFilter} setActiveFilter={setActiveFilter} counts={counts} />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => (
             <div key={i} className="skeleton h-40 rounded-2xl" />
@@ -119,7 +96,7 @@ export default function UpcomingMatches() {
 
   return (
     <div className="space-y-8">
-      <FilterBar activeFilter={activeFilter} setActiveFilter={setActiveFilter} />
+      <MatchFilterBar activeFilter={activeFilter} setActiveFilter={setActiveFilter} counts={counts} />
 
       {Object.keys(groupedMatches).length === 0 && (
         <div className="w-full flex flex-col items-center justify-center min-h-[40vh] p-8">
@@ -141,27 +118,6 @@ export default function UpcomingMatches() {
               series scroll horizontally. */}
           <MatchCarousel matches={seriesMatches} header={activeFilter === 'all' ? 'category' : 'none'} />
         </section>
-      ))}
-    </div>
-  );
-}
-
-function FilterBar({ activeFilter, setActiveFilter }: { activeFilter: MatchFilter; setActiveFilter: (f: MatchFilter) => void }) {
-  return (
-    <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
-      {filters.map((filter) => (
-        <button
-          key={filter.value}
-          onClick={() => setActiveFilter(filter.value)}
-          aria-current={activeFilter === filter.value ? 'page' : undefined}
-          className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-            activeFilter === filter.value
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-muted text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          {filter.label}
-        </button>
       ))}
     </div>
   );

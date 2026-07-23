@@ -43,7 +43,7 @@ import {
     type LiveMatch as LiveMatchType,
     type FullScorecard as FullScorecardType,
     type PlayerProfile as PlayerProfileType,
-    type MatchStats,
+    type MatchStats as MatchStatsType,
     type MatchSquads as MatchSquadsType,
     type SquadPlayer as SquadPlayerType,
     type PlayerHighlights as PlayerHighlightsType,
@@ -68,9 +68,12 @@ import {
     type WinProbPoint as WinProbPointType,
     type WinProbHistory as WinProbHistoryType,
     scrapeICCRankings as scrapeICCRankingsFlow,
+    scrapeICCTeamRankings as scrapeICCTeamRankingsFlow,
     type RankingsData as RankingsDataType,
     type RankingEntry as RankingEntryType,
     type AwardPlayer as AwardPlayerType,
+    type TeamRankingsData as TeamRankingsDataType,
+    type TeamRankingEntry as TeamRankingEntryType,
 } from '@/ai/flows/scraper-flow';
 
 import {
@@ -80,6 +83,8 @@ import {
     type StreamDetail as StreamDetailType,
     type StreamSource as StreamSourceType,
 } from '@/lib/stream-fetcher';
+
+import { UPSTREAM_BASE_URL } from '@/lib/upstream';
 
 export type VenuePageData = VenuePageDataType;
 export type ScrapeCricbuzzUrlOutput = ScrapeFlowOutput;
@@ -125,11 +130,10 @@ export type ForecastPlayerBadge = ForecastPlayerBadgeType;
 export type ForecastPlayerStyle = ForecastPlayerStyleType;
 export type VenueRecentMatchRow = VenueRecentMatchRowType;
 export type VenueHeadingContent = VenueHeadingContentType;
-export type { MatchStats };
+export type MatchStats = MatchStatsType;
 export type StreamMatch = StreamMatchType;
 export type StreamDetail = StreamDetailType;
 export type StreamSource = StreamSourceType;
-
 interface ScrapeState {
     success: boolean;
     data?: ScrapeCricbuzzUrlOutput | null;
@@ -152,7 +156,7 @@ export async function loadMoreCommentary(matchId: string, timestamp: number, inn
         let text = '';
         let usedUrl = '';
         for (const variant of variants) {
-            const candidateUrl = `https://www.cricbuzz.com/api/mcenter/${variant}/${matchId}/${inningsId}/${timestamp}`;
+            const candidateUrl = `${UPSTREAM_BASE_URL}/api/mcenter/${variant}/${matchId}/${inningsId}/${timestamp}`;
             const response = await fetch(candidateUrl, {
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
@@ -168,11 +172,9 @@ export async function loadMoreCommentary(matchId: string, timestamp: number, inn
             usedUrl = candidateUrl;
             break;
         }
-        console.log('[loadMoreCommentary API] Used URL:', usedUrl || '(none)');
 
         // If both variants returned empty, there's genuinely no more commentary.
         if (!text) {
-            console.log('[loadMoreCommentary API] Both pagination variants empty - no more commentary available');
             return {
                 success: true,
                 commentary: [],
@@ -184,7 +186,6 @@ export async function loadMoreCommentary(matchId: string, timestamp: number, inn
         try {
             data = JSON.parse(text);
         } catch {
-            console.log('[loadMoreCommentary API] Invalid JSON - treating as end of commentary');
             return {
                 success: true,
                 commentary: [],
@@ -200,7 +201,6 @@ export async function loadMoreCommentary(matchId: string, timestamp: number, inn
             for (const item of data) {
                 // Skip items with timestamps >= what we requested (shouldn't happen but just in case)
                 if (item.timestamp && item.timestamp >= timestamp) {
-                    console.log('[loadMoreCommentary API] Skipping item with timestamp', item.timestamp, '>= requested', timestamp);
                     continue;
                 }
                 if (item.commType === 'commentary' && item.commText) {
@@ -638,6 +638,21 @@ export async function getICCRankings(
 ): Promise<{ success: boolean; data?: RankingsDataType; error?: string }> {
     try {
         const data = await scrapeICCRankingsFlow(format, category);
+        return { success: true, data };
+    } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : 'An unexpected error occurred.';
+        return { success: false, error: errorMessage };
+    }
+}
+
+export type TeamRankingsData = TeamRankingsDataType;
+export type TeamRankingEntry = TeamRankingEntryType;
+
+export async function getICCTeamRankings(
+    format: 'test' | 'odi' | 't20'
+): Promise<{ success: boolean; data?: TeamRankingsDataType; error?: string }> {
+    try {
+        const data = await scrapeICCTeamRankingsFlow(format);
         return { success: true, data };
     } catch (e) {
         const errorMessage = e instanceof Error ? e.message : 'An unexpected error occurred.';

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { teamFlagImageUrl } from '@/lib/upstream';
 
 export const runtime = 'edge';
 
@@ -13,7 +14,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid name' }, { status: 400 });
     }
 
-    const upstream = `https://static.cricbuzz.com/a/img/v1/72x52/i1/c${id}/${name.toLowerCase()}.jpg`;
+    const upstream = teamFlagImageUrl(id, name.toLowerCase());
 
     try {
         const res = await fetch(upstream, {

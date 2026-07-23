@@ -57,16 +57,18 @@ export function useLiveScore<T = unknown>(
 
     try {
       const result = await getScoreForMatchId(matchId);
-      if (result.success && result.data && mountedRef.current) {
+      if (!mountedRef.current) return;
+      if (result.success && result.data) {
         const scoreData = result.data as T;
         setData(scoreData);
         setError(null);
         setLastUpdated(Date.now());
-        setLoading(false);
-
-        // Cache the result
         cache.set(cacheKey, scoreData);
         onUpdate?.(scoreData);
+      } else {
+        // Upstream returned success:false — surface it so the UI can react.
+        // Without this the retry click hangs in the loading state forever.
+        setError(result.error || 'Match unavailable');
       }
     } catch (err) {
       if (mountedRef.current) {
@@ -74,6 +76,8 @@ export function useLiveScore<T = unknown>(
         setError(errorMessage);
         onError?.(err instanceof Error ? err : new Error(errorMessage));
       }
+    } finally {
+      if (mountedRef.current) setLoading(false);
     }
   }, [matchId, enabled, cache, cacheKey, onUpdate, onError]);
 

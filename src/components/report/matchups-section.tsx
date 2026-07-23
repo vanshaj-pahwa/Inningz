@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import type { MatchupsData, ForecastCard } from '@/app/actions';
+import { playerFaceImageUrl } from '@/lib/upstream';
 
 interface Props {
     data: MatchupsData;
@@ -10,7 +11,7 @@ interface Props {
 
 function playerImage(imageId?: string): string | null {
     if (!imageId) return null;
-    return `https://static.cricbuzz.com/a/img/v1/225x225/i1/c${imageId}/player.jpg`;
+    return playerFaceImageUrl(imageId);
 }
 
 export default function MatchupsSection({ data }: Props) {

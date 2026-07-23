@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 import type { InningsOverData } from '@/app/actions';
 import ChartZoomModal from './chart-zoom-modal';
+import { useOverTicks, ZOOMED_OVER_WIDTH } from '@/hooks/use-over-ticks';
 
 interface WormChartProps {
   allInnings: { inningsId: number; data: InningsOverData }[];
@@ -68,6 +69,10 @@ export default function WormChart({ allInnings, teamColorMap }: WormChartProps) 
     chartData.push(point);
   }
 
+  const inlineTicks = useOverTicks(chartData.map(d => d.over));
+  const allTicks = chartData.map(d => d.over);
+  const scrollMinWidth = chartData.length * ZOOMED_OVER_WIDTH;
+
   const WicketDot = (color: string, key: string) => (props: any) => {
     const { cx, cy, payload } = props;
     if (cx == null || cy == null || !payload || !payload[key]) return <g />;
@@ -80,15 +85,20 @@ export default function WormChart({ allInnings, teamColorMap }: WormChartProps) 
 
   return (
     <div className="space-y-4">
-      <ChartZoomModal title="Worm" renderChart={(height) => (
+      <ChartZoomModal title="Worm" renderChart={(height, opts) => {
+        const ticks = opts.zoomed ? allTicks : inlineTicks;
+        const inner = (
         <ResponsiveContainer width="100%" height={height}>
           <LineChart data={chartData} margin={{ top: 5, right: 10, left: -5, bottom: 5 }}>
             <CartesianGrid strokeDasharray="4 4" stroke="hsl(var(--border) / 0.5)" />
             <XAxis
               dataKey="over"
+              type="category"
               tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
               axisLine={{ stroke: 'hsl(var(--border) / 0.5)' }}
               tickLine={false}
+              ticks={ticks}
+              interval={0}
             />
             <YAxis
               tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
@@ -111,7 +121,16 @@ export default function WormChart({ allInnings, teamColorMap }: WormChartProps) 
             ))}
           </LineChart>
         </ResponsiveContainer>
-      )} />
+        );
+        if (opts.zoomed) {
+          return (
+            <div className="overflow-x-auto">
+              <div style={{ minWidth: `${scrollMinWidth}px` }}>{inner}</div>
+            </div>
+          );
+        }
+        return inner;
+      }} />
 
       <div className="flex gap-x-5 gap-y-2 justify-center flex-wrap">
         {allInnings.map((inn, idx) => (

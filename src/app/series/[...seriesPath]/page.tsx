@@ -486,19 +486,20 @@ export default function SeriesPage() {
                   {/* Status filter chips — sit between today and the rest, and
                       only appear when there's future or past content to filter. */}
                   {hasFilterableBelow && (
-                    <div className="flex items-center gap-1.5 flex-wrap">
+                    <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
                       {(['all', 'upcoming', 'past'] as const).map((s) => {
-                        const label = s === 'all' ? 'All matches' : s === 'upcoming' ? 'Upcoming matches' : 'Past matches';
+                        const label = s === 'all' ? 'All' : s === 'upcoming' ? 'Upcoming' : 'Past';
                         const active = statusFilter === s;
                         return (
                           <button
                             key={s}
                             onClick={() => setStatusFilter(s)}
-                            className={`px-3.5 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-all ${
+                            className={`shrink-0 px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-all ${
                               active ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground'
                             }`}
                           >
-                            {label}
+                            <span>{label}</span>
+                            <span className="hidden md:inline"> matches</span>
                           </button>
                         );
                       })}

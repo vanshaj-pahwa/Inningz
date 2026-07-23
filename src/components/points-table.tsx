@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { TableProperties, ChevronDown, ChevronRight, Share2 } from "lucide-react";
 import PointsTableShareDialog from '@/components/share-cards/points-table-share-dialog';
 import { buildMatchHref } from '@/lib/utils';
+import { teamFlagImageUrl } from '@/lib/upstream';
 
 interface PointsTableProps {
   seriesId: string;
@@ -286,7 +287,7 @@ function TeamRow({
           <div className="flex items-center gap-1.5 sm:gap-2">
             {team.teamImageId && (
               <Image
-                src={`https://static.cricbuzz.com/a/img/v1/72x52/i1/c${team.teamImageId}/${team.teamName.toLowerCase()}.jpg`}
+                src={teamFlagImageUrl(team.teamImageId, team.teamName.toLowerCase())}
                 alt={team.teamName}
                 width={72}
                 height={52}

@@ -42,7 +42,7 @@ export function CommandPaletteTrigger({ className }: { className?: string }) {
 
 type Item = {
     id: string;
-    kind: 'match' | 'series' | 'player' | 'recent-match' | 'recent-series' | 'recent-player';
+    kind: 'match' | 'series' | 'recent-match' | 'recent-series' | 'recent-player';
     title: string;
     subtitle?: string;
     href: string;

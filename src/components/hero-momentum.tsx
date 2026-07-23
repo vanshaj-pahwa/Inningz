@@ -30,7 +30,12 @@ function MomentumSparkline({ overs, accent }: { overs: OverPoint[]; accent?: str
   const [hover, setHover] = useState<number | null>(null);
 
   const recent = overs.slice(-18);
-  const max = Math.max(...recent.map((o) => o.runs), 6);
+  const runs = recent.map((o) => o.runs);
+  const rawMax = Math.max(...runs);
+  const max = Math.max(rawMax, 6);
+  const rawMin = Math.min(...runs);
+  const firstOver = recent[0].overNumber;
+  const lastOver = recent[recent.length - 1].overNumber;
 
   // Sparkline geometry in viewBox units; the SVG scales to the container width.
   const W = 260;
@@ -43,10 +48,34 @@ function MomentumSparkline({ overs, accent }: { overs: OverPoint[]; accent?: str
   const areaPath = `${linePath} L${W},${H} L0,${H} Z`;
   const hv = hover !== null ? recent[hover] : null;
 
+  const setHoverFromClientX = (clientX: number, rectEl: DOMRect) => {
+    const ratio = Math.max(0, Math.min(1, (clientX - rectEl.left) / rectEl.width));
+    const idx = Math.round(ratio * (recent.length - 1));
+    setHover(idx);
+  };
+
   return (
     <div className="flex flex-col justify-end gap-2 min-w-0 w-full lg:flex-1 lg:max-w-sm">
-      <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Runs per over</span>
-      <div className="relative w-full h-14">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70">Runs per over</span>
+        <span className="text-[10px] text-muted-foreground/70 tabular-nums">
+          {rawMin}–{rawMax} · ov {firstOver}–{lastOver}
+        </span>
+      </div>
+      <div
+        className="relative w-full h-14"
+        onTouchStart={(e) => {
+          const t = e.touches[0];
+          if (!t) return;
+          setHoverFromClientX(t.clientX, e.currentTarget.getBoundingClientRect());
+        }}
+        onTouchMove={(e) => {
+          const t = e.touches[0];
+          if (!t) return;
+          setHoverFromClientX(t.clientX, e.currentTarget.getBoundingClientRect());
+        }}
+        onTouchEnd={() => setHover(null)}
+      >
         {hv && (() => {
           const leftPct = (x(hover!) / W) * 100;
           const tx = leftPct > 72 ? 'translateX(-100%)' : leftPct < 28 ? 'translateX(0)' : 'translateX(-50%)';

@@ -2,6 +2,7 @@
 
 import type { PartnershipInnings } from '@/app/actions';
 import Image from 'next/image';
+import { UPSTREAM_STATIC_URL } from '@/lib/upstream';
 
 interface PartnershipsChartProps {
   data: PartnershipInnings;
@@ -9,7 +10,7 @@ interface PartnershipsChartProps {
 
 function PlayerAvatar({ imageId, name }: { imageId: number; name: string }) {
   const url = imageId && imageId !== 182026
-    ? `https://static.cricbuzz.com/a/img/v1/i1/c${imageId}/player.jpg?p=gthumb`
+    ? `${UPSTREAM_STATIC_URL}/a/img/v1/i1/c${imageId}/player.jpg?p=gthumb`
     : null;
   return (
     <div className="w-10 h-10 rounded-full bg-muted/60 overflow-hidden shrink-0 border border-border/50">

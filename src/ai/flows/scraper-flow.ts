@@ -5,6 +5,7 @@
 import { z } from 'zod';
 import * as cheerio from 'cheerio';
 import { decodeHtmlEntities } from '@/lib/html-entities';
+import { UPSTREAM_BASE_URL, UPSTREAM_STATIC_URL, UPSTREAM_IMG_URL, upstreamUrl, playerFaceImageUrl, teamFlagImageUrl } from '@/lib/upstream';
 
 const CommentarySchema = z.object({
   type: z.enum(['live', 'user', 'stat', 'snippet']),
@@ -570,10 +571,10 @@ function extractProfileId(url: string | undefined): string | undefined {
 
 export async function getPlayerProfile(profileId: string, playerName?: string): Promise<PlayerProfile> {
   // Build URL with player name slug if provided
-  let url = `https://www.cricbuzz.com/profiles/${profileId}`;
+  let url = `${UPSTREAM_BASE_URL}/profiles/${profileId}`;
   if (playerName) {
     const slug = playerName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-    url = `https://www.cricbuzz.com/profiles/${profileId}/${slug}`;
+    url = `${UPSTREAM_BASE_URL}/profiles/${profileId}/${slug}`;
   }
 
   // Helper function to create a minimal profile with just the name
@@ -581,7 +582,7 @@ export async function getPlayerProfile(profileId: string, playerName?: string): 
     info: {
       name: name,
       country: '',
-      imageUrl: `https://static.cricbuzz.com/a/img/v1/225x225/i1/c${profileId}/player.jpg`,
+      imageUrl: playerFaceImageUrl(profileId),
       personal: {
         born: '--',
         birthPlace: '--',
@@ -659,7 +660,7 @@ export async function getPlayerProfile(profileId: string, playerName?: string): 
 
         const name = playerData.name || '';
         const country = playerData.intlTeam || '';
-        const imageUrl = playerData.image || (playerData.faceImageId ? `https://img1.cricbuzz.com/c-img/faceImages/${playerData.faceImageId}.jpg` : '');
+        const imageUrl = playerData.image || (playerData.faceImageId ? `${UPSTREAM_IMG_URL}/c-img/faceImages/${playerData.faceImageId}.jpg` : '');
 
         const personal = {
           born: playerData.DoB || playerData.DoBFormat || '--',
@@ -835,13 +836,13 @@ export async function getPlayerProfile(profileId: string, playerName?: string): 
     } else if (imgSrc.startsWith('//')) {
       imageUrl = `https:${imgSrc}`;
     } else {
-      imageUrl = `https://www.cricbuzz.com${imgSrc}`;
+      imageUrl = `${UPSTREAM_BASE_URL}${imgSrc}`;
     }
   }
 
   // If still no image, construct from profile ID
   if (!imageUrl && profileId) {
-    imageUrl = `https://static.cricbuzz.com/a/img/v1/225x225/i1/c${profileId}/player.jpg`;
+    imageUrl = playerFaceImageUrl(profileId);
   }
 
   // Extract personal information from the new structure
@@ -1370,7 +1371,7 @@ export async function getPlayerProfile(profileId: string, playerName?: string): 
 
 export async function getFullScorecard(matchId: string): Promise<FullScorecard> {
   // Use the scorecard API endpoint
-  const url = `https://www.cricbuzz.com/api/mcenter/scorecard/${matchId}`;
+  const url = `${UPSTREAM_BASE_URL}/api/mcenter/scorecard/${matchId}`;
   const response = await fetch(url, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
@@ -1405,7 +1406,7 @@ export async function getFullScorecard(matchId: string): Promise<FullScorecard> 
 
   // Try to get venue info from a separate API call
   try {
-    const venueUrl = `https://www.cricbuzz.com/api/mcenter/venue/${matchId}`;
+    const venueUrl = `${UPSTREAM_BASE_URL}/api/mcenter/venue/${matchId}`;
     const venueResponse = await fetch(venueUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
@@ -1577,7 +1578,7 @@ function getMatchTypeFromSeries(seriesName: string, title: string): 'Internation
 
 export async function scrapeUpcomingMatches(): Promise<LiveMatch[]> {
   const bust = Math.floor(Date.now() / 60_000);
-  const response = await fetch(`https://www.cricbuzz.com/cricket-match/live-scores/upcoming-matches?_=${bust}`, {
+  const response = await fetch(`${UPSTREAM_BASE_URL}/cricket-match/live-scores/upcoming-matches?_=${bust}`, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
       'Cache-Control': 'no-cache',
@@ -1683,7 +1684,7 @@ export async function scrapeUpcomingMatches(): Promise<LiveMatch[]> {
       $match.find('.flex.items-center.gap-4.justify-between').each((_, teamContainer) => {
         const $team = $(teamContainer);
         const flagRaw = $team.find('img').attr('src') || $team.find('img').attr('srcset')?.split(/\s+/)[0];
-        const flagUrl = flagRaw && flagRaw.includes('static.cricbuzz.com') ? flagRaw.replace(/\/\d+x\d+\//, '/72x52/') : undefined;
+        const flagUrl = flagRaw && flagRaw.includes((new URL(UPSTREAM_STATIC_URL)).host) ? flagRaw.replace(/\/\d+x\d+\//, '/72x52/') : undefined;
         let teamName = $team.find('span.text-cbTxtPrim.hidden.wb\\:block').text().trim() ||
           $team.find('span.text-cbTxtSec.hidden.wb\\:block').text().trim() ||
           $team.find('span.text-cbTxtPrim.block.wb\\:hidden').text().trim() ||
@@ -1791,7 +1792,7 @@ export interface VenuePageData {
 export async function scrapeVenue(venuePath: string): Promise<VenuePageData> {
   const path = venuePath.startsWith('/') ? venuePath : `/${venuePath}`;
   const bust = Math.floor(Date.now() / 3_600_000);
-  const res = await fetch(`https://www.cricbuzz.com${path}?_=${bust}`, {
+  const res = await fetch(`${UPSTREAM_BASE_URL}${path}?_=${bust}`, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
     },
@@ -1880,7 +1881,7 @@ export async function scrapeVenue(venuePath: string): Promise<VenuePageData> {
 
 export async function scrapeRecentMatches(): Promise<LiveMatch[]> {
   const bust = Math.floor(Date.now() / 60_000);
-  const response = await fetch(`https://www.cricbuzz.com/cricket-match/live-scores/recent-matches?_=${bust}`, {
+  const response = await fetch(`${UPSTREAM_BASE_URL}/cricket-match/live-scores/recent-matches?_=${bust}`, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
       'Cache-Control': 'no-cache',
@@ -1935,7 +1936,7 @@ export async function scrapeRecentMatches(): Promise<LiveMatch[]> {
       $match.find('.flex.items-center.gap-4.justify-between').each((_, teamContainer) => {
         const $team = $(teamContainer);
         const flagRaw = $team.find('img').attr('src') || $team.find('img').attr('srcset')?.split(/\s+/)[0];
-        const flagUrl = flagRaw && flagRaw.includes('static.cricbuzz.com') ? flagRaw.replace(/\/\d+x\d+\//, '/72x52/') : undefined;
+        const flagUrl = flagRaw && flagRaw.includes((new URL(UPSTREAM_STATIC_URL)).host) ? flagRaw.replace(/\/\d+x\d+\//, '/72x52/') : undefined;
         let teamName = $team.find('span.text-cbTxtPrim.hidden.wb\\:block').text().trim() ||
           $team.find('span.text-cbTxtSec.hidden.wb\\:block').text().trim() ||
           $team.find('span.text-cbTxtPrim.block.wb\\:hidden').text().trim() ||
@@ -1997,7 +1998,7 @@ function matchInfoToLiveMatch(match: any): LiveMatch | null {
   const teams: { name: string; score?: string; flagUrl?: string }[] = [];
   const flagFor = (team: any): string | undefined =>
     team?.imageId
-      ? `https://static.cricbuzz.com/a/img/v1/72x52/i1/c${team.imageId}/${String(team.teamSName || 'team').toLowerCase()}.jpg`
+      ? teamFlagImageUrl(team.imageId, String(team.teamSName || 'team').toLowerCase())
       : undefined;
   if (matchInfo.team1) {
     let s = '';
@@ -2107,7 +2108,7 @@ function extractMatchesFromRSCPayload(html: string): LiveMatch[] {
 
 export async function scrapeLiveMatches(): Promise<LiveMatch[]> {
   const bust = Math.floor(Date.now() / 30_000);
-  const response = await fetch(`https://www.cricbuzz.com/cricket-match/live-scores?_=${bust}`, {
+  const response = await fetch(`${UPSTREAM_BASE_URL}/cricket-match/live-scores?_=${bust}`, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
       'Cache-Control': 'no-cache',
@@ -2172,7 +2173,7 @@ export async function scrapeLiveMatches(): Promise<LiveMatch[]> {
       $match.find('.flex.items-center.gap-4.justify-between').each((_, teamContainer) => {
         const $team = $(teamContainer);
         const flagRaw = $team.find('img').attr('src') || $team.find('img').attr('srcset')?.split(/\s+/)[0];
-        const flagUrl = flagRaw && flagRaw.includes('static.cricbuzz.com') ? flagRaw.replace(/\/\d+x\d+\//, '/72x52/') : undefined;
+        const flagUrl = flagRaw && flagRaw.includes((new URL(UPSTREAM_STATIC_URL)).host) ? flagRaw.replace(/\/\d+x\d+\//, '/72x52/') : undefined;
 
         // Team name - try multiple selectors
         let teamName = $team.find('span.text-cbTxtPrim.hidden.wb\\:block').text().trim() ||
@@ -2278,7 +2279,7 @@ function formatOvers(overs: number): string {
 
 async function getScoreFromHtml(matchId: string): Promise<ScrapeCricbuzzUrlOutput> {
   // Try to get the live match page HTML which has miniscore data
-  const liveUrl = `https://www.cricbuzz.com/live-cricket-scores/${matchId}`;
+  const liveUrl = `${UPSTREAM_BASE_URL}/live-cricket-scores/${matchId}`;
 
   const response = await fetch(liveUrl, {
     headers: {
@@ -2425,7 +2426,7 @@ function extractAwardPlayer(players: any): z.infer<typeof AwardPlayerSchema> | u
   return {
     name: p.fullName || p.name,
     profileId: p.id ? String(p.id) : undefined,
-    imageUrl: p.faceImageId ? `https://static.cricbuzz.com/a/img/v1/225x225/i1/c${p.faceImageId}/player.jpg` : undefined,
+    imageUrl: p.faceImageId ? playerFaceImageUrl(p.faceImageId) : undefined,
   };
 }
 
@@ -2437,7 +2438,7 @@ async function fetchVenueFromMatchPage(
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
-    const res = await fetch(`https://www.cricbuzz.com/live-cricket-scores/${matchId}`, {
+    const res = await fetch(`${UPSTREAM_BASE_URL}/live-cricket-scores/${matchId}`, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
       },
@@ -2465,9 +2466,9 @@ export async function getScoreForMatchId(
   // Try multiple API endpoints. Some matches (The Hundred especially) return an
   // empty envelope from `comm` but full data from `hcomm`, so keep both.
   const apiEndpoints = [
-    `https://www.cricbuzz.com/api/mcenter/comm/${matchId}`,
-    `https://www.cricbuzz.com/api/mcenter/hcomm/${matchId}`,
-    `https://www.cricbuzz.com/api/cricket-match/commentary/${matchId}`,
+    upstreamUrl(`/api/mcenter/comm/${matchId}`),
+    upstreamUrl(`/api/mcenter/hcomm/${matchId}`),
+    upstreamUrl(`/api/cricket-match/commentary/${matchId}`),
   ];
 
   let data = null;
@@ -2557,7 +2558,7 @@ export async function getScoreForMatchId(
     try {
       // Use a very large timestamp to get the newest commentary from pagination.
       // Uses the pagination variant that matches the endpoint that gave us data.
-      const paginationUrl = `https://www.cricbuzz.com/api/mcenter/${paginationVariant}/${matchId}/${miniscore.inningsId}/9999999999999`;
+      const paginationUrl = `${UPSTREAM_BASE_URL}/api/mcenter/${paginationVariant}/${matchId}/${miniscore.inningsId}/9999999999999`;
       const paginationResponse = await fetch(paginationUrl, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
@@ -2782,7 +2783,7 @@ export async function getScoreForMatchId(
       // Try multiple flag URL patterns
       let teamFlagUrl: string | undefined;
       if (team?.imageId) {
-        teamFlagUrl = `https://static.cricbuzz.com/a/img/v1/72x52/i1/c${team.imageId}/${team.shortName.toLowerCase()}.jpg`;
+        teamFlagUrl = teamFlagImageUrl(team.imageId, team.shortName.toLowerCase());
       }
       
       return {
@@ -2854,7 +2855,7 @@ export async function getScoreForMatchId(
   let hasPointsTable = false;
   if (matchHeader?.seriesId) {
     try {
-      const pointsTableUrl = `https://www.cricbuzz.com/cricket-series/${matchHeader.seriesId}/series/points-table`;
+      const pointsTableUrl = `${UPSTREAM_BASE_URL}/cricket-series/${matchHeader.seriesId}/series/points-table`;
       const ptResponse = await fetch(pointsTableUrl, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
@@ -2919,7 +2920,7 @@ export async function getMatchIdFromUrl(url: string) {
 // Team flag/logo URL from a Cricbuzz team object's imageId.
 function teamFlagFromImageId(team: any): string | undefined {
   return team?.imageId
-    ? `https://static.cricbuzz.com/a/img/v1/72x52/i1/c${team.imageId}/${String(team.teamSName || 'team').toLowerCase()}.jpg`
+    ? teamFlagImageUrl(team.imageId, String(team.teamSName || 'team').toLowerCase())
     : undefined;
 }
 
@@ -2932,7 +2933,7 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
   const numericId = cleanSeriesId.split('/')[0];
 
   // Try the API endpoint first - it returns clean JSON data
-  const apiUrl = `https://www.cricbuzz.com/api/series/${numericId}`;
+  const apiUrl = `${UPSTREAM_BASE_URL}/api/series/${numericId}`;
 
   try {
     const apiResponse = await fetch(apiUrl, {
@@ -3032,8 +3033,8 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
   }
 
   // Fallback to HTML scraping - try /matches page first, then base series URL
-  const matchesUrl = `https://www.cricbuzz.com/cricket-series/${cleanSeriesId}/matches`;
-  const baseUrl = `https://www.cricbuzz.com/cricket-series/${cleanSeriesId}`;
+  const matchesUrl = `${UPSTREAM_BASE_URL}/cricket-series/${cleanSeriesId}/matches`;
+  const baseUrl = `${UPSTREAM_BASE_URL}/cricket-series/${cleanSeriesId}`;
   const url = cleanSeriesId.includes('/') ? matchesUrl : baseUrl;
 
   const response = await fetch(url, {
@@ -3391,7 +3392,7 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
 }
 
 export async function scrapeMatchStats(matchId: string): Promise<MatchStats> {
-  const url = `https://www.cricbuzz.com/live-cricket-scores/${matchId}`;
+  const url = `${UPSTREAM_BASE_URL}/live-cricket-scores/${matchId}`;
   const response = await fetch(url, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
@@ -3444,7 +3445,7 @@ export async function scrapeMatchStats(matchId: string): Promise<MatchStats> {
 
 
 export async function getMatchSquads(matchId: string): Promise<MatchSquads> {
-  const url = `https://www.cricbuzz.com/cricket-match-squads/${matchId}`;
+  const url = `${UPSTREAM_BASE_URL}/cricket-match-squads/${matchId}`;
   const response = await fetch(url, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
@@ -3474,7 +3475,7 @@ export async function getMatchSquads(matchId: string): Promise<MatchSquads> {
       const name = $teamDiv.find('h1.font-bold').text().trim();
       let flagUrl = $teamDiv.find('img').attr('src') || $teamDiv.find('img').attr('srcset')?.split(' ')[0];
       // Upgrade flag to 72x52 for crisp display
-      if (flagUrl && flagUrl.includes('static.cricbuzz.com')) {
+      if (flagUrl && flagUrl.includes((new URL(UPSTREAM_STATIC_URL)).host)) {
         flagUrl = flagUrl.replace(/\/\d+x\d+\//, '/72x52/');
       }
 
@@ -3504,13 +3505,13 @@ export async function getMatchSquads(matchId: string): Promise<MatchSquads> {
   const upgradePlayerImage = (url: string | undefined): string | undefined => {
     if (!url) return undefined;
     // Upgrade static.the source.com URLs (e.g., 50x50 -> 225x225)
-    if (url.includes('static.cricbuzz.com')) {
+    if (url.includes((new URL(UPSTREAM_STATIC_URL)).host)) {
       return url.replace(/\/\d+x\d+\//, '/225x225/');
     }
     // Convert img1.the source.com faceImages to higher res static URL
     const faceMatch = url.match(/c-img\/faceImages\/(\d+)/);
     if (faceMatch) {
-      return `https://static.cricbuzz.com/a/img/v1/225x225/i1/c${faceMatch[1]}/player.jpg`;
+      return playerFaceImageUrl(faceMatch[1]);
     }
     return url;
   };
@@ -3701,7 +3702,7 @@ export async function getMatchSquads(matchId: string): Promise<MatchSquads> {
 }
 
 export async function scrapePlayerHighlights(highlightsUrl: string): Promise<PlayerHighlights> {
-  const fullUrl = `https://www.cricbuzz.com${highlightsUrl}`;
+  const fullUrl = `${UPSTREAM_BASE_URL}${highlightsUrl}`;
   const response = await fetch(fullUrl, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
@@ -3831,7 +3832,7 @@ function inferCategory(name: string): CricketSeries['category'] {
 }
 
 export async function scrapeSeriesSchedule(): Promise<SeriesSchedule> {
-  const response = await fetch('https://www.cricbuzz.com/cricket-schedule/series/all', {
+  const response = await fetch(upstreamUrl('/cricket-schedule/series/all'), {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
     },
@@ -3930,7 +3931,7 @@ export async function scrapeSeriesStatsTypes(seriesId: string): Promise<SeriesSt
   const numericId = seriesId.split('/')[0];
   const slug = seriesId.split('/').slice(1).join('/') || 'series';
 
-  const url = `https://www.cricbuzz.com/cricket-series/${numericId}/${slug}/stats`;
+  const url = `${UPSTREAM_BASE_URL}/cricket-series/${numericId}/${slug}/stats`;
   const response = await fetch(url, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
@@ -4013,7 +4014,7 @@ export async function scrapeSeriesStatsTypes(seriesId: string): Promise<SeriesSt
 export async function scrapeSeriesStats(seriesId: string, statsType: string): Promise<SeriesStatCategory> {
   const numericId = seriesId.split('/')[0];
 
-  const url = `https://www.cricbuzz.com/api/cricket-series/series-stats/${numericId}/${statsType}`;
+  const url = `${UPSTREAM_BASE_URL}/api/cricket-series/series-stats/${numericId}/${statsType}`;
   const response = await fetch(url, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
@@ -4068,7 +4069,7 @@ export async function scrapeSeriesPointsTable(seriesId: string): Promise<PointsT
   const numericId = seriesId.split('/')[0];
   const slug = seriesId.split('/').slice(1).join('/') || 'series';
 
-  const url = `https://www.cricbuzz.com/cricket-series/${numericId}/${slug}/points-table`;
+  const url = `${UPSTREAM_BASE_URL}/cricket-series/${numericId}/${slug}/points-table`;
   const response = await fetch(url, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
@@ -4189,7 +4190,7 @@ export async function getOverByOverData(matchId: string, inningsId: number): Pro
   const MAX_PAGES = 20;
 
   for (let page = 0; page < MAX_PAGES; page++) {
-    const url = `https://www.cricbuzz.com/api/mcenter/commentary-pagination/${matchId}/${inningsId}/${timestamp}`;
+    const url = `${UPSTREAM_BASE_URL}/api/mcenter/commentary-pagination/${matchId}/${inningsId}/${timestamp}`;
     let response: Response;
     try {
       response = await fetch(url, {
@@ -4284,7 +4285,7 @@ export async function getOverByOverData(matchId: string, inningsId: number): Pro
 }
 
 export async function fetchPartnershipData(matchId: string): Promise<PartnershipInnings[]> {
-  const url = `https://www.cricbuzz.com/api/mcenter/partnership-graph/${matchId}`;
+  const url = `${UPSTREAM_BASE_URL}/api/mcenter/partnership-graph/${matchId}`;
   const response = await fetch(url, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
@@ -4314,7 +4315,7 @@ export async function fetchPartnershipData(matchId: string): Promise<Partnership
 }
 
 export async function fetchBallMapData(matchId: string, inningsId: number): Promise<BallMapData | null> {
-  const url = `https://www.cricbuzz.com/api/mcenter/balls-map/${matchId}/${inningsId}`;
+  const url = `${UPSTREAM_BASE_URL}/api/mcenter/balls-map/${matchId}/${inningsId}`;
   const response = await fetch(url, {
     cache: 'no-store',
     headers: {
@@ -4372,7 +4373,7 @@ export async function fetchBallMapData(matchId: string, inningsId: number): Prom
 export async function scrapeWinProbHistory(matchId: string): Promise<WinProbHistory | null> {
   // The the source graphs page embeds win probability data in Next.js RSC flight payload
   // as winProbabilityChartData and winProbabilityChartLegends in the HTML source
-  const url = `https://www.cricbuzz.com/live-cricket-graphs/${matchId}`;
+  const url = `${UPSTREAM_BASE_URL}/live-cricket-graphs/${matchId}`;
   let html: string;
   try {
     const response = await fetch(url, {
@@ -4523,13 +4524,100 @@ const RankingsDataSchema = z.object({
 export type RankingEntry = z.infer<typeof RankingEntrySchema>;
 export type RankingsData = z.infer<typeof RankingsDataSchema>;
 
+const TeamRankingEntrySchema = z.object({
+  rank: z.string(),
+  teamName: z.string(),
+  teamId: z.string(),
+  teamSlug: z.string(),
+  matches: z.string().optional(),
+  rating: z.string(),
+  points: z.string(),
+  imageUrl: z.string().optional(),
+});
+
+const TeamRankingsDataSchema = z.object({
+  format: z.string(),
+  entries: z.array(TeamRankingEntrySchema),
+});
+
+export type TeamRankingEntry = z.infer<typeof TeamRankingEntrySchema>;
+export type TeamRankingsData = z.infer<typeof TeamRankingsDataSchema>;
+
+// The team-rankings page ships all three formats' rows inside a single RSC
+// blob (`formatTypesData.{odi,test,t20}.rank[]`). Only the current format is
+// rendered to the DOM; the others live in the payload waiting for the client
+// toggle. Reading the payload lets us return any format from one request.
+export async function scrapeICCTeamRankings(format: 'test' | 'odi' | 't20'): Promise<TeamRankingsData> {
+  const url = `${UPSTREAM_BASE_URL}/cricket-stats/icc-rankings/men/teams`;
+  const response = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    },
+  });
+  if (!response.ok) throw new Error(`Failed to fetch team rankings: ${response.statusText}`);
+  const html = await response.text();
+
+  const entries: TeamRankingEntry[] = [];
+
+  // Locate the RSC chunk that contains `formatTypesData` and slice out the
+  // `rank` array for the requested format. Mirrors the pattern used by
+  // scrapeICCRankings for players.
+  const rscChunkRe = /self\.__next_f\.push\(\[1,"([\s\S]*?)"\]\)/g;
+  let rscMatch: RegExpExecArray | null;
+  while ((rscMatch = rscChunkRe.exec(html)) !== null) {
+    const chunk = rscMatch[1];
+    if (!chunk.includes('formatTypesData')) continue;
+
+    const ftdIdx = chunk.indexOf('formatTypesData');
+    const section = chunk.substring(ftdIdx);
+    const formatIdx = section.indexOf(`\\"${format}\\":{\\"`);
+    if (formatIdx === -1) continue;
+
+    const rankStart = section.indexOf('\\"rank\\":[', formatIdx);
+    if (rankStart === -1) continue;
+
+    const arrayStart = rankStart + '\\"rank\\":['.length;
+    let depth = 1;
+    let pos = arrayStart;
+    while (pos < section.length && depth > 0) {
+      if (section[pos] === '[') depth++;
+      else if (section[pos] === ']') depth--;
+      pos++;
+    }
+    const rankArrayStr = section.substring(arrayStart, pos - 1);
+
+    // Each entry:
+    //   {\"id\":\"4\",\"rank\":\"1\",\"name\":\"Australia\",\"matches\":\"24\",
+    //    \"rating\":\"131\",\"points\":\"3138\",...,\"imageId\":\"776202\",...}
+    const entryRe = /\{\\?"id\\?":\\?"(\d+)\\?".*?\\?"rank\\?":\\?"(\d+)\\?".*?\\?"name\\?":\\?"([^\\]+)\\?".*?\\?"matches\\?":\\?"(\d+)\\?".*?\\?"rating\\?":\\?"(\d+)\\?".*?\\?"points\\?":\\?"(\d+)\\?".*?\\?"imageId\\?":\\?"(\d+)\\?"/g;
+    let entryMatch: RegExpExecArray | null;
+    while ((entryMatch = entryRe.exec(rankArrayStr)) !== null) {
+      const [, teamId, rank, name, matches, rating, points, imageId] = entryMatch;
+      const teamSlug = name.toLowerCase().replace(/\s+/g, '-');
+      entries.push({
+        rank,
+        teamName: name,
+        teamId,
+        teamSlug,
+        matches,
+        rating,
+        points,
+        imageUrl: teamFlagImageUrl(imageId, teamSlug),
+      });
+    }
+    if (entries.length > 0) break;
+  }
+
+  return TeamRankingsDataSchema.parse({ format, entries });
+}
+
 export async function scrapeICCRankings(
   format: 'test' | 'odi' | 't20',
   category: 'batting' | 'bowling' | 'all-rounder'
 ): Promise<RankingsData> {
   // Always fetch the base category page — it contains all format data in RSC payload
   const categorySlug = category === 'all-rounder' ? 'all-rounder' : category;
-  const url = `https://www.cricbuzz.com/cricket-stats/icc-rankings/men/${categorySlug}`;
+  const url = `${UPSTREAM_BASE_URL}/cricket-stats/icc-rankings/men/${categorySlug}`;
 
   const response = await fetch(url, {
     headers: {
@@ -4588,7 +4676,7 @@ export async function scrapeICCRankings(
         country,
         rating,
         profileId,
-        imageUrl: `https://static.cricbuzz.com/a/img/v1/225x225/i1/c${faceImageId}/${slug}.jpg`,
+        imageUrl: `${UPSTREAM_STATIC_URL}/a/img/v1/225x225/i1/c${faceImageId}/${slug}.jpg`,
       });
     }
 
@@ -4706,7 +4794,7 @@ const FORECAST_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.3
 
 async function fetchForecast<T>(path: string): Promise<T | null> {
   try {
-    const response = await fetch(`https://www.cricbuzz.com/api/match-forecast/${path}`, {
+    const response = await fetch(`${UPSTREAM_BASE_URL}/api/match-forecast/${path}`, {
       headers: { 'User-Agent': FORECAST_UA },
     });
     if (!response.ok) return null;
@@ -4833,7 +4921,7 @@ export async function scrapeAllPlayersForecast(matchId: string): Promise<AllPlay
             : [],
           description: p.description ? String(p.description) : undefined,
           imageUrl: p.faceImageId
-            ? `https://static.cricbuzz.com/a/img/v1/225x225/i1/c${p.faceImageId}/player.jpg`
+            ? playerFaceImageUrl(p.faceImageId)
             : undefined,
         })),
     }));
