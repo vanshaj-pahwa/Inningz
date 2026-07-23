@@ -9,7 +9,7 @@ import { loadMoreCommentary as loadMoreCommentaryAction, getPlayerProfile, getPl
 import type { ScrapeCricbuzzUrlOutput, Commentary, PlayerProfile, PlayerHighlights } from '@/app/actions';
 import { useLiveScore } from '@/lib/data-layer';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { User, ArrowLeft, ChevronLeft, ChevronRight, ChevronUp, Share2, Trophy, MapPin, Clock } from "lucide-react";
+import { User, ArrowLeft, ChevronLeft, ChevronRight, ChevronUp, Share2, Trophy, MapPin, Clock, Newspaper, Medal } from "lucide-react";
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { cn, buildVenueHref, displayMatchFormat } from '@/lib/utils';
@@ -1263,11 +1263,47 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
             <RainOverlay active={rainActive} duration={5000} onDone={() => setRainActive(false)} />
             {/* Header */}
             <div className="flex flex-col gap-2 mb-4 md:mb-6 py-3 md:py-4 gradient-border">
-                {/* Desktop: single row | Mobile: title row */}
+                {/* Mobile: breadcrumb + icon strip share one row above the
+                    title so both stay glanceable while the h1 + venue meta
+                    claim the full row below. Desktop keeps the single-row
+                    header where icons stay inline on the right. */}
+                <div className="md:hidden flex items-center justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                        <Breadcrumbs
+                            items={[
+                                { label: 'Home', href: '/' },
+                                ...(data?.seriesName && data?.seriesId
+                                    ? [{
+                                        label: data.seriesName,
+                                        href: `/series/${data.seriesId}/${data.seriesName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`,
+                                    }]
+                                    : []),
+                            ]}
+                        />
+                    </div>
+                    <div className="shrink-0 flex items-center gap-1.5">
+                        <Link
+                            href="/news"
+                            aria-label="News"
+                            className="inline-flex items-center justify-center h-10 w-10 rounded-xl border border-border/60 bg-card/40 hover:bg-card/70 transition-colors text-muted-foreground"
+                        >
+                            <Newspaper className="w-4 h-4" />
+                        </Link>
+                        <Link
+                            href="/rankings"
+                            aria-label="Rankings"
+                            className="inline-flex items-center justify-center h-10 w-10 rounded-xl border border-border/60 bg-card/40 hover:bg-card/70 transition-colors text-muted-foreground"
+                        >
+                            <Medal className="w-4 h-4" />
+                        </Link>
+                        <CommandPaletteTrigger />
+                        <ThemeToggle />
+                    </div>
+                </div>
                 <div className="flex items-start gap-2 md:gap-4">
                     <div className="flex-1 min-w-0">
                         <Breadcrumbs
-                            className="mb-1"
+                            className="mb-1 hidden md:flex"
                             items={[
                                 { label: 'Home', href: '/' },
                                 ...(data?.seriesName && data?.seriesId
@@ -1349,11 +1385,20 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                             ))}
                         </div>
                         )}
-                        <CommandPaletteTrigger />
-                        <ThemeToggle />
-                    </div>
-                    {/* Mobile: theme toggle */}
-                    <div className="shrink-0 md:hidden flex items-center gap-1.5">
+                        <Link
+                            href="/news"
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        >
+                            <Newspaper className="w-4 h-4" />
+                            <span className="hidden lg:inline">News</span>
+                        </Link>
+                        <Link
+                            href="/rankings"
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        >
+                            <Medal className="w-4 h-4" />
+                            <span className="hidden lg:inline">Rankings</span>
+                        </Link>
                         <CommandPaletteTrigger />
                         <ThemeToggle />
                     </div>
