@@ -145,20 +145,21 @@ export function parseJinaArticle(md: string): ParsedJinaArticle {
 
     const lines = contentBody.split(/\r?\n/).map(l => l.trim());
 
-    // Locate two anchors independently: the byline (`Published:` line, marks
-    // the end of author metadata) and the first section heading (`## ...`).
-    // Body content starts at the FIRST heading when one exists; that way any
-    // `## Big picture / ## Form guide` sections that appear between the byline
-    // and the first inline image are preserved as headings/paragraphs. The
-    // byline is only used to bracket hero-image lookup so we don't grab a
-    // related-story thumbnail from the top nav as the hero.
+    // Locate two anchors: the byline (`Published:`) and the first article-body
+    // heading (`## ...`). `firstHeadingIdx` is only trusted when it appears
+    // BEFORE the footer end-markers — the reader also emits `## Your Privacy
+    // Choices` etc. as part of the cookie banner block, and those would
+    // otherwise be mistaken for the article's first section.
     let firstHeadingIdx = -1;
     let publishedIdx = -1;
+    let firstEndIdx = -1;
     for (let i = 0; i < lines.length; i++) {
+        if (firstEndIdx < 0 && END_MARKERS.some(re => re.test(lines[i]))) firstEndIdx = i;
         if (publishedIdx < 0 && /^Published:\s/.test(lines[i])) publishedIdx = i;
         if (firstHeadingIdx < 0 && /^##\s+\S/.test(lines[i])) firstHeadingIdx = i;
-        if (publishedIdx >= 0 && firstHeadingIdx >= 0) break;
+        if (publishedIdx >= 0 && firstHeadingIdx >= 0 && firstEndIdx >= 0) break;
     }
+    if (firstEndIdx >= 0 && firstHeadingIdx >= firstEndIdx) firstHeadingIdx = -1;
     if (firstHeadingIdx < 0 && publishedIdx < 0) return empty;
 
     const anchorIsByline = publishedIdx >= 0;

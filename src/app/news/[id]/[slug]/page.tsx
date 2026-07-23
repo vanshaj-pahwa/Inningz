@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Bookmark, Newspaper, Share2, Clock } from 'lucide-react';
-import { getCricketNewsArticle, getCricketNews } from '@/app/actions';
+import { getCricketNews } from '@/app/actions';
 import type { NewsArticle, NewsItem, NewsBlock, LiveMatch } from '@/app/actions';
 import MatchCard from '@/components/match-card';
 import { Button } from '@/components/ui/button';
@@ -37,18 +37,16 @@ export default function NewsArticlePage() {
     // the enriched blob still lacks fields the "healthy" heuristic requires.
     const enrichedRef = useRef<string | null>(null);
 
-    // Fetch the article + the feed in parallel. When the server-side article
-    // fetch is blocked (WAF 403 against datacenter IPs), synthesize a minimal
-    // article from the RSS entry and let the client-side effect below fill in
-    // the body via a CORS proxy — the reader's residential IP isn't blocked.
+    // Load the article shell (title, description, hero, publishedAt) from the
+    // RSS feed — the server-side scrape used to fill blocks here too, but its
+    // cache was returning stale/mispaired content, so blocks are now sourced
+    // exclusively from the reader effect below. This effect gets the shell up
+    // instantly; the reader effect fills in the body.
     useEffect(() => {
         (async () => {
             setLoading(true);
             setError(null);
-            const [articleResult, feedResult] = await Promise.all([
-                getCricketNewsArticle(id, slug || ''),
-                getCricketNews(),
-            ]);
+            const feedResult = await getCricketNews();
             const feedItem = feedResult.success && feedResult.data
                 ? feedResult.data.items.find(i => i.id === id)
                 : undefined;
@@ -56,12 +54,7 @@ export default function NewsArticlePage() {
                 setRelated(feedResult.data.items.filter(i => i.id !== id).slice(0, 8));
                 if (feedItem?.imageUrl) setFeedHeroImage(feedItem.imageUrl);
             }
-            if (articleResult.success && articleResult.data) {
-                setArticle(articleResult.data);
-            } else if (feedItem) {
-                // Synthesize a minimal article from the RSS entry — the reader
-                // still gets title, description and hero, plus a clear
-                // "Read on source" CTA (rendered below via `sourceUrl`).
+            if (feedItem) {
                 setArticle({
                     id: feedItem.id,
                     slug: feedItem.slug,
@@ -81,29 +74,21 @@ export default function NewsArticlePage() {
                     mostRead: [],
                 });
             } else {
-                setError(articleResult.error || 'Failed to load article');
+                setError('Failed to load article');
             }
             setLoading(false);
         })();
     }, [id, slug]);
 
 
-    // Client-side body scrape via a reader service — kicks in when the server
-    // side couldn't reach the upstream (Vercel IP blocked at the edge). The
-    // reader has its own residential-friendly fetcher and returns cleaned
-    // markdown; we parse it into paragraphs. Silent on failure — the RSS
-    // description + hero image + related sidebar remain as the base experience.
+    // Body content comes exclusively from the reader service. Rationale: the
+    // upstream's own scrape caches were serving truncated/mispaired content
+    // from datacenter IPs. The reader runs from the viewer's residential IP
+    // so it returns the full article. Blocks, paragraphs, hero caption and
+    // read-time are all sourced from this response — no server-side merge.
     useEffect(() => {
         if (!article) return;
         if (!slug) return;
-        // Always run reader-service enrichment exactly once per article, on top
-        // of whatever the server-side returned. Rationale: the upstream WAF
-        // often serves truncated cached responses to datacenter IPs (missing
-        // sections, images mispaired with captions), and the reader path runs
-        // from the viewer's residential IP so it returns the full article.
-        // We only replace the server-side body when the reader gives us a
-        // strictly larger (>=) block count, so a temporary reader failure can
-        // never regress good server-side output.
         const key = `${id}::${slug}`;
         if (enrichedRef.current === key) return;
         enrichedRef.current = key;
@@ -149,8 +134,6 @@ export default function NewsArticlePage() {
                                 b.type !== 'image' || b.imageUrl !== LAZY_IMAGE_SENTINEL
                             );
                         } else {
-                            // No HTML to enrich from — drop lazy sentinels so
-                            // broken placeholders don't render.
                             parsed.blocks = parsed.blocks.filter(b =>
                                 b.type !== 'image' || b.imageUrl !== LAZY_IMAGE_SENTINEL
                             );
@@ -158,32 +141,18 @@ export default function NewsArticlePage() {
                         const wordCount = parsed.paragraphs
                             .reduce((n, p) => n + p.split(/\s+/).filter(Boolean).length, 0);
                         const readTimeMinutes = Math.max(1, Math.round(wordCount / 220));
-                        setArticle(prev => {
-                            if (!prev) return prev;
-                            // Only replace the server-side body when the reader
-                            // gives us at least as much structure. Prevents a
-                            // partial reader response from regressing a fully
-                            // scraped article.
-                            const prevBlocks = prev.blocks?.length ?? 0;
-                            if (parsed.blocks.length < prevBlocks) return prev;
-                            // The server-side heroImageCaption is only reliable
-                            // when its blocks look complete. If we're replacing
-                            // the body, replace the hero caption too so a stale
-                            // "Tilak Varma struck…" caption can't stick to an
-                            // unrelated RSS thumbnail.
-                            const replaceHero = parsed.blocks.length > prevBlocks;
-                            return {
-                                ...prev,
-                                blocks: parsed.blocks,
-                                paragraphs: parsed.paragraphs,
-                                wordCount,
-                                readTimeMinutes,
-                                heroImageUrl: prev.heroImageUrl || parsed.heroImageUrl || heroFromHtml,
-                                heroImageCaption: replaceHero
-                                    ? (parsed.heroImageCaption || heroCaptionFromHtml)
-                                    : (prev.heroImageCaption || parsed.heroImageCaption || heroCaptionFromHtml),
-                            };
-                        });
+                        setArticle(prev => prev ? {
+                            ...prev,
+                            blocks: parsed.blocks,
+                            paragraphs: parsed.paragraphs,
+                            wordCount,
+                            readTimeMinutes,
+                            // Hero URL prefers RSS (proper .jpg CDN thumb),
+                            // then whatever the reader captured. Caption is
+                            // always from the reader — RSS never gives one.
+                            heroImageUrl: prev.heroImageUrl || parsed.heroImageUrl || heroFromHtml,
+                            heroImageCaption: parsed.heroImageCaption || heroCaptionFromHtml,
+                        } : prev);
                         return;
                     } catch { /* try next base */ }
                 }
