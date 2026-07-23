@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
@@ -32,6 +32,10 @@ export default function NewsArticlePage() {
     // the server scrape returned empty. Used to swap the empty body area for a
     // skeleton so the reader sees progress, not a blank space.
     const [bodyScraping, setBodyScraping] = useState(false);
+    // Guard so the reader-service enrichment fires at most once per (id, slug)
+    // pair — otherwise setArticle inside the effect could re-trigger it when
+    // the enriched blob still lacks fields the "healthy" heuristic requires.
+    const enrichedRef = useRef<string | null>(null);
 
     // Fetch the article + the feed in parallel. When the server-side article
     // fetch is blocked (WAF 403 against datacenter IPs), synthesize a minimal
@@ -91,8 +95,21 @@ export default function NewsArticlePage() {
     // description + hero image + related sidebar remain as the base experience.
     useEffect(() => {
         if (!article) return;
-        if ((article.blocks?.length ?? 0) > 0) return;
         if (!slug) return;
+        // Fire at most once per (id, slug).
+        const key = `${id}::${slug}`;
+        if (enrichedRef.current === key) return;
+        // Heuristic: the upstream sometimes returns a truncated cached article
+        // (fewer than 4 blocks, no author) — probably a stale cache entry from
+        // a WAF-rate-limited fetch. Force the reader-service enrichment for
+        // those, otherwise skip if we already have a healthy body.
+        const blocks = article.blocks ?? [];
+        const looksHealthy = blocks.length >= 4 && !!article.author;
+        if (looksHealthy) {
+            enrichedRef.current = key;
+            return;
+        }
+        enrichedRef.current = key;
         let cancelled = false;
         setBodyScraping(true);
         (async () => {

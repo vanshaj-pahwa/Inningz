@@ -704,7 +704,7 @@ export async function getCricketNews(): Promise<{ success: boolean; data?: NewsF
 // collide between different variants of the same article URL.
 const getCricketNewsArticleCached = (id: string, slug: string) => unstable_cache(
     async () => scrapeCricketNewsArticleFlow(id, slug),
-    ['cricket-news-article:v6', id, slug],
+    ['cricket-news-article:v7', id, slug],
     { revalidate: 3600, tags: ['cricket-news-article', `cricket-news-article:${id}`] }
 );
 
