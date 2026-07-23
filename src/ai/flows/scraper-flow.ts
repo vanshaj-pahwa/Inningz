@@ -1596,6 +1596,12 @@ export async function scrapeUpcomingMatches(): Promise<LiveMatch[]> {
   const html = await response.text();
   const $ = cheerio.load(html);
 
+  // Upstream ships every match's full JSON inside its RSC payload alongside
+  // the HTML. Build a `matchId → teamName → teamId` lookup once, then use it
+  // below to fill in `teamId` on the HTML-parsed rows so team names become
+  // clickable (Manchester Super Giants, LPL sides, IPL franchises, …).
+  const teamIdLookup = buildTeamIdLookupFromHtml(html);
+
   const upcomingMatches: LiveMatch[] = [];
   const processedMatchIds = new Set<string>();
 
@@ -1689,15 +1695,11 @@ export async function scrapeUpcomingMatches(): Promise<LiveMatch[]> {
         const $team = $(teamContainer);
         const flagRaw = $team.find('img').attr('src') || $team.find('img').attr('srcset')?.split(/\s+/)[0];
         const flagUrl = flagRaw && flagRaw.includes((new URL(UPSTREAM_STATIC_URL)).host) ? flagRaw.replace(/\/\d+x\d+\//, '/72x52/') : undefined;
-        let teamName = $team.find('span.text-cbTxtPrim.hidden.wb\\:block').text().trim() ||
+        const teamName = $team.find('span.text-cbTxtPrim.hidden.wb\\:block').text().trim() ||
           $team.find('span.text-cbTxtSec.hidden.wb\\:block').text().trim() ||
           $team.find('span.text-cbTxtPrim.block.wb\\:hidden').text().trim() ||
           $team.find('span.text-cbTxtSec.block.wb\\:hidden').text().trim();
-        // Grab teamId from any `/cricket-team/{slug}/{id}` link inside the row.
-        const teamHref = $team.find('a[href*="/cricket-team/"]').attr('href')
-          || $match.find(`a[href*="/cricket-team/"]:contains("${teamName}")`).attr('href');
-        const teamIdMatch = teamHref?.match(/\/cricket-team\/[^/]+\/(\d+)/);
-        const teamId = teamIdMatch ? teamIdMatch[1] : undefined;
+        const teamId = teamName ? teamIdLookup.get(matchId)?.get(teamName.toLowerCase()) : undefined;
 
         if (teamName) {
           teams.push({
@@ -1905,6 +1907,9 @@ export async function scrapeRecentMatches(): Promise<LiveMatch[]> {
   const html = await response.text();
   const $ = cheerio.load(html);
 
+  // RSC-backed lookup so team names on recent rows can carry teamId.
+  const teamIdLookup = buildTeamIdLookupFromHtml(html);
+
   const recentMatches: LiveMatch[] = [];
   const processedMatchIds = new Set<string>();
 
@@ -1947,19 +1952,21 @@ export async function scrapeRecentMatches(): Promise<LiveMatch[]> {
         const $team = $(teamContainer);
         const flagRaw = $team.find('img').attr('src') || $team.find('img').attr('srcset')?.split(/\s+/)[0];
         const flagUrl = flagRaw && flagRaw.includes((new URL(UPSTREAM_STATIC_URL)).host) ? flagRaw.replace(/\/\d+x\d+\//, '/72x52/') : undefined;
-        let teamName = $team.find('span.text-cbTxtPrim.hidden.wb\\:block').text().trim() ||
+        const teamName = $team.find('span.text-cbTxtPrim.hidden.wb\\:block').text().trim() ||
           $team.find('span.text-cbTxtSec.hidden.wb\\:block').text().trim() ||
           $team.find('span.text-cbTxtPrim.block.wb\\:hidden').text().trim() ||
           $team.find('span.text-cbTxtSec.block.wb\\:hidden').text().trim();
 
         const scoreEl = $team.find('span.font-medium.wb\\:font-semibold');
         const score = scoreEl.text().trim();
+        const teamId = teamName ? teamIdLookup.get(matchId)?.get(teamName.toLowerCase()) : undefined;
 
         if (teamName) {
           teams.push({
             name: teamName,
             score: score || undefined,
             flagUrl,
+            teamId,
           });
         }
       });
@@ -2132,6 +2139,9 @@ export async function scrapeLiveMatches(): Promise<LiveMatch[]> {
   const html = await response.text();
   const $ = cheerio.load(html);
 
+  // RSC-backed lookup so team names on live rows can carry teamId.
+  const teamIdLookup = buildTeamIdLookupFromHtml(html);
+
   const liveMatches: LiveMatch[] = [];
 
   // New structure: matches are organized by series
@@ -2186,7 +2196,7 @@ export async function scrapeLiveMatches(): Promise<LiveMatch[]> {
         const flagUrl = flagRaw && flagRaw.includes((new URL(UPSTREAM_STATIC_URL)).host) ? flagRaw.replace(/\/\d+x\d+\//, '/72x52/') : undefined;
 
         // Team name - try multiple selectors
-        let teamName = $team.find('span.text-cbTxtPrim.hidden.wb\\:block').text().trim() ||
+        const teamName = $team.find('span.text-cbTxtPrim.hidden.wb\\:block').text().trim() ||
           $team.find('span.text-cbTxtSec.hidden.wb\\:block').text().trim() ||
           $team.find('span.text-cbTxtPrim.block.wb\\:hidden').text().trim() ||
           $team.find('span.text-cbTxtSec.block.wb\\:hidden').text().trim();
@@ -2194,12 +2204,14 @@ export async function scrapeLiveMatches(): Promise<LiveMatch[]> {
         // Score is in a span with font-medium class
         const scoreEl = $team.find('span.font-medium.wb\\:font-semibold');
         const score = scoreEl.text().trim();
+        const teamId = teamName ? teamIdLookup.get(matchId)?.get(teamName.toLowerCase()) : undefined;
 
         if (teamName) {
           teams.push({
             name: teamName,
             score: score || undefined,
             flagUrl,
+            teamId,
           });
         }
       });
@@ -3437,6 +3449,34 @@ function extractMatchInfosFromHtml(html: string): Array<Record<string, unknown>>
     } catch { /* skip malformed */ }
   }
   return infos;
+}
+
+/**
+ * Build a lookup map of matchId → {teamName → teamId} from the source's
+ * embedded RSC payload. The HTML-scraped live/recent/upcoming rows don't
+ * expose team-page anchors, but the same page ships every match's full JSON
+ * inside `self.__next_f.push` chunks — this resolver turns that into a cheap
+ * post-processing step so domestic teams (Manchester Super Giants, LPL sides,
+ * IPL franchises) get a real teamId without touching the DOM parser.
+ */
+function buildTeamIdLookupFromHtml(html: string): Map<string, Map<string, number>> {
+  const lookup = new Map<string, Map<string, number>>();
+  const infos = extractMatchInfosFromHtml(html);
+  for (const mi of infos) {
+    const asObj = mi as unknown as CbMatchInfo;
+    if (!asObj.matchId) continue;
+    const key = String(asObj.matchId);
+    if (lookup.has(key)) continue;
+    const inner = new Map<string, number>();
+    if (asObj.team1?.teamId && asObj.team1?.teamName) {
+      inner.set(asObj.team1.teamName.toLowerCase(), asObj.team1.teamId);
+    }
+    if (asObj.team2?.teamId && asObj.team2?.teamName) {
+      inner.set(asObj.team2.teamName.toLowerCase(), asObj.team2.teamId);
+    }
+    if (inner.size > 0) lookup.set(key, inner);
+  }
+  return lookup;
 }
 
 type CbTeam = { teamId?: number; teamName?: string; teamSName?: string; imageId?: number };

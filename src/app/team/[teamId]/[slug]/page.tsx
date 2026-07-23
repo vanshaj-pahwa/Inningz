@@ -337,10 +337,11 @@ export default function TeamPage() {
                                             ? filteredData.upcoming.slice(1)
                                             : filteredData.upcoming
                                     }
+                                    groupBySeries
                                 />
                             )}
                             {filteredData.recent.length > 0 && (
-                                <FixtureBlock title="Recent results" matches={filteredData.recent} />
+                                <FixtureBlock title="Recent results" matches={filteredData.recent} groupBySeries />
                             )}
                             {filteredData.live.length === 0 && filteredData.upcoming.length === 0 && filteredData.recent.length === 0 && (
                                 <div className="surface-card p-10 text-center rounded-2xl">
@@ -477,31 +478,96 @@ function NextUp({ match, now, h2h }: {
                 )}
             </div>
             <div className="p-5 md:p-6">
-                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 md:gap-6">
-                    <div className="flex items-center gap-3 md:gap-4 min-w-0">
-                        <TeamFlag src={teamA?.flagUrl} alt={teamA?.name || 'Team A'} size="lg" />
-                        <span className="font-display text-lg md:text-2xl tracking-tight truncate">{teamA?.name}</span>
+                {/* Mobile: teams stack vertically so long names (Zimbabwe,
+                    South Africa, West Indies, Netherlands, New Zealand, USA,
+                    "Manchester Super Giants") never fight the "vs" divider
+                    for column space. VS becomes a centered horizontal rule
+                    between the two rows. Tablet+ keeps the compact three-
+                    column layout since names have plenty of room there. */}
+                {/* Mobile stack. Each row is `inline-flex` so it hugs the
+                    flag+name pair instead of stretching to the card's full
+                    width — otherwise a short name like "Zimbabwe" leaves a
+                    ~150px empty span to its right. The row still allows the
+                    name to shrink + wrap for long names via `min-w-0` on the
+                    outer, so "Manchester Super Giants" still fits. */}
+                {/* Mobile: symmetrical horizontal layout with a smaller flag
+                    and `text-lg` team name — Zimbabwe/India-length names fit
+                    the row at 375px+ with no truncation and no dead right
+                    gutter. Team A hugs the left, team B hugs the right, vs
+                    is centered — reads like a proper matchup card. Long
+                    domestic names (Manchester Super Giants) wrap via
+                    `break-words` rather than clip. */}
+                {/* Equal-width thirds so "vs" lands at the true visual centre
+                    of the row regardless of team-name lengths. Each team's
+                    flag+name sits centred in its column, which makes the
+                    match-up read symmetrically ("Zimbabwe · vs · India"
+                    instead of drifting left when one name is longer). */}
+                <div className="md:hidden grid grid-cols-3 items-center gap-2">
+                    <div className="flex items-center justify-center gap-2 min-w-0">
+                        <TeamFlag src={teamA?.flagUrl} alt={teamA?.name || 'Team A'} size="md" />
+                        <span className="font-display text-lg tracking-tight leading-tight min-w-0 break-words">
+                            {teamA?.name}
+                        </span>
                     </div>
-                    <span className="text-muted-foreground/40 font-display text-xl md:text-2xl">vs</span>
-                    <div className="flex items-center gap-3 md:gap-4 min-w-0 justify-end">
-                        <span className="font-display text-lg md:text-2xl tracking-tight truncate text-right">{teamB?.name}</span>
+                    <span className="text-center text-muted-foreground/50 font-display text-sm">vs</span>
+                    <div className="flex items-center justify-center gap-2 min-w-0">
+                        <TeamFlag src={teamB?.flagUrl} alt={teamB?.name || 'Team B'} size="md" />
+                        <span className="font-display text-lg tracking-tight leading-tight min-w-0 break-words">
+                            {teamB?.name}
+                        </span>
+                    </div>
+                </div>
+                <div className="hidden md:grid md:grid-cols-[1fr_auto_1fr] md:items-center md:gap-6">
+                    <div className="flex items-center gap-4 min-w-0">
+                        <TeamFlag src={teamA?.flagUrl} alt={teamA?.name || 'Team A'} size="lg" />
+                        <span className="font-display text-2xl tracking-tight truncate">{teamA?.name}</span>
+                    </div>
+                    <span className="text-muted-foreground/40 font-display text-2xl">vs</span>
+                    <div className="flex items-center gap-4 min-w-0 justify-end">
+                        <span className="font-display text-2xl tracking-tight truncate text-right">{teamB?.name}</span>
                         <TeamFlag src={teamB?.flagUrl} alt={teamB?.name || 'Team B'} size="lg" />
                     </div>
                 </div>
-                <div className="mt-4 md:mt-5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs md:text-sm text-muted-foreground">
-                    {match.seriesName && <span className="truncate">{match.seriesName}</span>}
-                    {startMs && (
-                        <span className="inline-flex items-center gap-1.5">
-                            <Clock className="w-3.5 h-3.5 opacity-70" />
-                            <span className="tabular-nums">{formatFullTime(startMs)}</span>
-                        </span>
-                    )}
-                    {match.venue && (
-                        <span className="inline-flex items-center gap-1.5 truncate">
-                            <MapPin className="w-3.5 h-3.5 opacity-70" />
-                            <span className="truncate">{match.venue}</span>
-                        </span>
-                    )}
+                {/* Meta: mobile centres the series name on its own line and
+                    puts the date + venue together on the line below; desktop
+                    keeps the original single-row flex-wrap. */}
+                <div className="mt-4 md:mt-5 text-xs md:text-sm text-muted-foreground">
+                    <div className="md:hidden flex flex-col items-center text-center gap-1.5">
+                        {match.seriesName && (
+                            <span className="font-medium text-foreground/80">{match.seriesName}</span>
+                        )}
+                        {(startMs || match.venue) && (
+                            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+                                {startMs && (
+                                    <span className="inline-flex items-center gap-1.5">
+                                        <Clock className="w-3.5 h-3.5 opacity-70" />
+                                        <span className="tabular-nums">{formatFullTime(startMs)}</span>
+                                    </span>
+                                )}
+                                {match.venue && (
+                                    <span className="inline-flex items-center gap-1.5">
+                                        <MapPin className="w-3.5 h-3.5 opacity-70" />
+                                        <span>{match.venue}</span>
+                                    </span>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                    <div className="hidden md:flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                        {match.seriesName && <span className="truncate">{match.seriesName}</span>}
+                        {startMs && (
+                            <span className="inline-flex items-center gap-1.5">
+                                <Clock className="w-3.5 h-3.5 opacity-70" />
+                                <span className="tabular-nums">{formatFullTime(startMs)}</span>
+                            </span>
+                        )}
+                        {match.venue && (
+                            <span className="inline-flex items-center gap-1.5 truncate">
+                                <MapPin className="w-3.5 h-3.5 opacity-70" />
+                                <span className="truncate">{match.venue}</span>
+                            </span>
+                        )}
+                    </div>
                 </div>
                 {h2h && h2h.results.length > 0 && (
                     <div className="mt-4 pt-4 border-t border-border/50 flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -525,8 +591,40 @@ function NextUp({ match, now, h2h }: {
     );
 }
 
-function FixtureBlock({ title, matches, live }: { title: string; matches: LiveMatch[]; live?: boolean }) {
+function groupMatchesBySeries(matches: LiveMatch[]): Array<{ series: string; matches: LiveMatch[]; firstStart: number }> {
+    const map = new Map<string, LiveMatch[]>();
+    for (const m of matches) {
+        const key = (m.seriesName || 'Uncategorised').trim();
+        if (!map.has(key)) map.set(key, []);
+        map.get(key)!.push(m);
+    }
+    const groups = Array.from(map.entries()).map(([series, ms]) => {
+        const times = ms.map(m => {
+            const s = m.startDate;
+            return s ? (s < 10_000_000_000 ? s * 1000 : s) : Number.MAX_SAFE_INTEGER;
+        }).filter(t => t !== Number.MAX_SAFE_INTEGER);
+        return {
+            series,
+            matches: ms.slice().sort((a, b) => (a.startDate || 0) - (b.startDate || 0)),
+            firstStart: times.length ? Math.min(...times) : Number.MAX_SAFE_INTEGER,
+        };
+    });
+    // Sort series groups chronologically by earliest match in the group.
+    return groups.sort((a, b) => a.firstStart - b.firstStart);
+}
+
+function FixtureBlock({
+    title, matches, live, groupBySeries,
+}: {
+    title: string;
+    matches: LiveMatch[];
+    live?: boolean;
+    groupBySeries?: boolean;
+}) {
     if (matches.length === 0) return null;
+    // Only group when there's actually more than one series, otherwise the
+    // group header just adds a redundant layer of visual chrome.
+    const shouldGroup = !!groupBySeries && new Set(matches.map(m => (m.seriesName || '').trim())).size > 1;
     return (
         <section>
             <header className="flex items-baseline gap-2 mb-3 md:mb-4">
@@ -539,12 +637,107 @@ function FixtureBlock({ title, matches, live }: { title: string; matches: LiveMa
                     </span>
                 )}
             </header>
-            <div className="surface-card rounded-2xl divide-y divide-border/50 overflow-hidden">
-                {matches.map(m => (
-                    <FixtureRow key={m.matchId} match={m} />
-                ))}
-            </div>
+            {shouldGroup ? (
+                <div className="space-y-3 md:space-y-4">
+                    {groupMatchesBySeries(matches).map(g => (
+                        <SeriesGroup key={g.series} series={g.series} matches={g.matches} />
+                    ))}
+                </div>
+            ) : (
+                <div className="surface-card rounded-2xl divide-y divide-border/50 overflow-hidden">
+                    {matches.map(m => (
+                        <FixtureRow key={m.matchId} match={m} />
+                    ))}
+                </div>
+            )}
         </section>
+    );
+}
+
+function SeriesGroup({ series, matches }: { series: string; matches: LiveMatch[] }) {
+    // Default open — this is a browse surface, users want to see their fixtures.
+    const [open, setOpen] = useState(true);
+
+    // Build the format count summary ("3 T20I · 3 ODI") using the same short-
+    // format resolution the format chip uses.
+    const formatCounts = useMemo(() => {
+        const map = new Map<string, number>();
+        for (const m of matches) {
+            const f = displayMatchFormat(m.matchFormat) || deriveMatchFormat(m.title, m.seriesName) || 'OTHER';
+            map.set(f, (map.get(f) || 0) + 1);
+        }
+        return Array.from(map.entries()).sort((a, b) => {
+            const order = ['TEST', 'ODI', 'T20I', 'T20', 'T10', '100', 'List A'];
+            const ai = order.indexOf(a[0]);
+            const bi = order.indexOf(b[0]);
+            if (ai === -1 && bi === -1) return b[1] - a[1];
+            if (ai === -1) return 1;
+            if (bi === -1) return -1;
+            return ai - bi;
+        });
+    }, [matches]);
+
+    const dateRange = useMemo(() => {
+        const times = matches
+            .map(m => (m.startDate ? (m.startDate < 10_000_000_000 ? m.startDate * 1000 : m.startDate) : null))
+            .filter((t): t is number => t !== null);
+        if (times.length === 0) return null;
+        const first = new Date(Math.min(...times));
+        const last = new Date(Math.max(...times));
+        const short = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
+        return first.getTime() === last.getTime() ? short(first) : `${short(first)} – ${short(last)}`;
+    }, [matches]);
+
+    return (
+        <div className="surface-card rounded-2xl overflow-hidden">
+            <button
+                type="button"
+                onClick={() => setOpen(o => !o)}
+                aria-expanded={open}
+                className="w-full flex items-center gap-3 px-4 md:px-5 py-3.5 hover:bg-muted/30 transition-colors text-left"
+            >
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                        <span className="text-sm md:text-[15px] font-semibold text-foreground truncate">
+                            {series}
+                        </span>
+                        <span className="text-[11px] tabular-nums text-muted-foreground">
+                            {matches.length} {matches.length === 1 ? 'match' : 'matches'}
+                        </span>
+                    </div>
+                    <div className="mt-1 flex items-center gap-2 flex-wrap">
+                        {formatCounts.map(([fmt, count]) => (
+                            <span
+                                key={fmt}
+                                className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-md tracking-wide ${
+                                    FORMAT_BADGE[fmt] ?? 'bg-muted text-muted-foreground'
+                                }`}
+                            >
+                                <span className="tabular-nums">{count}</span>
+                                <span>{fmt}</span>
+                            </span>
+                        ))}
+                        {dateRange && (
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground tabular-nums">
+                                {dateRange}
+                            </span>
+                        )}
+                    </div>
+                </div>
+                <ChevronRight
+                    className={`w-4 h-4 text-muted-foreground/60 shrink-0 transition-transform duration-200 ${
+                        open ? 'rotate-90' : ''
+                    }`}
+                />
+            </button>
+            {open && (
+                <div className="divide-y divide-border/50 border-t border-border/50">
+                    {matches.map(m => (
+                        <FixtureRow key={m.matchId} match={m} />
+                    ))}
+                </div>
+            )}
+        </div>
     );
 }
 
@@ -595,11 +788,17 @@ function FixtureRow({ match }: { match: LiveMatch }) {
                         </span>
                     )}
                 </div>
-                <div className="mt-1.5 text-[11px] text-muted-foreground truncate">
+                {/* Series line: truncate on tablet+ (desktop had a status
+                    column, no wrap needed), wrap to 2 lines on mobile so
+                    long tour names stay legible. */}
+                <div className="mt-1.5 text-[11px] text-muted-foreground md:truncate break-words">
                     {match.seriesName ? match.seriesName + (match.venue ? ` · ${match.venue}` : '') : match.venue}
                 </div>
-                {/* Mobile-only status line — desktop shows it in the right column */}
-                <div className={`md:hidden mt-1 text-[11px] font-medium line-clamp-1 leading-tight ${
+                {/* Mobile-only status line — desktop shows it in the right
+                    column. Allow wrap so "Match starts at {date}, {time} GMT"
+                    is fully visible on narrow viewports (iPhone SE 375px is
+                    the tightest common width). No font shrink. */}
+                <div className={`md:hidden mt-1 text-[11px] font-medium leading-tight break-words ${
                     isLive ? 'text-red-500 dark:text-red-400'
                     : isComplete ? 'text-emerald-600 dark:text-emerald-400'
                     : 'text-amber-600 dark:text-amber-400'

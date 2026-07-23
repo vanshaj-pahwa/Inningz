@@ -72,21 +72,26 @@ export function displayMatchFormat(raw?: string | null): string | null {
 
 // Build the internal series-page href from a source series URL + name.
 // e.g. "/cricket-series/10532/india-tour-of-england-2026/matches" -> "/series/10532/india-tour-of-england-2026"
-// Verified cricbuzz teamIds for international sides. Used by MatchCard when
-// the scraper couldn't populate `teamId` (HTML-scraped live/recent/upcoming
-// lists). Domestic teams (counties, Hundred/LPL/IPL franchises) are the long
-// tail — their names gracefully render as plain text when unrecognised, so
-// there's no broken /team/ link and no regression vs the previous state.
-// Threading `teamId` through the DOM scrapers is the durable fix; this map is
-// the pragmatic bridge for the international traffic that matters most.
+// Fallback name→id map for international sides. Used only where no scraper
+// has attached a `teamId` (news article body tags, generic name mentions).
+// Live/recent/upcoming rows resolve their own teamId from the upstream RSC
+// payload — this table is a small verified safety net, not a global registry.
+// Every entry has been confirmed against the `/cricket-team/{slug}/{id}` route
+// (upstream redirects by slug on mismatched IDs so unverified entries would
+// silently point to the wrong team; safer to omit and render plain text).
 const TEAM_ID_BY_NAME: Record<string, string> = {
-  // Full-member internationals
-  india: '2', pakistan: '3', australia: '4', 'south africa': '5', 'sri lanka': '6',
-  'new zealand': '7', 'west indies': '8', england: '9', zimbabwe: '10', bangladesh: '25',
-  ireland: '27', scotland: '30', netherlands: '15', afghanistan: '41',
-  // Frequent associates
-  usa: '22', 'united states': '22', nepal: '32', 'united arab emirates': '11', uae: '11',
-  oman: '31', namibia: '28', canada: '17', kenya: '29', 'papua new guinea': '39',
+  india: '2',
+  pakistan: '3',
+  australia: '4',
+  'sri lanka': '5',
+  bangladesh: '6',
+  england: '9',
+  'west indies': '10',
+  'south africa': '11',
+  zimbabwe: '12',
+  'new zealand': '13',
+  ireland: '27',
+  afghanistan: '96',
 };
 
 // Team detail page. Accepts a numeric or string id and any team name; slugifies
