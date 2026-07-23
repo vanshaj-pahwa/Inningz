@@ -145,34 +145,48 @@ export function parseJinaArticle(md: string): ParsedJinaArticle {
 
     const lines = contentBody.split(/\r?\n/).map(l => l.trim());
 
-    // Find earliest anchor: `Published:` (Pattern A) OR first `## ` (Pattern B).
-    let anchorIdx = -1;
-    let anchorIsByline = false;
+    // Locate two anchors independently: the byline (`Published:` line, marks
+    // the end of author metadata) and the first section heading (`## ...`).
+    // Body content starts at the FIRST heading when one exists; that way any
+    // `## Big picture / ## Form guide` sections that appear between the byline
+    // and the first inline image are preserved as headings/paragraphs. The
+    // byline is only used to bracket hero-image lookup so we don't grab a
+    // related-story thumbnail from the top nav as the hero.
+    let firstHeadingIdx = -1;
+    let publishedIdx = -1;
     for (let i = 0; i < lines.length; i++) {
-        if (/^Published:\s/.test(lines[i])) { anchorIdx = i; anchorIsByline = true; break; }
-        if (/^##\s+\S/.test(lines[i])) { anchorIdx = i; break; }
+        if (publishedIdx < 0 && /^Published:\s/.test(lines[i])) publishedIdx = i;
+        if (firstHeadingIdx < 0 && /^##\s+\S/.test(lines[i])) firstHeadingIdx = i;
+        if (publishedIdx >= 0 && firstHeadingIdx >= 0) break;
     }
-    if (anchorIdx < 0) return empty;
+    if (firstHeadingIdx < 0 && publishedIdx < 0) return empty;
 
-    let bodyStartIdx = anchorIdx;
+    const anchorIsByline = publishedIdx >= 0;
+    let bodyStartIdx: number;
     let heroImageUrl: string | undefined;
     let heroImageCaption: string | undefined;
 
     if (anchorIsByline) {
-        // Skip forward to hero image, capture it and the caption.
-        bodyStartIdx = anchorIdx + 1;
-        for (let i = anchorIdx + 1; i < lines.length; i++) {
+        // Look for the hero image between the byline and the first heading
+        // (or end of document if no heading). Captures URL + the caption line
+        // that follows. Doesn't advance bodyStartIdx past those — headings
+        // that live before the hero image (common in preview articles) must
+        // still be walked as content.
+        const searchEnd = firstHeadingIdx >= 0 ? firstHeadingIdx : lines.length;
+        for (let i = publishedIdx + 1; i < searchEnd; i++) {
             const m = lines[i].match(IMAGE_RE);
             if (!m) continue;
             heroImageUrl = m[1];
-            for (let j = i + 1; j < lines.length; j++) {
+            for (let j = i + 1; j < searchEnd; j++) {
                 if (!lines[j]) continue;
                 heroImageCaption = stripMarkdownLinks(lines[j]);
-                bodyStartIdx = j + 1;
                 break;
             }
             break;
         }
+        bodyStartIdx = firstHeadingIdx >= 0 ? firstHeadingIdx : publishedIdx + 1;
+    } else {
+        bodyStartIdx = firstHeadingIdx;
     }
 
     const paragraphs: string[] = [];
