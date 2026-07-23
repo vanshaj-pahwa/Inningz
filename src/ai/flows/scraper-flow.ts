@@ -3391,6 +3391,136 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
   return matches;
 }
 
+const TeamScheduleSchema = z.object({
+  teamName: z.string(),
+  teamFlagUrl: z.string().optional(),
+  live: z.array(LiveMatchSchema),
+  upcoming: z.array(LiveMatchSchema),
+  recent: z.array(LiveMatchSchema),
+});
+export type TeamSchedule = z.infer<typeof TeamScheduleSchema>;
+
+// Reconstruct the upstream page's RSC payload — the schedule page ships all
+// match data as escaped JSON inside `self.__next_f.push([1, "..."])` calls.
+// We concatenate the payloads, then pull matchInfo blocks with a
+// brace-balanced regex and JSON.parse each one.
+function extractMatchInfosFromHtml(html: string): Array<Record<string, unknown>> {
+  const parts: string[] = [];
+  const chunkRe = /self\.__next_f\.push\(\[1,"((?:[^"\\]|\\.)*)"\]\)/g;
+  let cm: RegExpExecArray | null;
+  while ((cm = chunkRe.exec(html))) {
+    try { parts.push(JSON.parse('"' + cm[1] + '"')); } catch { /* skip bad chunk */ }
+  }
+  const rsc = parts.join('');
+  const infos: Array<Record<string, unknown>> = [];
+  // Non-nested matchInfo block; team1/team2 are one nested level deep.
+  const blockRe = /"matchInfo":\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g;
+  let bm: RegExpExecArray | null;
+  while ((bm = blockRe.exec(rsc))) {
+    try {
+      const obj = JSON.parse('{' + bm[0] + '}');
+      if (obj?.matchInfo?.matchId) infos.push(obj.matchInfo);
+    } catch { /* skip malformed */ }
+  }
+  return infos;
+}
+
+type CbTeam = { teamId?: number; teamName?: string; teamSName?: string; imageId?: number };
+type CbMatchInfo = {
+  matchId: number;
+  seriesId?: number;
+  seriesName?: string;
+  matchDesc?: string;
+  matchFormat?: string;
+  startDate?: string | number;
+  state?: string;
+  status?: string;
+  team1?: CbTeam;
+  team2?: CbTeam;
+  venueInfo?: { ground?: string; city?: string };
+};
+
+function matchInfoToLive(mi: CbMatchInfo): LiveMatch {
+  const teams: LiveMatch['teams'] = [];
+  if (mi.team1) teams.push({ name: mi.team1.teamName || '', flagUrl: teamFlagFromImageId(mi.team1) });
+  if (mi.team2) teams.push({ name: mi.team2.teamName || '', flagUrl: teamFlagFromImageId(mi.team2) });
+  const venue = mi.venueInfo ? `${mi.venueInfo.ground || ''}${mi.venueInfo.city ? `, ${mi.venueInfo.city}` : ''}`.trim() : undefined;
+  const title = `${mi.team1?.teamName || ''} vs ${mi.team2?.teamName || ''}${mi.matchDesc ? `, ${mi.matchDesc}` : ''}`;
+  const startDate = typeof mi.startDate === 'string' ? parseInt(mi.startDate, 10) : mi.startDate;
+  return {
+    title,
+    url: `/live-cricket-scores/${mi.matchId}`,
+    matchId: String(mi.matchId),
+    teams,
+    status: mi.status || 'Status not available',
+    matchFormat: mi.matchFormat,
+    matchType: getMatchTypeFromSeries(mi.seriesName || '', title),
+    seriesName: mi.seriesName || undefined,
+    venue: venue || undefined,
+    startDate: typeof startDate === 'number' && Number.isFinite(startDate) ? startDate : undefined,
+  };
+}
+
+/**
+ * Scrape a team's schedule page (upcoming, live, recent matches). The page
+ * ships all match data as escaped JSON in the RSC payload; we filter to the
+ * requested team and classify by `state`.
+ */
+export async function scrapeTeamSchedule(teamId: string, teamSlug: string): Promise<TeamSchedule> {
+  const numericId = Number.parseInt(String(teamId).trim(), 10);
+  if (!Number.isFinite(numericId) || numericId <= 0) {
+    throw new Error('Invalid team id');
+  }
+  const slug = (teamSlug || 'team').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'team';
+  const url = `${UPSTREAM_BASE_URL}/cricket-team/${slug}/${numericId}/schedule`;
+  const response = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    },
+  });
+  if (!response.ok) throw new Error(`Failed to fetch team schedule: ${response.status}`);
+  const html = await response.text();
+
+  // Team name from the page <h1>/title as a fallback when the slug is generic.
+  const titleMatch = html.match(/<title[^>]*>([^|<]{2,60})/);
+  const teamName = (titleMatch?.[1] || '').replace(/Cricket Team.*/i, '').trim() || slug.replace(/-/g, ' ');
+
+  const infos = extractMatchInfosFromHtml(html);
+  const seenIds = new Set<number>();
+  const teamMatches = infos.filter(mi => {
+    const asObj = mi as unknown as CbMatchInfo;
+    if (asObj.team1?.teamId !== numericId && asObj.team2?.teamId !== numericId) return false;
+    if (seenIds.has(asObj.matchId)) return false;
+    seenIds.add(asObj.matchId);
+    return true;
+  }).map(mi => mi as unknown as CbMatchInfo);
+
+  const live: LiveMatch[] = [];
+  const upcoming: LiveMatch[] = [];
+  const recent: LiveMatch[] = [];
+  let teamFlagUrl: string | undefined;
+  let officialTeamName: string | undefined;
+  for (const mi of teamMatches) {
+    const lm = matchInfoToLive(mi);
+    const state = (mi.state || '').toLowerCase();
+    if (state === 'in progress' || state === 'toss' || state === 'innings break') live.push(lm);
+    else if (state === 'complete' || state === 'result' || state === 'abandoned') recent.push(lm);
+    else upcoming.push(lm);
+    // Pull the flag + canonical team name from whichever side is this team.
+    if (!teamFlagUrl || !officialTeamName) {
+      const side = mi.team1?.teamId === numericId ? mi.team1 : mi.team2?.teamId === numericId ? mi.team2 : undefined;
+      if (side) {
+        officialTeamName ||= side.teamName || undefined;
+        teamFlagUrl ||= teamFlagFromImageId(side);
+      }
+    }
+  }
+  upcoming.sort((a, b) => (a.startDate || 0) - (b.startDate || 0));
+  recent.sort((a, b) => (b.startDate || 0) - (a.startDate || 0));
+
+  return { teamName: officialTeamName || teamName, teamFlagUrl, live, upcoming, recent };
+}
+
 export async function scrapeMatchStats(matchId: string): Promise<MatchStats> {
   const url = `${UPSTREAM_BASE_URL}/live-cricket-scores/${matchId}`;
   const response = await fetch(url, {

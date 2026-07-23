@@ -72,6 +72,16 @@ export function displayMatchFormat(raw?: string | null): string | null {
 
 // Build the internal series-page href from a source series URL + name.
 // e.g. "/cricket-series/10532/india-tour-of-england-2026/matches" -> "/series/10532/india-tour-of-england-2026"
+// Team detail page. Accepts a numeric or string id and any team name; slugifies
+// the name and produces `/team/{id}/{slug}`. Returns null when the id is
+// missing so callers can conditionally omit the link.
+export function buildTeamHref(teamId?: string | number, teamName?: string): string | null {
+  const id = String(teamId ?? '').trim();
+  if (!id) return null;
+  const slug = (teamName || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'team';
+  return `/team/${id}/${slug}`;
+}
+
 export function buildSeriesHref(seriesName?: string, seriesUrl?: string): string | null {
   const id = seriesUrl?.match(/\/cricket-series\/(\d+)\b/)?.[1];
   if (!id) return null;

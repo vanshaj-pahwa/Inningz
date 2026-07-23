@@ -11,6 +11,8 @@ import {
     getPlayerProfile as getPlayerProfileFlow,
     scrapeMatchStats as scrapeMatchStatsFlow,
     scrapeSeriesMatches as scrapeSeriesMatchesFlow,
+    scrapeTeamSchedule as scrapeTeamScheduleFlow,
+    type TeamSchedule as TeamScheduleType,
     getMatchSquads as getMatchSquadsFlow,
     scrapePlayerHighlights as scrapePlayerHighlightsFlow,
     scrapeSeriesSchedule as scrapeSeriesScheduleFlow,
@@ -108,6 +110,17 @@ export type SeriesStatEntry = SeriesStatEntryType;
 export type SeriesStatCategory = SeriesStatCategoryType;
 export type SeriesStatsType = SeriesStatsTypeType;
 export type PointsTableData = PointsTableDataType;
+export type TeamSchedule = TeamScheduleType;
+
+export async function getTeamSchedule(teamId: string, teamSlug: string): Promise<{ success: boolean; data?: TeamScheduleType; error?: string }> {
+    if (!teamId) return { success: false, error: 'Invalid team id' };
+    try {
+        const data = await scrapeTeamScheduleFlow(teamId, teamSlug || '');
+        return { success: true, data };
+    } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : 'Failed to load team schedule' };
+    }
+}
 export type PointsTableGroup = PointsTableGroupType;
 export type PointsTableTeam = PointsTableTeamType;
 export type PointsTableMatch = PointsTableMatchType;

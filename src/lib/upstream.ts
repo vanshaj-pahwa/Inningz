@@ -36,3 +36,11 @@ export const playerFaceImageUrl = (faceImageId: string | number) =>
 // Team flag (72x52 badge, used everywhere the app shows a flag).
 export const teamFlagImageUrl = (imageId: string | number, teamShortName: string) =>
     `${UPSTREAM_STATIC_URL}/a/img/v1/72x52/i1/c${imageId}/${teamShortName.toLowerCase()}.jpg`;
+
+// HD team flag (288x208, ~4x pixel density) for hero placements — the team
+// masthead, share cards, anywhere a flag lands at ≥64px on-screen. Keeps the
+// 4:3 aspect ratio of the default badge so containers stay reusable.
+export function teamFlagHdFromUrl(flagUrl?: string): string | undefined {
+    if (!flagUrl) return undefined;
+    return flagUrl.replace('/72x52/', '/288x208/');
+}

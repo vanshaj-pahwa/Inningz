@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
+import { buildTeamHref } from '@/lib/utils';
 import { getICCRankings, getICCTeamRankings, getPlayerProfile } from '@/app/actions';
 import type { RankingsData, RankingEntry, PlayerProfile, TeamRankingsData } from '@/app/actions';
 import { Button } from '@/components/ui/button';
@@ -306,13 +307,13 @@ export default function RankingsPage() {
               <span className="w-14 md:w-20 text-right">Rating</span>
               <span className="hidden sm:inline w-16 md:w-20 text-right">Points</span>
             </div>
-            {teamsData.entries.map((entry, i) => (
-              <div
-                key={entry.teamId}
-                className={`flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-xl transition-all ${
-                  i < 3 ? 'bg-primary/5 dark:bg-primary/10' : i % 2 === 0 ? 'bg-muted/20' : ''
-                }`}
-              >
+            {teamsData.entries.map((entry, i) => {
+              const teamHref = buildTeamHref(entry.teamId, entry.teamName);
+              const rowClasses = `flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-xl transition-all ${
+                i < 3 ? 'bg-primary/5 dark:bg-primary/10' : i % 2 === 0 ? 'bg-muted/20' : ''
+              } ${teamHref ? 'hover:bg-primary/10 dark:hover:bg-primary/15 cursor-pointer' : ''}`;
+              const rowInner = (
+                <>
                 <div className="w-8 md:w-10 flex flex-col items-center">
                   <span className={`font-display text-sm md:text-base ${i < 3 ? 'text-primary font-bold' : 'text-muted-foreground'}`}>
                     {entry.rank}
@@ -347,8 +348,18 @@ export default function RankingsPage() {
                 <span className="hidden sm:inline w-16 md:w-20 text-right font-display text-sm md:text-base tabular-nums text-muted-foreground">
                   {entry.points}
                 </span>
-              </div>
-            ))}
+                </>
+              );
+              return teamHref ? (
+                <Link key={entry.teamId} href={teamHref} className={rowClasses}>
+                  {rowInner}
+                </Link>
+              ) : (
+                <div key={entry.teamId} className={rowClasses}>
+                  {rowInner}
+                </div>
+              );
+            })}
           </div>
         )}
 
