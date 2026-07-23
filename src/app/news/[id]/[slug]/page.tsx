@@ -96,19 +96,16 @@ export default function NewsArticlePage() {
     useEffect(() => {
         if (!article) return;
         if (!slug) return;
-        // Fire at most once per (id, slug).
+        // Always run reader-service enrichment exactly once per article, on top
+        // of whatever the server-side returned. Rationale: the upstream WAF
+        // often serves truncated cached responses to datacenter IPs (missing
+        // sections, images mispaired with captions), and the reader path runs
+        // from the viewer's residential IP so it returns the full article.
+        // We only replace the server-side body when the reader gives us a
+        // strictly larger (>=) block count, so a temporary reader failure can
+        // never regress good server-side output.
         const key = `${id}::${slug}`;
         if (enrichedRef.current === key) return;
-        // Heuristic: the upstream sometimes returns a truncated cached article
-        // (fewer than 4 blocks, no author) — probably a stale cache entry from
-        // a WAF-rate-limited fetch. Force the reader-service enrichment for
-        // those, otherwise skip if we already have a healthy body.
-        const blocks = article.blocks ?? [];
-        const looksHealthy = blocks.length >= 4 && !!article.author;
-        if (looksHealthy) {
-            enrichedRef.current = key;
-            return;
-        }
         enrichedRef.current = key;
         let cancelled = false;
         setBodyScraping(true);
@@ -161,15 +158,32 @@ export default function NewsArticlePage() {
                         const wordCount = parsed.paragraphs
                             .reduce((n, p) => n + p.split(/\s+/).filter(Boolean).length, 0);
                         const readTimeMinutes = Math.max(1, Math.round(wordCount / 220));
-                        setArticle(prev => prev ? {
-                            ...prev,
-                            blocks: parsed.blocks,
-                            paragraphs: parsed.paragraphs,
-                            wordCount,
-                            readTimeMinutes,
-                            heroImageUrl: prev.heroImageUrl || parsed.heroImageUrl || heroFromHtml,
-                            heroImageCaption: prev.heroImageCaption || parsed.heroImageCaption || heroCaptionFromHtml,
-                        } : prev);
+                        setArticle(prev => {
+                            if (!prev) return prev;
+                            // Only replace the server-side body when the reader
+                            // gives us at least as much structure. Prevents a
+                            // partial reader response from regressing a fully
+                            // scraped article.
+                            const prevBlocks = prev.blocks?.length ?? 0;
+                            if (parsed.blocks.length < prevBlocks) return prev;
+                            // The server-side heroImageCaption is only reliable
+                            // when its blocks look complete. If we're replacing
+                            // the body, replace the hero caption too so a stale
+                            // "Tilak Varma struck…" caption can't stick to an
+                            // unrelated RSS thumbnail.
+                            const replaceHero = parsed.blocks.length > prevBlocks;
+                            return {
+                                ...prev,
+                                blocks: parsed.blocks,
+                                paragraphs: parsed.paragraphs,
+                                wordCount,
+                                readTimeMinutes,
+                                heroImageUrl: prev.heroImageUrl || parsed.heroImageUrl || heroFromHtml,
+                                heroImageCaption: replaceHero
+                                    ? (parsed.heroImageCaption || heroCaptionFromHtml)
+                                    : (prev.heroImageCaption || parsed.heroImageCaption || heroCaptionFromHtml),
+                            };
+                        });
                         return;
                     } catch { /* try next base */ }
                 }
