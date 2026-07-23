@@ -28,6 +28,10 @@ export default function NewsArticlePage() {
     // CDN) for stories whose scraped heroImageUrl is a video thumbnail that
     // Next.js Image can't render (no file extension, no MIME sniff).
     const [feedHeroImage, setFeedHeroImage] = useState<string | undefined>(undefined);
+    // True while the client-side reader is fetching + parsing the body after
+    // the server scrape returned empty. Used to swap the empty body area for a
+    // skeleton so the reader sees progress, not a blank space.
+    const [bodyScraping, setBodyScraping] = useState(false);
 
     // Fetch the article + the feed in parallel. When the server-side article
     // fetch is blocked (WAF 403 against datacenter IPs), synthesize a minimal
@@ -90,34 +94,33 @@ export default function NewsArticlePage() {
         if ((article.blocks?.length ?? 0) > 0) return;
         if (!slug) return;
         let cancelled = false;
+        setBodyScraping(true);
         (async () => {
             const bases = NEWS_ARTICLE_BASE_URLS.map(base => `${base}/story/${slug}-${id}`);
-            for (const target of bases) {
-                try {
-                    const md = await fetch(`https://r.jina.ai/${target}`).then(r => r.ok ? r.text() : '');
-                    if (cancelled || !md) continue;
-                    const parsed = parseJinaArticle(md);
-                    if (parsed.paragraphs.length === 0) continue;
-                    const escapeHtml = (s: string) =>
-                        s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                    const blocks: NewsBlock[] = parsed.paragraphs.map(text => ({
-                        type: 'paragraph',
-                        html: escapeHtml(text),
-                    }));
-                    const wordCount = parsed.paragraphs
-                        .reduce((n, p) => n + p.split(/\s+/).filter(Boolean).length, 0);
-                    const readTimeMinutes = Math.max(1, Math.round(wordCount / 220));
-                    setArticle(prev => prev ? {
-                        ...prev,
-                        blocks,
-                        paragraphs: parsed.paragraphs,
-                        wordCount,
-                        readTimeMinutes,
-                        heroImageUrl: prev.heroImageUrl || parsed.heroImageUrl,
-                        heroImageCaption: prev.heroImageCaption || parsed.heroImageCaption,
-                    } : prev);
-                    return;
-                } catch { /* try next base */ }
+            try {
+                for (const target of bases) {
+                    try {
+                        const md = await fetch(`https://r.jina.ai/${target}`).then(r => r.ok ? r.text() : '');
+                        if (cancelled || !md) continue;
+                        const parsed = parseJinaArticle(md);
+                        if (parsed.blocks.length === 0) continue;
+                        const wordCount = parsed.paragraphs
+                            .reduce((n, p) => n + p.split(/\s+/).filter(Boolean).length, 0);
+                        const readTimeMinutes = Math.max(1, Math.round(wordCount / 220));
+                        setArticle(prev => prev ? {
+                            ...prev,
+                            blocks: parsed.blocks,
+                            paragraphs: parsed.paragraphs,
+                            wordCount,
+                            readTimeMinutes,
+                            heroImageUrl: prev.heroImageUrl || parsed.heroImageUrl,
+                            heroImageCaption: prev.heroImageCaption || parsed.heroImageCaption,
+                        } : prev);
+                        return;
+                    } catch { /* try next base */ }
+                }
+            } finally {
+                if (!cancelled) setBodyScraping(false);
             }
         })();
         return () => { cancelled = true; };
@@ -247,6 +250,7 @@ export default function NewsArticlePage() {
                             <ArticleBody
                                 blocks={article.blocks}
                                 fallbackParagraphs={article.paragraphs}
+                                bodyLoading={bodyScraping}
                             />
 
                             {/* Live match context — surface a live scorecard
@@ -435,7 +439,23 @@ function BylineStrip({ author, publishedLabel, readTime }: { author?: string; pu
     );
 }
 
-function ArticleBody({ blocks, fallbackParagraphs }: { blocks: NewsBlock[]; fallbackParagraphs: string[] }) {
+function ArticleBody({ blocks, fallbackParagraphs, bodyLoading }: { blocks: NewsBlock[]; fallbackParagraphs: string[]; bodyLoading?: boolean }) {
+    // Skeleton while the client-side reader fetch is in flight and no blocks
+    // have arrived yet. Mirrors the visual rhythm of a real article body so
+    // the layout doesn't jump when content lands.
+    if (bodyLoading && (!blocks || blocks.length === 0)) {
+        return (
+            <div className="mt-6 md:mt-10 space-y-5 md:space-y-6" aria-busy="true" aria-live="polite">
+                {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="space-y-2">
+                        <div className="skeleton h-4 w-full rounded" />
+                        <div className="skeleton h-4 w-11/12 rounded" />
+                        <div className="skeleton h-4 w-3/4 rounded" />
+                    </div>
+                ))}
+            </div>
+        );
+    }
     // Use the structured blocks when the scraper produced them; fall back to
     // a flat paragraph array for older cache entries or malformed responses.
     if (!blocks || blocks.length === 0) {
