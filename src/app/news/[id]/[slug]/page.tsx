@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { buildNewsHref, toFaceCroppedThumb } from '@/lib/utils';
 import { NEWS_ARTICLE_BASE_URLS } from '@/lib/upstream';
+import { parseJinaArticle } from '@/lib/parse-jina-article';
 
 export default function NewsArticlePage() {
     const router = useRouter();
@@ -79,57 +80,41 @@ export default function NewsArticlePage() {
     }, [id, slug]);
 
 
-    // Client-side body scrape via CORS proxy — kicks in when the server side
-    // couldn't reach the upstream (Vercel IP blocked at the edge). The user's
-    // browser IP is residential and generally passes the WAF; the proxy just
-    // returns raw HTML which we parse in-browser with the same regex the
-    // server-side scraper uses. Silent on failure — the RSS description +
-    // hero image + related sidebar remain as the base experience.
+    // Client-side body scrape via a reader service — kicks in when the server
+    // side couldn't reach the upstream (Vercel IP blocked at the edge). The
+    // reader has its own residential-friendly fetcher and returns cleaned
+    // markdown; we parse it into paragraphs. Silent on failure — the RSS
+    // description + hero image + related sidebar remain as the base experience.
     useEffect(() => {
         if (!article) return;
-        if ((article.blocks?.length ?? 0) > 0) return; // server-side scrape worked
+        if ((article.blocks?.length ?? 0) > 0) return;
         if (!slug) return;
         let cancelled = false;
         (async () => {
             const bases = NEWS_ARTICLE_BASE_URLS.map(base => `${base}/story/${slug}-${id}`);
             for (const target of bases) {
                 try {
-                    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(target)}`;
-                    const html = await fetch(proxyUrl).then(r => r.ok ? r.text() : '');
-                    if (cancelled || !html || !html.includes('ci-story')) continue;
-                    const blocks: NewsBlock[] = [];
-                    const paragraphs: string[] = [];
-                    const inlineSafe = /^\/?(?:b|strong|i|em|u|br|ul|ol|li|sub|sup)$/i;
-                    const paraRe = /<(?:span|p)[^>]*\bci-html-content\b[^>]*>\s*<div[^>]*>([\s\S]*?)<\/div>\s*<\/(?:span|p)>/g;
-                    let m: RegExpExecArray | null;
-                    while ((m = paraRe.exec(html)) !== null) {
-                        const raw = m[1];
-                        const headingM = raw.match(/<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/);
-                        if (headingM) {
-                            const text = headingM[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-                            if (text) blocks.push({ type: 'heading', text });
-                            continue;
-                        }
-                        const cleaned = raw
-                            .replace(/<a\s[^>]*>([\s\S]*?)<\/a>/gi, (_x, inner) => `<u>${inner}</u>`)
-                            .replace(/<(\/?)([a-z0-9]+)(?:\s[^>]*)?>/gi, (_x, close, tag) =>
-                                inlineSafe.test((close || '') + tag) ? `<${close || ''}${tag.toLowerCase()}>` : ''
-                            )
-                            .replace(/\s+/g, ' ')
-                            .trim();
-                        if (!cleaned) continue;
-                        blocks.push({ type: 'paragraph', html: cleaned });
-                        paragraphs.push(cleaned.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim());
-                    }
-                    if (cancelled || blocks.length === 0) continue;
-                    const wordCount = paragraphs.reduce((n, p) => n + p.split(/\s+/).filter(Boolean).length, 0);
+                    const md = await fetch(`https://r.jina.ai/${target}`).then(r => r.ok ? r.text() : '');
+                    if (cancelled || !md) continue;
+                    const parsed = parseJinaArticle(md);
+                    if (parsed.paragraphs.length === 0) continue;
+                    const escapeHtml = (s: string) =>
+                        s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    const blocks: NewsBlock[] = parsed.paragraphs.map(text => ({
+                        type: 'paragraph',
+                        html: escapeHtml(text),
+                    }));
+                    const wordCount = parsed.paragraphs
+                        .reduce((n, p) => n + p.split(/\s+/).filter(Boolean).length, 0);
                     const readTimeMinutes = Math.max(1, Math.round(wordCount / 220));
                     setArticle(prev => prev ? {
                         ...prev,
                         blocks,
-                        paragraphs,
+                        paragraphs: parsed.paragraphs,
                         wordCount,
                         readTimeMinutes,
+                        heroImageUrl: prev.heroImageUrl || parsed.heroImageUrl,
+                        heroImageCaption: prev.heroImageCaption || parsed.heroImageCaption,
                     } : prev);
                     return;
                 } catch { /* try next base */ }
