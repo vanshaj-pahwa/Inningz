@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { buildNewsHref, toFaceCroppedThumb } from '@/lib/utils';
 import { NEWS_ARTICLE_BASE_URLS } from '@/lib/upstream';
-import { parseJinaArticle } from '@/lib/parse-jina-article';
+import { parseJinaArticle, extractJinaLdImages, LAZY_IMAGE_SENTINEL } from '@/lib/parse-jina-article';
 
 export default function NewsArticlePage() {
     const router = useRouter();
@@ -100,10 +100,47 @@ export default function NewsArticlePage() {
             try {
                 for (const target of bases) {
                     try {
-                        const md = await fetch(`https://r.jina.ai/${target}`).then(r => r.ok ? r.text() : '');
+                        // Markdown gives clean structure fast; HTML mode gives
+                        // real image URLs via JSON-LD. Fetch both in parallel.
+                        const readerUrl = `https://r.jina.ai/${target}`;
+                        const [md, html] = await Promise.all([
+                            fetch(readerUrl).then(r => r.ok ? r.text() : ''),
+                            fetch(readerUrl, { headers: { 'X-Return-Format': 'html' } })
+                                .then(r => r.ok ? r.text() : '')
+                                .catch(() => ''),
+                        ]);
                         if (cancelled || !md) continue;
                         const parsed = parseJinaArticle(md);
                         if (parsed.blocks.length === 0) continue;
+                        // Swap sentinel URLs with real ones from HTML-mode JSON-LD,
+                        // matched by document order (Nth lazy image → Nth record).
+                        let heroFromHtml: string | undefined;
+                        let heroCaptionFromHtml: string | undefined;
+                        if (html) {
+                            const records = extractJinaLdImages(html);
+                            let recIdx = 0;
+                            const enrichedBlocks = parsed.blocks.map(b => {
+                                if (b.type !== 'image' || b.imageUrl !== LAZY_IMAGE_SENTINEL) return b;
+                                const rec = records[recIdx++];
+                                if (!rec) return b;
+                                return { ...b, imageUrl: rec.url, caption: b.caption || rec.caption };
+                            });
+                            // If markdown had no hero but HTML has an unused first
+                            // record, promote it to the hero.
+                            if (!parsed.heroImageUrl && records.length > recIdx) {
+                                heroFromHtml = records[recIdx].url;
+                                heroCaptionFromHtml = records[recIdx].caption;
+                            }
+                            parsed.blocks = enrichedBlocks.filter(b =>
+                                b.type !== 'image' || b.imageUrl !== LAZY_IMAGE_SENTINEL
+                            );
+                        } else {
+                            // No HTML to enrich from — drop lazy sentinels so
+                            // broken placeholders don't render.
+                            parsed.blocks = parsed.blocks.filter(b =>
+                                b.type !== 'image' || b.imageUrl !== LAZY_IMAGE_SENTINEL
+                            );
+                        }
                         const wordCount = parsed.paragraphs
                             .reduce((n, p) => n + p.split(/\s+/).filter(Boolean).length, 0);
                         const readTimeMinutes = Math.max(1, Math.round(wordCount / 220));
@@ -113,8 +150,8 @@ export default function NewsArticlePage() {
                             paragraphs: parsed.paragraphs,
                             wordCount,
                             readTimeMinutes,
-                            heroImageUrl: prev.heroImageUrl || parsed.heroImageUrl,
-                            heroImageCaption: prev.heroImageCaption || parsed.heroImageCaption,
+                            heroImageUrl: prev.heroImageUrl || parsed.heroImageUrl || heroFromHtml,
+                            heroImageCaption: prev.heroImageCaption || parsed.heroImageCaption || heroCaptionFromHtml,
                         } : prev);
                         return;
                     } catch { /* try next base */ }

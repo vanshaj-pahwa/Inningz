@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { parseJinaArticle } from './parse-jina-article';
+import { parseJinaArticle, extractJinaLdImages, LAZY_IMAGE_SENTINEL } from './parse-jina-article';
 
 const FIXTURE_BYLINE = `Title: Afghanistan to host India for T20I series in Delhi
 
@@ -119,6 +119,62 @@ test('preview pattern: extracts headings and paragraphs when no byline exists', 
     // Stats and trivia items rendered as a <ul>
     const hasList = paraBlocks.some(b => /<ul>/.test(b.html) && /Harare Sports Club/.test(b.html));
     assert.ok(hasList, 'expected a <ul> containing "Harare Sports Club"');
+});
+
+test('preview pattern: preserves lazy body images as sentinel blocks in order', () => {
+    const md = `Title: X\n\nMarkdown Content:\n## Form guide\n\n**Zimbabwe** LLWLL\n\n**India** LLLLL\n\n![Image 32: Tilak Varma alt](https://wassets.hscicdn.com/static/images/lazyimage-noaspect.svg)\n\nTilak Varma struck a half-century in the fifth T20I against England•BCCI\n\n## In the spotlight\n\n**Tilak Varma** struck a quick-fire half-century in the fifth T20I against England, which was a truly notable innings under pressure.\n\n![Image 33: Newman alt](https://wassets.hscicdn.com/static/images/lazyimage-noaspect.svg)\n\nNewman Nyamhuri is set to return from a niggle•Reuters\n\n## Next section\n\nAnother paragraph body text that is easily longer than forty characters here now.\n`;
+    const parsed = parseJinaArticle(md);
+    const imageBlocks = parsed.blocks.filter(b => b.type === 'image') as Array<{ imageUrl: string; caption?: string }>;
+    assert.strictEqual(imageBlocks.length, 2, `expected 2 image blocks, got ${imageBlocks.length}`);
+    assert.strictEqual(imageBlocks[0].imageUrl, LAZY_IMAGE_SENTINEL);
+    assert.match(imageBlocks[0].caption || '', /Tilak Varma struck a half-century/);
+    assert.strictEqual(imageBlocks[1].imageUrl, LAZY_IMAGE_SENTINEL);
+    assert.match(imageBlocks[1].caption || '', /Newman Nyamhuri is set to return/);
+    // Image block sits between the Form guide list and the In the spotlight heading.
+    const headings = parsed.blocks
+        .map((b, i) => ({ b, i }))
+        .filter(x => x.b.type === 'heading') as Array<{ b: { type: 'heading'; text: string }; i: number }>;
+    const formGuideIdx = headings.find(h => /Form guide/.test(h.b.text))!.i;
+    const spotlightIdx = headings.find(h => /In the spotlight/.test(h.b.text))!.i;
+    const firstImageIdx = parsed.blocks.findIndex(b => b.type === 'image');
+    assert.ok(firstImageIdx > formGuideIdx && firstImageIdx < spotlightIdx, `first image should sit between Form guide (${formGuideIdx}) and In the spotlight (${spotlightIdx}), got ${firstImageIdx}`);
+});
+
+test('extractJinaLdImages: extracts ImageObject records with real URLs and captions', () => {
+    const html = `<html>
+<body>
+<script type="application/ld+json">{"@type":"ImageObject","contentUrl":"https://img1.hscicdn.com/image/upload/f_auto/lsci/db/PICTURES/CMS/419600/419689.4.jpg","caption":"Tilak Varma struck a half-century in the fifth T20I against England"}</script>
+<script type="application/ld+json">{"@type":"WebPage","name":"skip me"}</script>
+<script type="application/ld+json">{"@type":"ImageObject","contentUrl":"https://img1.hscicdn.com/image/upload/f_auto,t_ds_square_w_160/lsci/db/PICTURES/CMS/415700/415771.10.jpg","caption":"related thumb should be filtered"}</script>
+<script type="application/ld+json">{"@type":"ImageObject","contentUrl":"https://img1.hscicdn.com/image/upload/f_auto/lsci/db/PICTURES/CMS/374800/374823.4.jpg","caption":"Newman Nyamhuri is set to return from a niggle"}</script>
+</body></html>`;
+    const records = extractJinaLdImages(html);
+    assert.strictEqual(records.length, 2, `expected 2 body-image records, got ${records.length}`);
+    assert.match(records[0].url, /419689\.4\.jpg$/);
+    assert.match(records[0].caption || '', /Tilak Varma/);
+    assert.match(records[1].url, /374823\.4\.jpg$/);
+    assert.match(records[1].caption || '', /Newman Nyamhuri/);
+});
+
+test('extractJinaLdImages: tolerates malformed JSON and non-ImageObject entries', () => {
+    const html = `<script type="application/ld+json">{ malformed json }</script>
+<script type="application/ld+json">{"@type":"Person","name":"author"}</script>
+<script type="application/ld+json">{"@type":"ImageObject","contentUrl":"https://img1.hscicdn.com/image/upload/f_auto/lsci/db/PICTURES/CMS/1/1.jpg"}</script>`;
+    const records = extractJinaLdImages(html);
+    assert.strictEqual(records.length, 1);
+    assert.strictEqual(records[0].url, 'https://img1.hscicdn.com/image/upload/f_auto/lsci/db/PICTURES/CMS/1/1.jpg');
+});
+
+test('live: HTML mode returns JSON-LD ImageObject records for Zimbabwe preview', async () => {
+    const url = 'https://r.jina.ai/https://www.espncricinfo.com/story/zimbabwe-look-to-expose-vulnerable-india-searching-for-winning-formula-1547061';
+    const html = await fetch(url, { headers: { 'X-Return-Format': 'html' } }).then(r => r.ok ? r.text() : '');
+    if (!html) {
+        console.log('  (skipping live test: Jina unreachable)');
+        return;
+    }
+    const records = extractJinaLdImages(html);
+    console.log(`  live: ${records.length} body-image records`);
+    assert.ok(records.length >= 1, `expected >=1 body-image record, got ${records.length}`);
 });
 
 test('no anchor -> empty', () => {

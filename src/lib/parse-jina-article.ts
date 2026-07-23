@@ -39,6 +39,53 @@ export interface ParsedJinaArticle {
     heroImageCaption?: string;
 }
 
+/**
+ * Sentinel URL for images whose real URL is JS-lazy-loaded by the source and
+ * therefore absent from the reader's static markdown output. The client
+ * enriches these blocks via `extractJinaLdImages` from the HTML-mode reader.
+ */
+export const LAZY_IMAGE_SENTINEL = '__lazy_image__';
+
+export interface JinaImageRecord {
+    url: string;
+    caption?: string;
+}
+
+/**
+ * Extract inline body images from the reader's HTML-mode response by pulling
+ * out every `<script type="application/ld+json">{"@type":"ImageObject",...}</script>`
+ * block. These records preserve document order — the Nth record corresponds
+ * to the Nth lazy-placeholder image in the parsed markdown, so callers can
+ * replace sentinel URLs in the same order.
+ */
+export function extractJinaLdImages(html: string): JinaImageRecord[] {
+    const records: JinaImageRecord[] = [];
+    const scriptRe = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+    let m: RegExpExecArray | null;
+    while ((m = scriptRe.exec(html)) !== null) {
+        const raw = m[1].trim();
+        if (!raw.includes('ImageObject')) continue;
+        try {
+            const data = JSON.parse(raw);
+            const push = (obj: { '@type'?: string; contentUrl?: string; url?: string; caption?: string; description?: string }) => {
+                if (!obj || obj['@type'] !== 'ImageObject') return;
+                const url = obj.contentUrl || obj.url;
+                if (!url) return;
+                // Body photos live under `.../lsci/db/PICTURES/` at full width
+                // (no `t_ds_square_*` thumbnail transform); everything else is
+                // navigation/logo/author artefacts.
+                if (!/lsci\/db\/PICTURES\//.test(url)) return;
+                if (/t_ds_square_w_\d+/.test(url)) return;
+                if (/t_h_\d+/.test(url)) return;
+                records.push({ url, caption: obj.caption || obj.description });
+            };
+            if (Array.isArray(data)) data.forEach(push);
+            else push(data);
+        } catch { /* malformed JSON — skip */ }
+    }
+    return records;
+}
+
 const END_MARKERS: RegExp[] = [
     /^\[Terms of Use\]/,
     /^## Your Privacy Choices/,
@@ -187,26 +234,47 @@ export function parseJinaArticle(md: string): ParsedJinaArticle {
             continue;
         }
 
-        // Images
+        // Images. A lazy-loaded image still emits a sentinel block so the
+        // client can later swap its URL from JSON-LD; skipping these here
+        // would lose their document position.
         if (line.startsWith('![')) {
             const m = line.match(IMAGE_RE);
             if (!m) continue;
             const url = m[1];
-            if (seenImageUrls.has(url)) continue;
-            seenImageUrls.add(url);
-            // Skip lazy-placeholder svgs (used in related-story bullet lists,
-            // but occasionally leak through if the reader lost context).
-            if (/lazyimage-noaspect|logo\.svg/i.test(url)) continue;
+            const isLazy = /lazyimage-noaspect|logo\.svg/i.test(url);
+            if (!isLazy && seenImageUrls.has(url)) continue;
+            if (!isLazy) seenImageUrls.add(url);
             // Alt text: `Image N: {alt}` — strip the numeric prefix.
             const altMatch = line.match(/^!\[Image \d+:\s*([^\]]+?)\]/);
             const alt = altMatch ? altMatch[1].trim() : undefined;
-            if (!heroConsumed) {
+            // Peek at the next non-blank line — cricinfo places the human
+            // caption ("... struck a half-century ... •BCCI") right after
+            // the image. Prefer that over the alt when both exist.
+            let caption = alt;
+            for (let j = i + 1; j < lines.length; j++) {
+                const next = lines[j];
+                if (!next) continue;
+                if (next.startsWith('![') || next.startsWith('[![')) break;
+                if (/^##?\s/.test(next) || next.startsWith('*')) break;
+                // Caption lines end with `•{Source}` — BCCI, Reuters, Getty
+                // Images, AFP, etc. Anything short after the bullet counts.
+                if (/•\s*[A-Z][A-Za-z][^\n]{0,60}$/.test(next)) {
+                    caption = stripMarkdownLinks(next);
+                    i = j; // consume the caption line
+                }
+                break;
+            }
+            if (!heroConsumed && !isLazy) {
                 heroImageUrl = url;
-                heroImageCaption = alt;
+                heroImageCaption = caption;
                 heroConsumed = true;
                 continue;
             }
-            blocks.push({ type: 'image', imageUrl: url, caption: alt });
+            blocks.push({
+                type: 'image',
+                imageUrl: isLazy ? LAZY_IMAGE_SENTINEL : url,
+                caption,
+            });
             continue;
         }
         if (AUTHOR_IMAGE_RE.test(line)) continue;
@@ -217,7 +285,7 @@ export function parseJinaArticle(md: string): ParsedJinaArticle {
         const clean = stripMarkdownLinks(line);
         if (clean.length < 40) continue;
         // Photo captions ("... in Delhi•BCCI") — short, end with •SOURCE.
-        if (/•[A-Z]{2,}\s*$/.test(clean) && clean.length < 120) continue;
+        if (/•\s*[A-Z][A-Za-z][^\n]{0,60}$/.test(clean) && clean.length < 200) continue;
 
         paragraphs.push(clean);
         blocks.push({ type: 'paragraph', html: toParagraphHtml(line) });
