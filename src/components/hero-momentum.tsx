@@ -29,7 +29,9 @@ export default function HeroMomentum({ overs, accent }: { overs: OverPoint[] | n
 function MomentumSparkline({ overs, accent }: { overs: OverPoint[]; accent?: string }) {
   const [hover, setHover] = useState<number | null>(null);
 
-  const recent = overs.slice(-18);
+  // Show up to the full T20 innings (20 overs). Longer formats fall back to
+  // the last 20 to keep the sparkline density readable.
+  const recent = overs.slice(-20);
   const runs = recent.map((o) => o.runs);
   const max = Math.max(Math.max(...runs), 6);
   const firstOver = recent[0].overNumber;

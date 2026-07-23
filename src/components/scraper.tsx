@@ -1263,47 +1263,31 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
             <RainOverlay active={rainActive} duration={5000} onDone={() => setRainActive(false)} />
             {/* Header */}
             <div className="flex flex-col gap-2 mb-4 md:mb-6 py-3 md:py-4 gradient-border">
-                {/* Mobile: breadcrumb + icon strip share one row above the
-                    title so both stay glanceable while the h1 + venue meta
-                    claim the full row below. Desktop keeps the single-row
-                    header where icons stay inline on the right. */}
-                <div className="md:hidden flex items-center justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                        <Breadcrumbs
-                            items={[
-                                { label: 'Home', href: '/' },
-                                ...(data?.seriesName && data?.seriesId
-                                    ? [{
-                                        label: data.seriesName,
-                                        href: `/series/${data.seriesId}/${data.seriesName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`,
-                                    }]
-                                    : []),
-                            ]}
-                        />
-                    </div>
-                    <div className="shrink-0 flex items-center gap-1.5">
-                        <Link
-                            href="/news"
-                            aria-label="News"
-                            className="inline-flex items-center justify-center h-10 w-10 rounded-xl border border-border/60 bg-card/40 hover:bg-card/70 transition-colors text-muted-foreground"
-                        >
-                            <Newspaper className="w-4 h-4" />
-                        </Link>
-                        <Link
-                            href="/rankings"
-                            aria-label="Rankings"
-                            className="inline-flex items-center justify-center h-10 w-10 rounded-xl border border-border/60 bg-card/40 hover:bg-card/70 transition-colors text-muted-foreground"
-                        >
-                            <Medal className="w-4 h-4" />
-                        </Link>
-                        <CommandPaletteTrigger />
-                        <ThemeToggle />
-                    </div>
+                {/* Mobile: breadcrumb owns its own full-width row so long
+                    series names ("India tour of Zimbabwe 2026") never
+                    truncate against the 4-icon action cluster. Row 2 pairs
+                    the h1/meta on the left with the icons on the right, and
+                    the icon cluster shrinks (shrink-0) so h1 always claims
+                    whatever space remains. Desktop keeps the compact single-
+                    row header where the breadcrumb sits above the h1 inside
+                    the left column. */}
+                <div className="lg:hidden">
+                    <Breadcrumbs
+                        items={[
+                            { label: 'Home', href: '/' },
+                            ...(data?.seriesName && data?.seriesId
+                                ? [{
+                                    label: data.seriesName,
+                                    href: `/series/${data.seriesId}/${data.seriesName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`,
+                                }]
+                                : []),
+                        ]}
+                    />
                 </div>
                 <div className="flex items-start gap-2 md:gap-4">
                     <div className="flex-1 min-w-0">
                         <Breadcrumbs
-                            className="mb-1 hidden md:flex"
+                            className="mb-1 hidden lg:flex"
                             items={[
                                 { label: 'Home', href: '/' },
                                 ...(data?.seriesName && data?.seriesId
@@ -1398,6 +1382,28 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                         >
                             <Medal className="w-4 h-4" />
                             <span className="hidden lg:inline">Rankings</span>
+                        </Link>
+                        <CommandPaletteTrigger />
+                        <ThemeToggle />
+                    </div>
+                    {/* Mobile: icon cluster shares row 2 with the h1. shrink-0
+                        so h1 always gets the leftover width; icons never
+                        squeeze it below the two-line clamp. Tablet+ uses the
+                        text-label cluster to the right of the title instead. */}
+                    <div className="md:hidden shrink-0 flex items-center gap-1.5">
+                        <Link
+                            href="/news"
+                            aria-label="News"
+                            className="inline-flex items-center justify-center h-10 w-10 rounded-xl border border-border/60 bg-card/40 hover:bg-card/70 transition-colors text-muted-foreground"
+                        >
+                            <Newspaper className="w-4 h-4" />
+                        </Link>
+                        <Link
+                            href="/rankings"
+                            aria-label="Rankings"
+                            className="inline-flex items-center justify-center h-10 w-10 rounded-xl border border-border/60 bg-card/40 hover:bg-card/70 transition-colors text-muted-foreground"
+                        >
+                            <Medal className="w-4 h-4" />
                         </Link>
                         <CommandPaletteTrigger />
                         <ThemeToggle />
