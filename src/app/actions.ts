@@ -144,23 +144,35 @@ export async function loadMoreCommentary(matchId: string, timestamp: number, inn
     }
 
     try {
-        const url = `https://www.cricbuzz.com/api/mcenter/commentary-pagination/${matchId}/${inningsId}/${timestamp}`;
-        console.log('[loadMoreCommentary API] Fetching URL:', url);
-
-        const response = await fetch(url, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            },
-        });
-
-        if (!response.ok) {
-            return { success: false, error: `Failed to fetch commentary: ${response.statusText}` };
+        // Try both pagination variants. The `hcommentary-pagination` endpoint
+        // serves matches that use the `hcomm` data source (The Hundred and
+        // similar); the plain `commentary-pagination` serves everything else.
+        // Whichever returns real data first wins.
+        const variants = ['commentary-pagination', 'hcommentary-pagination'];
+        let text = '';
+        let usedUrl = '';
+        for (const variant of variants) {
+            const candidateUrl = `https://www.cricbuzz.com/api/mcenter/${variant}/${matchId}/${inningsId}/${timestamp}`;
+            const response = await fetch(candidateUrl, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                },
+            });
+            if (!response.ok) continue;
+            const body = await response.text();
+            if (!body || body.trim() === '' || body.trim() === '[]') {
+                // Empty from this variant, try the next.
+                continue;
+            }
+            text = body;
+            usedUrl = candidateUrl;
+            break;
         }
+        console.log('[loadMoreCommentary API] Used URL:', usedUrl || '(none)');
 
-        // Check if response body is empty (no more commentary available)
-        const text = await response.text();
-        if (!text || text.trim() === '') {
-            console.log('[loadMoreCommentary API] Empty response - no more commentary available');
+        // If both variants returned empty, there's genuinely no more commentary.
+        if (!text) {
+            console.log('[loadMoreCommentary API] Both pagination variants empty - no more commentary available');
             return {
                 success: true,
                 commentary: [],

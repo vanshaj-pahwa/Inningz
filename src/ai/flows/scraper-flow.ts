@@ -2471,6 +2471,11 @@ export async function getScoreForMatchId(
   ];
 
   let data = null;
+  // Track which endpoint variant supplied the data. Matches served via
+  // `hcomm` use `hcommentary-pagination` for backfill; regular `comm` matches
+  // use `commentary-pagination`. Both endpoint families have the same shape,
+  // just different names.
+  let paginationVariant: 'commentary-pagination' | 'hcommentary-pagination' = 'commentary-pagination';
 
   for (const apiUrl of apiEndpoints) {
     try {
@@ -2505,6 +2510,9 @@ export async function getScoreForMatchId(
         if (!data) data = candidate;
         continue;
       }
+      // Record the pagination variant to use for this data source.
+      if (apiUrl.includes('/hcomm/')) paginationVariant = 'hcommentary-pagination';
+      else paginationVariant = 'commentary-pagination';
       data = candidate;
       break;
     } catch (e: any) {
@@ -2547,8 +2555,9 @@ export async function getScoreForMatchId(
 
   if (miniscore?.inningsId) {
     try {
-      // Use a very large timestamp to get the newest commentary from pagination
-      const paginationUrl = `https://www.cricbuzz.com/api/mcenter/commentary-pagination/${matchId}/${miniscore.inningsId}/9999999999999`;
+      // Use a very large timestamp to get the newest commentary from pagination.
+      // Uses the pagination variant that matches the endpoint that gave us data.
+      const paginationUrl = `https://www.cricbuzz.com/api/mcenter/${paginationVariant}/${matchId}/${miniscore.inningsId}/9999999999999`;
       const paginationResponse = await fetch(paginationUrl, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
