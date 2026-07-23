@@ -1,20 +1,32 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, MapPin, Clock, ChevronRight } from 'lucide-react';
+import { ArrowLeft, MapPin, Clock, ChevronRight, BarChart3, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { CommandPaletteTrigger } from '@/components/command-palette';
 import Breadcrumbs from '@/components/breadcrumbs';
 import { getTeamSchedule, getICCTeamRankings } from '@/app/actions';
 import type { LiveMatch, TeamSchedule, TeamRankingEntry } from '@/app/actions';
-import { buildTeamHref, buildMatchHref } from '@/lib/utils';
+import { buildTeamHref, buildMatchHref, deriveMatchFormat, displayMatchFormat } from '@/lib/utils';
 import { teamFlagHdFromUrl } from '@/lib/upstream';
 
 const FMT_ORDER = ['TEST', 'ODI', 'T20I', 'T20'];
+
+// Home-screen format chip palette — kept in sync with MatchCard so a badge
+// on the team page reads exactly the same as one on the home dashboard.
+const FORMAT_BADGE: Record<string, string> = {
+    T20: 'bg-purple-500/15 text-purple-600 dark:text-purple-300',
+    T20I: 'bg-purple-500/15 text-purple-600 dark:text-purple-300',
+    T10: 'bg-teal-500/15 text-teal-600 dark:text-teal-300',
+    ODI: 'bg-blue-500/15 text-blue-600 dark:text-blue-300',
+    TEST: 'bg-rose-500/15 text-rose-600 dark:text-rose-300',
+    '100': 'bg-pink-500/15 text-pink-600 dark:text-pink-300',
+    'List A': 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300',
+};
 
 // Unified flag treatment — same tight rectangle and 2px border radius as
 // MatchCard uses (`rounded-[2px]`), so flags read the same across the app.
@@ -111,14 +123,85 @@ export default function TeamPage() {
         });
     }, [data, readableName]);
 
-    const nextMatch = data?.live[0] || data?.upcoming[0];
-
     // Countdown seconds for the "Next up" hero.
     const [now, setNow] = useState(() => Date.now());
     useEffect(() => {
         const t = setInterval(() => setNow(Date.now()), 30000);
         return () => clearInterval(t);
     }, []);
+
+    // Top-level view — Schedule vs Stats. Synced with `?tab=` for shareable
+    // deep-links (`/team/2/india?tab=stats`).
+    const [tab, setTab] = useState<'schedule' | 'stats'>('schedule');
+    const tabInitializedRef = useRef(false);
+    useEffect(() => {
+        if (tabInitializedRef.current) return;
+        tabInitializedRef.current = true;
+        const t = new URLSearchParams(window.location.search).get('tab');
+        if (t === 'stats' || t === 'schedule') setTab(t);
+    }, []);
+
+    // Format filter — Test / ODI / T20I / All. Kept as a client-side pass so
+    // the sidebar counts stay accurate for the full dataset.
+    const [formatFilter, setFormatFilter] = useState<'all' | string>('all');
+    const availableFormats = useMemo(() => {
+        if (!data) return [];
+        const set = new Set<string>();
+        for (const m of [...data.live, ...data.upcoming, ...data.recent]) {
+            const f = (m.matchFormat || '').toUpperCase();
+            if (f && f !== 'OTHER') set.add(f);
+        }
+        // Normalize T20/T20I into one control since they display the same.
+        const arr = Array.from(set);
+        const hasT20 = arr.includes('T20') || arr.includes('T20I');
+        return [
+            ...(arr.includes('TEST') ? ['TEST'] : []),
+            ...(arr.includes('ODI') ? ['ODI'] : []),
+            ...(hasT20 ? ['T20I'] : []),
+            ...arr.filter(f => !['TEST', 'ODI', 'T20', 'T20I'].includes(f)),
+        ];
+    }, [data]);
+
+    const filterMatch = (m: LiveMatch) => {
+        if (formatFilter === 'all') return true;
+        const f = (m.matchFormat || '').toUpperCase();
+        if (formatFilter === 'T20I') return f === 'T20' || f === 'T20I';
+        return f === formatFilter;
+    };
+
+    const filteredData = useMemo(() => {
+        if (!data) return null;
+        if (formatFilter === 'all') return data;
+        return {
+            ...data,
+            live: data.live.filter(filterMatch),
+            upcoming: data.upcoming.filter(filterMatch),
+            recent: data.recent.filter(filterMatch),
+        };
+    }, [data, formatFilter]);
+
+    // Next match reflects the CURRENTLY FILTERED dataset so the hero shows
+    // "next TEST" when the Test chip is active, "next ODI" for ODI, etc.
+    // Never hidden by a filter.
+    const nextMatch = filteredData?.live[0] || filteredData?.upcoming[0];
+
+    // Head-to-head vs the Next Up opponent, derived from the FULL recent
+    // history (independent of format filter so H2H remains meaningful).
+    const h2h = useMemo(() => {
+        if (!data || !nextMatch) return null;
+        const myNameLc = readableName.toLowerCase();
+        const opponent = nextMatch.teams.find(t => (t.name || '').toLowerCase() !== myNameLc);
+        if (!opponent) return null;
+        const opponentLc = (opponent.name || '').toLowerCase();
+        const past = data.recent.filter(m => m.teams.some(t => (t.name || '').toLowerCase() === opponentLc));
+        if (past.length === 0) return { opponent: opponent.name || '', opponentFlag: opponent.flagUrl, results: [] as ('W' | 'L' | 'D')[] };
+        const results = past.slice(0, 5).map(m => {
+            const s = (m.status || '').toLowerCase();
+            if (s.includes('draw') || s.includes('tied') || s.includes('no result') || s.includes('abandoned')) return 'D' as const;
+            return s.includes(`${myNameLc} won`) ? 'W' as const : 'L' as const;
+        });
+        return { opponent: opponent.name || '', opponentFlag: opponent.flagUrl, results };
+    }, [data, nextMatch, readableName]);
 
     return (
         <div className="min-h-screen">
@@ -165,7 +248,7 @@ export default function TeamPage() {
                         className="mb-3"
                         items={[
                             { label: 'Home', href: '/' },
-                            { label: 'Rankings', href: '/rankings?category=teams' },
+                            { label: 'Teams', href: '/rankings?category=teams' },
                         ]}
                     />
                     <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
@@ -220,23 +303,54 @@ export default function TeamPage() {
                     </div>
                 )}
 
-                {!loading && !error && data && (
+                {!loading && !error && data && filteredData && (
                     <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1fr)_340px] gap-6 lg:gap-8">
                         <div className="min-w-0 space-y-8 md:space-y-10">
-                            {nextMatch && <NextUp match={nextMatch} now={now} />}
-                            {data.live.length > 0 && <FixtureBlock title="Live" matches={data.live} live />}
-                            {data.upcoming.length > (nextMatch && data.live.length === 0 ? 1 : 0) && (
-                                <FixtureBlock
-                                    title="Upcoming"
-                                    matches={data.live.length === 0 ? data.upcoming.slice(1) : data.upcoming}
+                            {nextMatch && <NextUp match={nextMatch} now={now} h2h={h2h} />}
+                            {availableFormats.length > 1 && (
+                                <FormatFilter
+                                    formats={availableFormats}
+                                    value={formatFilter}
+                                    onChange={setFormatFilter}
+                                    counts={{
+                                        all: data.live.length + data.upcoming.length + data.recent.length,
+                                        ...Object.fromEntries(availableFormats.map(f => [
+                                            f,
+                                            [...data.live, ...data.upcoming, ...data.recent].filter(m => {
+                                                const mf = (m.matchFormat || '').toUpperCase();
+                                                if (f === 'T20I') return mf === 'T20' || mf === 'T20I';
+                                                return mf === f;
+                                            }).length,
+                                        ])),
+                                    }}
                                 />
                             )}
-                            {data.recent.length > 0 && <FixtureBlock title="Recent results" matches={data.recent} />}
-                            {data.live.length === 0 && data.upcoming.length === 0 && data.recent.length === 0 && (
+                            {filteredData.live.length > 0 && <FixtureBlock title="Live" matches={filteredData.live} live />}
+                            {/* Next Up already surfaces the very next upcoming
+                                match in the featured hero — remove it from the
+                                Upcoming block so it doesn't appear twice. */}
+                            {filteredData.upcoming.length > (nextMatch && filteredData.live.length === 0 ? 1 : 0) && (
+                                <FixtureBlock
+                                    title="Upcoming"
+                                    matches={
+                                        nextMatch && filteredData.live.length === 0
+                                            ? filteredData.upcoming.slice(1)
+                                            : filteredData.upcoming
+                                    }
+                                />
+                            )}
+                            {filteredData.recent.length > 0 && (
+                                <FixtureBlock title="Recent results" matches={filteredData.recent} />
+                            )}
+                            {filteredData.live.length === 0 && filteredData.upcoming.length === 0 && filteredData.recent.length === 0 && (
                                 <div className="surface-card p-10 text-center rounded-2xl">
-                                    <p className="font-display text-lg">No fixtures on the wire</p>
+                                    <p className="font-display text-lg">
+                                        {formatFilter === 'all' ? 'No fixtures on the wire' : `No ${formatFilter} fixtures`}
+                                    </p>
                                     <p className="mt-1 text-sm text-muted-foreground">
-                                        Check back after the next series announcement.
+                                        {formatFilter === 'all'
+                                            ? 'Check back after the next series announcement.'
+                                            : 'Try switching the format filter.'}
                                     </p>
                                 </div>
                             )}
@@ -261,17 +375,12 @@ function RankPill({ label, entry }: { label: string; entry?: TeamRankingEntry })
             </span>
         );
     }
-    const rank = parseInt(entry.rank, 10);
-    const top3 = rank >= 1 && rank <= 3;
+    // All three pills belong to the same team — style them consistently
+    // regardless of rank so #1 and #4 sit together as a set.
     return (
-        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs border ${
-            top3
-                ? 'border-primary/40 bg-primary/10 text-foreground'
-                : 'border-border/60 bg-card/40 text-foreground'
-        }`}>
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs border border-primary/40 bg-primary/10">
             <span className="text-muted-foreground font-semibold">{label}</span>
-            <span className={`tabular-nums font-bold ${top3 ? 'text-primary' : 'text-foreground'}`}>#{entry.rank}</span>
-            <span className="text-muted-foreground/70 tabular-nums text-[10px]">{entry.rating}</span>
+            <span className="tabular-nums font-bold text-primary">#{entry.rank}</span>
         </span>
     );
 }
@@ -290,13 +399,62 @@ function FormDot({ result }: { result: 'W' | 'L' | 'D' }) {
     );
 }
 
-function NextUp({ match, now }: { match: LiveMatch; now: number }) {
+function FormatFilter({
+    formats, value, onChange, counts,
+}: {
+    formats: string[];
+    value: 'all' | string;
+    onChange: (v: 'all' | string) => void;
+    counts: Record<string, number>;
+}) {
+    const options: Array<{ id: 'all' | string; label: string }> = [
+        { id: 'all', label: 'All' },
+        ...formats.map(f => ({ id: f as string, label: f })),
+    ];
+    return (
+        <div
+            role="tablist"
+            aria-label="Filter fixtures by format"
+            className="flex items-center gap-1.5 p-1 rounded-xl border border-border/60 bg-card/40 overflow-x-auto"
+        >
+            {options.map(o => {
+                const active = value === o.id;
+                const c = counts[o.id] ?? 0;
+                return (
+                    <button
+                        key={o.id}
+                        role="tab"
+                        aria-selected={active}
+                        onClick={() => onChange(o.id)}
+                        className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                            active
+                                ? 'bg-primary text-primary-foreground shadow-sm'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                        }`}
+                    >
+                        <span>{o.label}</span>
+                        <span className={`tabular-nums text-[10px] ${active ? 'text-primary-foreground/80' : 'text-muted-foreground/70'}`}>
+                            {c}
+                        </span>
+                    </button>
+                );
+            })}
+        </div>
+    );
+}
+
+function NextUp({ match, now, h2h }: {
+    match: LiveMatch;
+    now: number;
+    h2h?: { opponent: string; opponentFlag?: string; results: Array<'W' | 'L' | 'D'> } | null;
+}) {
     const startMs = match.startDate
         ? match.startDate < 10_000_000_000 ? match.startDate * 1000 : match.startDate
         : undefined;
     const countdown = startMs ? buildCountdown(startMs - now) : null;
     const [teamA, teamB] = match.teams;
     const href = buildMatchHref(match.matchId, match.title);
+    const format = displayMatchFormat(match.matchFormat) || deriveMatchFormat(match.title, match.seriesName);
     return (
         <Link
             href={href}
@@ -305,9 +463,9 @@ function NextUp({ match, now }: { match: LiveMatch; now: number }) {
             <div className="px-4 md:px-5 py-2.5 border-b border-border/50 bg-gradient-to-r from-primary/10 to-transparent flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 min-w-0">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-primary">Next up</span>
-                    {match.matchFormat && (
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                            · {match.matchFormat}
+                    {format && (
+                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md tracking-wide ${FORMAT_BADGE[format] ?? 'bg-muted text-muted-foreground'}`}>
+                            {format}
                         </span>
                     )}
                 </div>
@@ -345,6 +503,23 @@ function NextUp({ match, now }: { match: LiveMatch; now: number }) {
                         </span>
                     )}
                 </div>
+                {h2h && h2h.results.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-border/50 flex flex-wrap items-center gap-x-3 gap-y-2">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                            Last {h2h.results.length} vs {h2h.opponent}
+                        </span>
+                        <div className="flex items-center gap-1">
+                            {h2h.results.map((r, i) => (
+                                <FormDot key={i} result={r} />
+                            ))}
+                        </div>
+                        <span className="text-[11px] tabular-nums text-muted-foreground">
+                            {h2h.results.filter(r => r === 'W').length}W ·
+                            {' ' + h2h.results.filter(r => r === 'L').length}L
+                            {h2h.results.some(r => r === 'D') && ` · ${h2h.results.filter(r => r === 'D').length}D`}
+                        </span>
+                    </div>
+                )}
             </div>
         </Link>
     );
@@ -382,6 +557,9 @@ function FixtureRow({ match }: { match: LiveMatch }) {
         ? match.startDate < 10_000_000_000 ? match.startDate * 1000 : match.startDate
         : undefined;
     const href = buildMatchHref(match.matchId, match.title);
+    // Match the resolution MatchCard uses so a T20I on the home dashboard
+    // reads identically here — colored chip, same short label.
+    const format = displayMatchFormat(match.matchFormat) || deriveMatchFormat(match.title, match.seriesName);
     return (
         <Link href={href} className="flex items-center gap-3 md:gap-4 px-4 md:px-5 py-3.5 hover:bg-muted/30 transition-colors group">
             <div className="w-14 md:w-16 shrink-0 text-left">
@@ -420,11 +598,22 @@ function FixtureRow({ match }: { match: LiveMatch }) {
                 <div className="mt-1.5 text-[11px] text-muted-foreground truncate">
                     {match.seriesName ? match.seriesName + (match.venue ? ` · ${match.venue}` : '') : match.venue}
                 </div>
+                {/* Mobile-only status line — desktop shows it in the right column */}
+                <div className={`md:hidden mt-1 text-[11px] font-medium line-clamp-1 leading-tight ${
+                    isLive ? 'text-red-500 dark:text-red-400'
+                    : isComplete ? 'text-emerald-600 dark:text-emerald-400'
+                    : 'text-amber-600 dark:text-amber-400'
+                }`}>
+                    {match.status}
+                </div>
             </div>
-            <div className="shrink-0 flex flex-col items-end gap-1.5 text-right w-24 md:w-32">
-                {match.matchFormat && (
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground border border-border/60 rounded px-1.5 py-0.5">
-                        {match.matchFormat}
+            {/* Right column: on tablet+ show format + long status; on mobile
+                only the format chip stays and status appears inline below the
+                series line so the row keeps its density without wrapping. */}
+            <div className="hidden md:flex shrink-0 flex-col items-end gap-1.5 text-right w-28 md:w-32">
+                {format && (
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md tracking-wide ${FORMAT_BADGE[format] ?? 'bg-muted text-muted-foreground'}`}>
+                        {format}
                     </span>
                 )}
                 <span className={`text-[11px] md:text-xs font-medium line-clamp-2 leading-tight ${
@@ -435,7 +624,14 @@ function FixtureRow({ match }: { match: LiveMatch }) {
                     {match.status}
                 </span>
             </div>
-            <ChevronRight className="w-4 h-4 text-muted-foreground/40 shrink-0 group-hover:text-muted-foreground transition-colors" />
+            <div className="md:hidden shrink-0 self-start">
+                {format && (
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md tracking-wide ${FORMAT_BADGE[format] ?? 'bg-muted text-muted-foreground'}`}>
+                        {format}
+                    </span>
+                )}
+            </div>
+            <ChevronRight className="w-4 h-4 text-muted-foreground/40 shrink-0 group-hover:text-muted-foreground transition-colors self-center" />
         </Link>
     );
 }

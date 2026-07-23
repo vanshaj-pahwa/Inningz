@@ -12,7 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { User, ArrowLeft, ChevronLeft, ChevronRight, ChevronUp, Share2, Trophy, MapPin, Clock, Newspaper, Medal } from "lucide-react";
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { cn, buildVenueHref, displayMatchFormat } from '@/lib/utils';
+import { cn, buildVenueHref, buildTeamHref, displayMatchFormat } from '@/lib/utils';
 import FullScorecard, { prefetchScorecard } from './full-scorecard';
 import PlayerProfileDisplay from './player-profile';
 import AnimatedScore from './animated-score';
@@ -124,6 +124,36 @@ function computeOverRuns(overSummary: string | undefined, apiOverRuns: number | 
     // 3. Last resort: parse any embedded "(X runs)" tail.
     const embedded = overSummary.match(/\((\d+)\s*runs?\)/i);
     return embedded ? parseInt(embedded[1], 10) : undefined;
+}
+
+// Render a match title with the two team names wrapped in `<Link>` when their
+// names resolve to a known cricbuzz teamId. Splits on " vs " and takes the
+// short-code suffix before the first comma as the team-B boundary. Falls back
+// to plain text if the shape doesn't match.
+function TitleWithTeamLinks({ title }: { title?: string }) {
+    if (!title) return null;
+    const vsMatch = title.match(/^(.+?)\s+vs\s+(.+?)(,.+)?$/i);
+    if (!vsMatch) return <>{title}</>;
+    const [, teamA, teamB, rest] = vsMatch;
+    const hrefA = buildTeamHref(undefined, teamA);
+    const hrefB = buildTeamHref(undefined, teamB);
+    const teamStyle = 'hover:text-primary transition-colors underline-offset-2 hover:underline';
+    return (
+        <>
+            {hrefA ? (
+                <Link href={hrefA} className={teamStyle}>{teamA}</Link>
+            ) : (
+                <>{teamA}</>
+            )}
+            <span className="text-muted-foreground/60"> vs </span>
+            {hrefB ? (
+                <Link href={hrefB} className={teamStyle}>{teamB}</Link>
+            ) : (
+                <>{teamB}</>
+            )}
+            {rest || ''}
+        </>
+    );
 }
 
 function isLive(status: string): boolean {
@@ -1299,7 +1329,7 @@ export default function ScoreDisplay({ matchId }: { matchId: string }) {
                             ]}
                         />
                         <h1 className="text-lg md:text-2xl font-display tracking-tight text-foreground leading-tight line-clamp-2 md:truncate">
-                            {data?.title}
+                            <TitleWithTeamLinks title={data?.title} />
                         </h1>
                         {(() => {
                             const hasVenue = data?.venue && data.venue !== 'N/A' && data.venue.trim() !== '';

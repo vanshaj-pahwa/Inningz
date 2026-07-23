@@ -103,6 +103,10 @@ const LiveMatchSchema = z.object({
     name: z.string(),
     score: z.string().optional(),
     flagUrl: z.string().optional(),
+    // Optional cricbuzz team id — populated by scrapers that have JSON access
+    // to the match info (series, team schedule). Enables clicking a team name
+    // in a match card to reach the team detail page.
+    teamId: z.union([z.string(), z.number()]).optional(),
   })),
   status: z.string(),
   matchType: z.enum(['International', 'League', 'Domestic', 'Women']).optional(),
@@ -1679,7 +1683,7 @@ export async function scrapeUpcomingMatches(): Promise<LiveMatch[]> {
         venue = venueText.split('•').pop()?.trim() || '';
       }
 
-      const teams: { name: string, score?: string, flagUrl?: string }[] = [];
+      const teams: { name: string, score?: string, flagUrl?: string, teamId?: string | number }[] = [];
 
       $match.find('.flex.items-center.gap-4.justify-between').each((_, teamContainer) => {
         const $team = $(teamContainer);
@@ -1689,11 +1693,17 @@ export async function scrapeUpcomingMatches(): Promise<LiveMatch[]> {
           $team.find('span.text-cbTxtSec.hidden.wb\\:block').text().trim() ||
           $team.find('span.text-cbTxtPrim.block.wb\\:hidden').text().trim() ||
           $team.find('span.text-cbTxtSec.block.wb\\:hidden').text().trim();
+        // Grab teamId from any `/cricket-team/{slug}/{id}` link inside the row.
+        const teamHref = $team.find('a[href*="/cricket-team/"]').attr('href')
+          || $match.find(`a[href*="/cricket-team/"]:contains("${teamName}")`).attr('href');
+        const teamIdMatch = teamHref?.match(/\/cricket-team\/[^/]+\/(\d+)/);
+        const teamId = teamIdMatch ? teamIdMatch[1] : undefined;
 
         if (teamName) {
           teams.push({
             name: teamName,
             flagUrl,
+            teamId,
           });
         }
       });
@@ -1931,7 +1941,7 @@ export async function scrapeRecentMatches(): Promise<LiveMatch[]> {
       const venueText = $match.find('.text-xs.text-cbTxtSec').first().text().trim();
       const venue = venueText.split('•').pop()?.trim() || '';
 
-      const teams: { name: string, score?: string, flagUrl?: string }[] = [];
+      const teams: { name: string, score?: string, flagUrl?: string, teamId?: string | number }[] = [];
 
       $match.find('.flex.items-center.gap-4.justify-between').each((_, teamContainer) => {
         const $team = $(teamContainer);
@@ -1995,7 +2005,7 @@ export async function scrapeRecentMatches(): Promise<LiveMatch[]> {
 function matchInfoToLiveMatch(match: any): LiveMatch | null {
   const matchInfo = match?.matchInfo;
   if (!matchInfo) return null;
-  const teams: { name: string; score?: string; flagUrl?: string }[] = [];
+  const teams: { name: string; score?: string; flagUrl?: string; teamId?: string | number }[] = [];
   const flagFor = (team: any): string | undefined =>
     team?.imageId
       ? teamFlagImageUrl(team.imageId, String(team.teamSName || 'team').toLowerCase())
@@ -2167,7 +2177,7 @@ export async function scrapeLiveMatches(): Promise<LiveMatch[]> {
       const venue = venueText.split('•').pop()?.trim() || '';
 
       // Extract teams and scores
-      const teams: { name: string, score?: string, flagUrl?: string }[] = [];
+      const teams: { name: string, score?: string, flagUrl?: string, teamId?: string | number }[] = [];
 
       // Find team containers - they have specific classes for team info
       $match.find('.flex.items-center.gap-4.justify-between').each((_, teamContainer) => {
@@ -2974,7 +2984,7 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
               const matchInfo = match.matchInfo;
               if (!matchInfo) continue;
 
-              const teams: { name: string, score?: string, flagUrl?: string }[] = [];
+              const teams: { name: string, score?: string, flagUrl?: string, teamId?: string | number }[] = [];
 
               // Add team 1
               if (matchInfo.team1) {
@@ -2986,7 +2996,8 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
                 teams.push({
                   name: matchInfo.team1.teamName,
                   score: score1 || undefined,
-                  flagUrl: teamFlagFromImageId(matchInfo.team1)
+                  flagUrl: teamFlagFromImageId(matchInfo.team1),
+                  teamId: matchInfo.team1.teamId,
                 });
               }
 
@@ -3000,7 +3011,8 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
                 teams.push({
                   name: matchInfo.team2.teamName,
                   score: score2 || undefined,
-                  flagUrl: teamFlagFromImageId(matchInfo.team2)
+                  flagUrl: teamFlagFromImageId(matchInfo.team2),
+                  teamId: matchInfo.team2.teamId,
                 });
               }
 
@@ -3080,7 +3092,7 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
               const matchInfo = match.matchInfo;
               if (!matchInfo) continue;
 
-              const teams: { name: string, score?: string, flagUrl?: string }[] = [];
+              const teams: { name: string, score?: string, flagUrl?: string, teamId?: string | number }[] = [];
 
               // Add team 1
               if (matchInfo.team1) {
@@ -3092,7 +3104,8 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
                 teams.push({
                   name: matchInfo.team1.teamName,
                   score: score1 || undefined,
-                  flagUrl: teamFlagFromImageId(matchInfo.team1)
+                  flagUrl: teamFlagFromImageId(matchInfo.team1),
+                  teamId: matchInfo.team1.teamId,
                 });
               }
 
@@ -3106,7 +3119,8 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
                 teams.push({
                   name: matchInfo.team2.teamName,
                   score: score2 || undefined,
-                  flagUrl: teamFlagFromImageId(matchInfo.team2)
+                  flagUrl: teamFlagFromImageId(matchInfo.team2),
+                  teamId: matchInfo.team2.teamId,
                 });
               }
 
@@ -3175,7 +3189,7 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
                 for (const match of dateGroup.matchDetailsMap.match) {
                   const matchInfo = match.matchInfo;
                   if (!matchInfo) continue;
-                  const teams: { name: string; score?: string; flagUrl?: string }[] = [];
+                  const teams: { name: string; score?: string; flagUrl?: string; teamId?: string | number }[] = [];
                   if (matchInfo.team1) {
                     let score1 = '';
                     if (match.matchScore?.team1Score?.inngs1) {
@@ -3247,7 +3261,7 @@ export async function scrapeSeriesMatches(seriesId: string): Promise<LiveMatch[]
             const matchInfo = match.matchInfo;
             if (!matchInfo) continue;
 
-            const teams: { name: string, score?: string, flagUrl?: string }[] = [];
+            const teams: { name: string, score?: string, flagUrl?: string, teamId?: string | number }[] = [];
 
             // Add team 1
             if (matchInfo.team1) {
@@ -3442,8 +3456,8 @@ type CbMatchInfo = {
 
 function matchInfoToLive(mi: CbMatchInfo): LiveMatch {
   const teams: LiveMatch['teams'] = [];
-  if (mi.team1) teams.push({ name: mi.team1.teamName || '', flagUrl: teamFlagFromImageId(mi.team1) });
-  if (mi.team2) teams.push({ name: mi.team2.teamName || '', flagUrl: teamFlagFromImageId(mi.team2) });
+  if (mi.team1) teams.push({ name: mi.team1.teamName || '', flagUrl: teamFlagFromImageId(mi.team1), teamId: mi.team1.teamId });
+  if (mi.team2) teams.push({ name: mi.team2.teamName || '', flagUrl: teamFlagFromImageId(mi.team2), teamId: mi.team2.teamId });
   const venue = mi.venueInfo ? `${mi.venueInfo.ground || ''}${mi.venueInfo.city ? `, ${mi.venueInfo.city}` : ''}`.trim() : undefined;
   const title = `${mi.team1?.teamName || ''} vs ${mi.team2?.teamName || ''}${mi.matchDesc ? `, ${mi.matchDesc}` : ''}`;
   const startDate = typeof mi.startDate === 'string' ? parseInt(mi.startDate, 10) : mi.startDate;

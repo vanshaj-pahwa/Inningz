@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -138,6 +138,24 @@ export default function RankingsPage() {
   useEffect(() => {
     fetchRankings();
   }, [fetchRankings]);
+
+  // Sync `?category=` and `?format=` from the URL on mount so shared or
+  // bookmarked links (`/rankings?category=teams`, /rankings?format=odi)
+  // actually land on the requested view instead of defaulting to batting.
+  const urlInitializedRef = useRef(false);
+  useEffect(() => {
+    if (urlInitializedRef.current) return;
+    urlInitializedRef.current = true;
+    const params = new URLSearchParams(window.location.search);
+    const c = params.get('category');
+    const f = params.get('format');
+    if (c && (c === 'batting' || c === 'bowling' || c === 'all-rounder' || c === 'teams')) {
+      setCategory(c as Category);
+    }
+    if (f && (f === 'test' || f === 'odi' || f === 't20')) {
+      setFormat(f as Format);
+    }
+  }, []);
 
   // Fetch player profile when dialog opens
   useEffect(() => {
