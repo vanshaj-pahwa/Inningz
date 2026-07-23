@@ -90,44 +90,41 @@ export function VirtualCommentaryList({
     const items = virtualizer.getVirtualItems();
 
     return (
-        <div className="space-y-0">
+        <div
+            ref={parentRef}
+            className={`overflow-y-auto commentary-scroll ${containerClassName}`}
+        >
             <div
-                ref={parentRef}
-                className={`overflow-y-auto commentary-scroll ${containerClassName}`}
+                style={{
+                    height: `${virtualizer.getTotalSize()}px`,
+                    width: '100%',
+                    position: 'relative',
+                }}
             >
-                <div
-                    style={{
-                        height: `${virtualizer.getTotalSize()}px`,
-                        width: '100%',
-                        position: 'relative',
-                    }}
-                >
-                    {items.map((virtualItem) => (
-                        <div
-                            key={virtualItem.key}
-                            data-index={virtualItem.index}
-                            ref={virtualizer.measureElement}
-                            style={{
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                width: '100%',
-                                transform: `translateY(${virtualItem.start}px)`,
-                            }}
-                        >
-                            {renderItem(commentary[virtualItem.index], virtualItem.index)}
-                        </div>
-                    ))}
-                </div>
-
-                {/* Loading indicator at bottom */}
-                {loadingMore && (
-                    <div className="flex items-center justify-center py-4 text-muted-foreground">
-                        <LoaderCircle className="w-4 h-4 animate-spin mr-2" />
-                        <span className="text-sm">Loading more...</span>
+                {items.map((virtualItem) => (
+                    <div
+                        key={virtualItem.key}
+                        data-index={virtualItem.index}
+                        ref={virtualizer.measureElement}
+                        style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            transform: `translateY(${virtualItem.start}px)`,
+                        }}
+                    >
+                        {renderItem(commentary[virtualItem.index], virtualItem.index)}
                     </div>
-                )}
+                ))}
             </div>
+
+            {loadingMore && (
+                <div className="flex items-center justify-center py-4 text-muted-foreground">
+                    <LoaderCircle className="w-4 h-4 animate-spin mr-2" />
+                    <span className="text-sm">Loading more...</span>
+                </div>
+            )}
         </div>
     );
 }
