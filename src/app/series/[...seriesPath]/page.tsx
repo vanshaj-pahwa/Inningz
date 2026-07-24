@@ -546,7 +546,7 @@ export default function SeriesPage() {
         )}
 
         {view === 'stats' && (
-          <SeriesStatsDisplay seriesId={seriesId} />
+          <SeriesStatsDisplay seriesId={seriesId} seriesName={seriesName !== 'Series Matches' ? seriesName : undefined} />
         )}
 
         {view === 'points' && (

@@ -80,6 +80,7 @@ export function displayMatchFormat(raw?: string | null): string | null {
 // (upstream redirects by slug on mismatched IDs so unverified entries would
 // silently point to the wrong team; safer to omit and render plain text).
 const TEAM_ID_BY_NAME: Record<string, string> = {
+  // Full members — verified against `/cricket-team/{slug}/{id}`.
   india: '2',
   pakistan: '3',
   australia: '4',
@@ -92,6 +93,31 @@ const TEAM_ID_BY_NAME: Record<string, string> = {
   'new zealand': '13',
   ireland: '27',
   afghanistan: '96',
+  // Associate sides commonly seen in ICC events + T20 franchise leagues.
+  // Every id verified against the upstream `/cricket-team` listing.
+  netherlands: '24',
+  scotland: '23',
+  canada: '26',
+  namibia: '161',
+  nepal: '72',
+  oman: '304',
+  'united arab emirates': '7',
+  uae: '7',
+  'united states of america': '15',
+  'united states': '15',
+  usa: '15',
+  'papua new guinea': '287',
+  png: '287',
+  'hong kong, china': '8',
+  'hong kong china': '8',
+  'hong kong': '8',
+  bermuda: '25',
+  kenya: '14',
+  uganda: '44',
+  jersey: '303',
+  malaysia: '71',
+  singapore: '190',
+  fiji: '343',
 };
 
 // Team detail page. Accepts a numeric or string id and any team name; slugifies
