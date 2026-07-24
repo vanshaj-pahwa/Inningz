@@ -209,6 +209,7 @@ export default function NewsArticlePage() {
 
     return (
         <div className="min-h-screen">
+            <ReadingProgress />
             <header className="sticky top-0 z-50 w-full glass-nav">
                 <div className="max-w-7xl mx-auto px-4 md:px-6">
                     <div className="flex items-center justify-between h-14 md:h-16">
@@ -330,6 +331,7 @@ export default function NewsArticlePage() {
                                 blocks={article.blocks}
                                 fallbackParagraphs={article.paragraphs}
                                 bodyLoading={bodyScraping}
+                                provisionalLede={article.description}
                             />
 
                             {/* Live match context — surface a live scorecard
@@ -601,6 +603,53 @@ function isFresh(iso?: string): boolean {
     return Date.now() - t < 60 * 60 * 1000;
 }
 
+// Thin fill bar pinned to the very top of the viewport that grows with the
+// reader's scroll depth. Uses rAF to coalesce scroll events, `scaleX`
+// transform to avoid layout, and only mounts on the article page so it can't
+// leak into other routes. Hidden until the reader has scrolled ≥ 2% — a
+// zero-width bar is visual noise on first paint.
+function ReadingProgress() {
+    const [pct, setPct] = useState(0);
+    useEffect(() => {
+        let raf = 0;
+        const update = () => {
+            raf = 0;
+            const doc = document.documentElement;
+            const scrollable = doc.scrollHeight - window.innerHeight;
+            if (scrollable <= 0) { setPct(0); return; }
+            const ratio = Math.max(0, Math.min(1, window.scrollY / scrollable));
+            setPct(ratio);
+        };
+        const onScroll = () => {
+            if (raf) return;
+            raf = window.requestAnimationFrame(update);
+        };
+        window.addEventListener('scroll', onScroll, { passive: true });
+        window.addEventListener('resize', onScroll, { passive: true });
+        update();
+        return () => {
+            window.removeEventListener('scroll', onScroll);
+            window.removeEventListener('resize', onScroll);
+            if (raf) window.cancelAnimationFrame(raf);
+        };
+    }, []);
+    const visible = pct > 0.02;
+    return (
+        <div
+            aria-hidden
+            className="fixed top-0 left-0 right-0 h-0.5 z-[60] pointer-events-none"
+        >
+            <div
+                className="h-full bg-primary origin-left transition-opacity duration-200"
+                style={{
+                    transform: `scaleX(${pct})`,
+                    opacity: visible ? 1 : 0,
+                }}
+            />
+        </div>
+    );
+}
+
 function BylineStrip({ author, publishedLabel, readTime }: { author?: string; publishedLabel: string | null; readTime: number }) {
     const parts: React.ReactNode[] = [];
     if (author) parts.push(<span key="a" className="font-semibold text-foreground">{author}</span>);
@@ -622,11 +671,27 @@ function BylineStrip({ author, publishedLabel, readTime }: { author?: string; pu
     );
 }
 
-function ArticleBody({ blocks, fallbackParagraphs, bodyLoading }: { blocks: NewsBlock[]; fallbackParagraphs: string[]; bodyLoading?: boolean }) {
-    // Skeleton while the client-side reader fetch is in flight and no blocks
-    // have arrived yet. Mirrors the visual rhythm of a real article body so
-    // the layout doesn't jump when content lands.
+function ArticleBody({ blocks, fallbackParagraphs, bodyLoading, provisionalLede }: { blocks: NewsBlock[]; fallbackParagraphs: string[]; bodyLoading?: boolean; provisionalLede?: string }) {
+    // While the client-side reader fetch is in flight, prefer to show the
+    // RSS/shell description as a real lede paragraph rather than gray bars —
+    // the reader lands in ~2-4s and staring at skeleton for that long makes
+    // the article feel broken. The lede is replaced in place when blocks
+    // arrive. Falls back to a minimal 2-line skeleton if there's no
+    // description to show yet.
     if (bodyLoading && (!blocks || blocks.length === 0)) {
+        if (provisionalLede) {
+            return (
+                <div className="mt-6 md:mt-10 space-y-5 md:space-y-6" aria-busy="true" aria-live="polite">
+                    <p className="text-[17px] md:text-[19px] leading-[1.7] md:leading-[1.85] text-foreground">
+                        {provisionalLede}
+                    </p>
+                    <div className="space-y-2" aria-hidden>
+                        <div className="skeleton h-4 w-11/12 rounded" />
+                        <div className="skeleton h-4 w-2/3 rounded" />
+                    </div>
+                </div>
+            );
+        }
         return (
             <div className="mt-6 md:mt-10 space-y-5 md:space-y-6" aria-busy="true" aria-live="polite">
                 {Array.from({ length: 5 }).map((_, i) => (
