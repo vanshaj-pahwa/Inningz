@@ -121,6 +121,7 @@ export async function getTeamSchedule(teamId: string, teamSlug: string): Promise
         return { success: false, error: e instanceof Error ? e.message : 'Failed to load team schedule' };
     }
 }
+
 export type PointsTableGroup = PointsTableGroupType;
 export type PointsTableTeam = PointsTableTeamType;
 export type PointsTableMatch = PointsTableMatchType;

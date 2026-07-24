@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, MapPin, Clock, ChevronRight, BarChart3, CalendarDays } from 'lucide-react';
+import { ArrowLeft, MapPin, Clock, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { CommandPaletteTrigger } from '@/components/command-palette';
@@ -128,17 +128,6 @@ export default function TeamPage() {
     useEffect(() => {
         const t = setInterval(() => setNow(Date.now()), 30000);
         return () => clearInterval(t);
-    }, []);
-
-    // Top-level view — Schedule vs Stats. Synced with `?tab=` for shareable
-    // deep-links (`/team/2/india?tab=stats`).
-    const [tab, setTab] = useState<'schedule' | 'stats'>('schedule');
-    const tabInitializedRef = useRef(false);
-    useEffect(() => {
-        if (tabInitializedRef.current) return;
-        tabInitializedRef.current = true;
-        const t = new URLSearchParams(window.location.search).get('tab');
-        if (t === 'stats' || t === 'schedule') setTab(t);
     }, []);
 
     // Format filter — Test / ODI / T20I / All. Kept as a client-side pass so
@@ -478,41 +467,22 @@ function NextUp({ match, now, h2h }: {
                 )}
             </div>
             <div className="p-5 md:p-6">
-                {/* Mobile: teams stack vertically so long names (Zimbabwe,
-                    South Africa, West Indies, Netherlands, New Zealand, USA,
-                    "Manchester Super Giants") never fight the "vs" divider
-                    for column space. VS becomes a centered horizontal rule
-                    between the two rows. Tablet+ keeps the compact three-
-                    column layout since names have plenty of room there. */}
-                {/* Mobile stack. Each row is `inline-flex` so it hugs the
-                    flag+name pair instead of stretching to the card's full
-                    width — otherwise a short name like "Zimbabwe" leaves a
-                    ~150px empty span to its right. The row still allows the
-                    name to shrink + wrap for long names via `min-w-0` on the
-                    outer, so "Manchester Super Giants" still fits. */}
-                {/* Mobile: symmetrical horizontal layout with a smaller flag
-                    and `text-lg` team name — Zimbabwe/India-length names fit
-                    the row at 375px+ with no truncation and no dead right
-                    gutter. Team A hugs the left, team B hugs the right, vs
-                    is centered — reads like a proper matchup card. Long
-                    domestic names (Manchester Super Giants) wrap via
-                    `break-words` rather than clip. */}
-                {/* Equal-width thirds so "vs" lands at the true visual centre
-                    of the row regardless of team-name lengths. Each team's
-                    flag+name sits centred in its column, which makes the
-                    match-up read symmetrically ("Zimbabwe · vs · India"
-                    instead of drifting left when one name is longer). */}
-                <div className="md:hidden grid grid-cols-3 items-center gap-2">
-                    <div className="flex items-center justify-center gap-2 min-w-0">
+                {/* Mobile: mirror the FixtureRow layout — teams stack
+                    vertically, flag on the left of each row, name fills the
+                    rest. Same visual DNA as every other match on the page,
+                    just scaled up (size="md" flag + text-xl name) so it
+                    reads as the hero. Full team names stay on one line, no
+                    forced wrapping, and flags align vertically. */}
+                <div className="md:hidden space-y-2.5">
+                    <div className="flex items-center gap-3">
                         <TeamFlag src={teamA?.flagUrl} alt={teamA?.name || 'Team A'} size="md" />
-                        <span className="font-display text-lg tracking-tight leading-tight min-w-0 break-words">
+                        <span className="flex-1 min-w-0 font-display text-xl tracking-tight leading-tight truncate">
                             {teamA?.name}
                         </span>
                     </div>
-                    <span className="text-center text-muted-foreground/50 font-display text-sm">vs</span>
-                    <div className="flex items-center justify-center gap-2 min-w-0">
+                    <div className="flex items-center gap-3">
                         <TeamFlag src={teamB?.flagUrl} alt={teamB?.name || 'Team B'} size="md" />
-                        <span className="font-display text-lg tracking-tight leading-tight min-w-0 break-words">
+                        <span className="flex-1 min-w-0 font-display text-xl tracking-tight leading-tight truncate">
                             {teamB?.name}
                         </span>
                     </div>
