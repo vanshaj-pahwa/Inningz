@@ -103,7 +103,7 @@ const LiveMatchSchema = z.object({
     name: z.string(),
     score: z.string().optional(),
     flagUrl: z.string().optional(),
-    // Optional cricbuzz team id — populated by scrapers that have JSON access
+    // Optional upstream team id — populated by scrapers that have JSON access
     // to the match info (series, team schedule). Enables clicking a team name
     // in a match card to reach the team detail page.
     teamId: z.union([z.string(), z.number()]).optional(),
@@ -2939,7 +2939,7 @@ export async function getMatchIdFromUrl(url: string) {
 
 
 
-// Team flag/logo URL from a Cricbuzz team object's imageId.
+// Team flag/logo URL from an upstream team object's imageId.
 function teamFlagFromImageId(team: any): string | undefined {
   return team?.imageId
     ? teamFlagImageUrl(team.imageId, String(team.teamSName || 'team').toLowerCase())
@@ -4197,11 +4197,17 @@ export async function scrapeSeriesStatsTypes(seriesId: string): Promise<SeriesSt
 
 export async function scrapeSeriesStats(seriesId: string, statsType: string): Promise<SeriesStatCategory> {
   const numericId = seriesId.split('/')[0];
+  const slug = seriesId.split('/').slice(1).join('/') || 'series';
 
-  const url = `${UPSTREAM_BASE_URL}/api/cricket-series/series-stats/${numericId}/${statsType}`;
+  // The old `/api/cricket-series/series-stats/{id}/{type}` endpoint returns
+  // 404 on newer series (verified against 11253 T20 WC 2026). The stats now
+  // ship inside the SSR HTML page as an RSC-embedded `initialStats` block —
+  // and the server honours `?statsType=` so we can fetch any category the
+  // same way.
+  const url = `${UPSTREAM_BASE_URL}/cricket-series/${numericId}/${slug}/stats?statsType=${encodeURIComponent(statsType)}`;
   const response = await fetch(url, {
     headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     },
   });
 
@@ -4209,19 +4215,59 @@ export async function scrapeSeriesStats(seriesId: string, statsType: string): Pr
     throw new Error(`Failed to fetch series stats: ${response.statusText}`);
   }
 
-  const data = await response.json();
+  const html = await response.text();
 
-  // Find the first stats list (e.g., t20StatsList, odiStatsList, testStatsList)
-  const statsListKey = Object.keys(data).find(k => k.endsWith('StatsList'));
-  if (!statsListKey) {
+  // Reconstruct the RSC payload from the escaped push chunks.
+  const parts: string[] = [];
+  const chunkRe = /self\.__next_f\.push\(\[1,"((?:[^"\\]|\\.)*)"\]\)/g;
+  let cm: RegExpExecArray | null;
+  while ((cm = chunkRe.exec(html))) {
+    try { parts.push(JSON.parse('"' + cm[1] + '"')); } catch { /* skip */ }
+  }
+  const rsc = parts.join('');
+
+  // The block looks like:
+  //   "initialStats":{"t20StatsList":{"headers":[...],"values":[{"values":[...]}, ...]}}
+  // The format key (t20/odi/test) varies by series — locate the opening
+  // brace of whichever appears, then brace-match to the end so nested
+  // `values` arrays don't confuse a non-greedy regex.
+  const headerRe = /"(?:t20|odi|test)StatsList"\s*:\s*\{/g;
+  const hm = headerRe.exec(rsc);
+  if (!hm) {
+    return { key: statsType, name: statsType, category: 'Batting', headers: [], entries: [] };
+  }
+  const objStart = hm.index + hm[0].length - 1;
+  let depth = 0;
+  let objEnd = objStart;
+  let inString = false;
+  let escape = false;
+  for (let i = objStart; i < rsc.length; i++) {
+    const ch = rsc[i];
+    if (escape) { escape = false; continue; }
+    if (ch === '\\') { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === '{') depth++;
+    else if (ch === '}') {
+      depth--;
+      if (depth === 0) { objEnd = i + 1; break; }
+    }
+  }
+  if (objEnd === objStart) {
     return { key: statsType, name: statsType, category: 'Batting', headers: [], entries: [] };
   }
 
-  const statsList = data[statsListKey];
+  let statsList: { headers?: string[]; values?: Array<{ values?: string[] }> } = {};
+  try {
+    statsList = JSON.parse(rsc.slice(objStart, objEnd));
+  } catch {
+    return { key: statsType, name: statsType, category: 'Batting', headers: [], entries: [] };
+  }
+
   const headers: string[] = statsList.headers || [];
   const entries: SeriesStatEntry[] = [];
 
-  if (statsList.values && Array.isArray(statsList.values)) {
+  if (Array.isArray(statsList.values)) {
     for (const row of statsList.values) {
       const vals = row.values || [];
       if (vals.length < 2) continue;
@@ -4231,7 +4277,6 @@ export async function scrapeSeriesStats(seriesId: string, statsType: string): Pr
       const valueMap: Record<string, string> = {};
       // Headers: ["PLAYER", "MATCHES", "INNS", "RUNS", ...]
       // Values:  [playerId, playerName, matches, inns, runs, ...]
-      // Skip headers[0] ("PLAYER") - map headers[1+] to vals[2+]
       for (let i = 1; i < headers.length; i++) {
         valueMap[headers[i]] = vals[i + 1] ?? '';
       }
@@ -5170,7 +5215,7 @@ const NewsArticleSchema = z.object({
   heroImageCaption: z.string().optional(),
   paragraphs: z.array(z.string()).default([]),
   blocks: z.array(NewsBlockSchema).default([]),
-  tags: z.array(z.object({ label: z.string() })).default([]),
+  tags: z.array(z.object({ label: z.string(), href: z.string().optional() })).default([]),
   related: z.array(z.object({
     id: z.string(),
     slug: z.string(),
@@ -5271,6 +5316,266 @@ export async function scrapeCricketNews(): Promise<NewsFeed> {
 
   return NewsFeedSchema.parse({
     source,
+    fetchedAt: new Date().toISOString(),
+    items,
+  });
+}
+
+// Full article scrape from the alternate upstream's story page — returns
+// shell metadata (title / description / hero) plus the article body as
+// paragraph blocks so the reader can render immediately without a second
+// round-trip through the browser reader service (which mis-parses this
+// source's markup). Server-side to bypass the browser CORS on external
+// fetches.
+export async function scrapeAltUpstreamNewsShell(
+  id: string,
+  slug: string,
+): Promise<{
+  id: string;
+  slug: string;
+  title: string;
+  description?: string;
+  heroImageUrl?: string;
+  heroImageCaption?: string;
+  publishedAt?: string;
+  author?: string;
+  paragraphs: string[];
+  blocks: Array<{ type: 'paragraph'; html: string } | { type: 'heading'; text: string }>;
+  wordCount: number;
+  readTimeMinutes: number;
+  tags: Array<{ label: string; href?: string }>;
+  related: Array<{ id: string; slug: string; title: string; imageUrl?: string }>;
+} | null> {
+  if (!id) return null;
+  const cleanSlug = (slug || 'story').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-|-$/g, '') || 'story';
+  const url = `${UPSTREAM_BASE_URL}/cricket-news/${id}/${cleanSlug}`;
+  const response = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    },
+  });
+  if (!response.ok) return null;
+  const html = await response.text();
+  const meta = (name: string): string | undefined => {
+    const rePropFirst = new RegExp(`<meta[^>]+property=["']${name}["'][^>]*content=["']([^"']+)["']`, 'i');
+    const reNameFirst = new RegExp(`<meta[^>]+name=["']${name}["'][^>]*content=["']([^"']+)["']`, 'i');
+    const reContentFirst = new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]*(?:property|name)=["']${name}["']`, 'i');
+    const m = html.match(rePropFirst) || html.match(reNameFirst) || html.match(reContentFirst);
+    return m ? decodeHtmlEntities(m[1]) : undefined;
+  };
+  const title = meta('og:title') || meta('twitter:title');
+  if (!title) return null;
+
+  // Prefer the 1080x608 hero from the article body's <img srcset> (2x
+  // variant) over the 540x303 og:image thumbnail. Falls back to a size
+  // bump on og:image when the body image isn't found.
+  let heroImageUrl: string | undefined;
+  const bodyImgM = html.match(/srcSet="(https:\/\/static\.cricbuzz\.com\/a\/img\/v1\/1080x608\/[^"]+)/);
+  if (bodyImgM) {
+    heroImageUrl = bodyImgM[1].split(' ')[0];
+  } else {
+    heroImageUrl = meta('og:image') || meta('twitter:image');
+    if (heroImageUrl) heroImageUrl = heroImageUrl.replace(/\/540x303\//, '/1080x608/');
+  }
+
+  // Body: pull every <section><p>…</p></section> block inside the article's
+  // main content wrapper. Ads and related-story sections don't wrap their
+  // text in this shape so they get skipped for free.
+  const paragraphs: string[] = [];
+  const blocks: Array<{ type: 'paragraph'; html: string } | { type: 'heading'; text: string }> = [];
+  const sectionRe = /<section>\s*<p>([\s\S]*?)<\/p>\s*<\/section>/gi;
+  let sm: RegExpExecArray | null;
+  while ((sm = sectionRe.exec(html))) {
+    const rawHtml = sm[1].trim();
+    if (!rawHtml) continue;
+    // Sanitize to inline emphasis + links only — matches the safelist the
+    // client renderer expects for `blocks[].html`.
+    const safeHtml = rawHtml
+      .replace(/<(?!\/?(?:b|i|em|strong|u|a)\b)[^>]*>/gi, '')
+      .replace(/<a\s+[^>]*href="([^"]+)"[^>]*>/gi, (_m, href) => `<a href="${href}">`);
+    const text = decodeHtmlEntities(rawHtml.replace(/<[^>]+>/g, '')).trim();
+    if (!text) continue;
+    paragraphs.push(text);
+    blocks.push({ type: 'paragraph', html: safeHtml });
+  }
+
+  const wordCount = paragraphs.reduce((n, p) => n + p.split(/\s+/).filter(Boolean).length, 0);
+  const readTimeMinutes = Math.max(1, Math.round(wordCount / 220));
+
+  // Caption: the "<caption> © <source>" line under the hero.
+  const capM = html.match(/<span class="text-gray-400[^"]*">([^<]+?)<span>©[^<]*<\/span><\/span>/);
+  const heroImageCaption = capM ? capM[1].trim() : undefined;
+
+  // Author byline — the author link's inner text inside the story header.
+  const authM = html.match(/<a\s+href="\/cricket-news\/author\/[^"]+"[^>]*>([^<]+)<\/a>/);
+  const author = authM ? authM[1].trim() : undefined;
+
+  // Tags — the source lists these under the `<h3>TAGS</h3>` header as a
+  // flat set of anchor pills. Capture both the label AND the raw upstream
+  // href so the client can rewrite each tag to an internal route (team /
+  // series / match) and drop tags that don't resolve to an app page.
+  const tags: Array<{ label: string; href?: string }> = [];
+  const tagsBlockM = html.match(/<h3[^>]*>TAGS<\/h3>[\s\S]*?<div class="flex[^"]*flex-wrap"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/i);
+  if (tagsBlockM) {
+    const seenTags = new Set<string>();
+    const tagAnchorRe = /<a\s+href="(\/(?:cricket-team|profiles|live-cricket-scores|cricket-series)\/[^"]+)"[^>]*title="([^"]+)"[^>]*>/gi;
+    let tm: RegExpExecArray | null;
+    while ((tm = tagAnchorRe.exec(tagsBlockM[1]))) {
+      const href = tm[1];
+      const label = decodeHtmlEntities(tm[2]).trim();
+      if (!label || seenTags.has(label)) continue;
+      seenTags.add(label);
+      tags.push({ label, href });
+    }
+  }
+
+  // Related stories — anchored under the `<h3>RELATED STORIES</h3>`
+  // header. Match everything from that header until the next `<h3>`
+  // section (or end of markup) as the scan range — the naive
+  // "</div></div></div>" terminator I used before matched after the
+  // FIRST card only, dropping the other five.
+  const related: Array<{ id: string; slug: string; title: string; imageUrl?: string }> = [];
+  const relHeaderIdx = html.search(/<h3[^>]*>RELATED STORIES<\/h3>/i);
+  if (relHeaderIdx !== -1) {
+    const rest = html.slice(relHeaderIdx);
+    const nextHeaderIdx = rest.slice(80).search(/<h3[\s>]/i);
+    const scanBlock = nextHeaderIdx === -1 ? rest : rest.slice(0, 80 + nextHeaderIdx);
+    const seenIds = new Set<string>([id]);
+    const relRe = /<a\s+href="\/cricket-news\/(\d+)\/([^"]+)"[\s\S]*?<img[^>]*src="([^"]+)"[\s\S]*?<div class="w-4\/5">\s*<div[^>]*>([^<]+)<\/div>/gi;
+    let rm: RegExpExecArray | null;
+    while ((rm = relRe.exec(scanBlock))) {
+      const rid = rm[1];
+      if (seenIds.has(rid)) continue;
+      seenIds.add(rid);
+      const rslug = rm[2];
+      // Upgrade the thumbnail URL from the low-res `?d=low&p=det` variant
+      // the list embeds to the sharper `?d=high&p=det` render.
+      const imageUrl = rm[3].replace(/\?d=low(&|$)/i, '?d=high$1').replace(/&amp;/g, '&');
+      related.push({
+        id: rid,
+        slug: rslug,
+        title: decodeHtmlEntities(rm[4]).trim(),
+        imageUrl,
+      });
+      if (related.length >= 8) break;
+    }
+  }
+
+  return {
+    id,
+    slug: cleanSlug,
+    title,
+    description: meta('og:description') || meta('description') || undefined,
+    heroImageUrl,
+    heroImageCaption,
+    publishedAt: meta('article:published_time') || undefined,
+    author,
+    paragraphs,
+    blocks,
+    wordCount,
+    readTimeMinutes,
+    tags,
+    related,
+  };
+}
+
+// Scrape the news feed scoped to a single series (e.g. the T20 World Cup
+// news list). The upstream page embeds each story as structured data inside
+// its RSC payload — richer than the generic RSS feed (has `context`,
+// `storyType`, exact `pubTime` millis, and full-size cover images).
+export async function scrapeSeriesNews(seriesId: string): Promise<NewsFeed> {
+  const numericId = seriesId.split('/')[0];
+  const slug = seriesId.split('/').slice(1).join('/') || 'series';
+  const url = `${UPSTREAM_BASE_URL}/cricket-series/${numericId}/${slug}/news`;
+  const response = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    },
+    // News list turns over frequently; skip Next's fetch cache so image
+    // URLs / titles reflect the current upstream state on every request.
+    cache: 'no-store',
+  });
+  if (!response.ok) throw new Error(`Failed to fetch series news: ${response.statusText}`);
+  const html = await response.text();
+
+  // Reconstruct the RSC payload from the escaped push chunks.
+  const parts: string[] = [];
+  const chunkRe = /self\.__next_f\.push\(\[1,"((?:[^"\\]|\\.)*)"\]\)/g;
+  let cm: RegExpExecArray | null;
+  while ((cm = chunkRe.exec(html))) {
+    try { parts.push(JSON.parse('"' + cm[1] + '"')); } catch { /* skip */ }
+  }
+  const rsc = parts.join('');
+
+  // The list lives at `"storyList":[{"story":{...}}, ...]` — walk each
+  // `"story":{` occurrence and brace-match its body so nested objects
+  // (coverImage, entitlements, adsType) don't confuse the extractor.
+  const items: NewsItem[] = [];
+  const storyMarker = '"story":{';
+  const seen = new Set<string>();
+  let searchStart = 0;
+  while (true) {
+    const idx = rsc.indexOf(storyMarker, searchStart);
+    if (idx === -1) break;
+    const objStart = idx + storyMarker.length - 1;
+    let depth = 0;
+    let objEnd = objStart;
+    for (let i = objStart; i < rsc.length; i++) {
+      const ch = rsc[i];
+      if (ch === '{') depth++;
+      else if (ch === '}') {
+        depth--;
+        if (depth === 0) { objEnd = i + 1; break; }
+      }
+    }
+    if (objEnd === objStart) break;
+    searchStart = objEnd;
+    let story: {
+      id?: number | string;
+      hline?: string;
+      intro?: string;
+      pubTime?: string | number;
+      storyType?: string;
+      imageId?: number | string;
+      seoHeadline?: string;
+      context?: string;
+      coverImage?: { id?: string | number; caption?: string; source?: string };
+    } = {};
+    try { story = JSON.parse(rsc.slice(objStart, objEnd)); } catch { continue; }
+    const id = String(story.id ?? '').trim();
+    const title = (story.hline || '').trim();
+    if (!id || !title) continue;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const slugified = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'story';
+    const imageId = String(story.coverImage?.id ?? story.imageId ?? '').trim();
+    // Pre-sized `/1920x1080/` path returns full-HD 1920×1080 (~130 KB) so
+    // the featured hero stays crisp at wide desktop viewports + 2× DPR.
+    // The upstream also honours `/1080x608/`, `/1440x810/` if we later
+    // want a smaller variant for the card grid.
+    const imageUrl = imageId
+      ? `${UPSTREAM_STATIC_URL}/a/img/v1/1920x1080/i1/c${imageId}/${slugified}.jpg`
+      : undefined;
+    // pubTime is a millisecond epoch stored as string ("1773057028749").
+    let publishedAt: string | undefined;
+    const pt = story.pubTime ? Number(story.pubTime) : NaN;
+    if (Number.isFinite(pt) && pt > 0) {
+      publishedAt = new Date(pt).toISOString();
+    }
+    items.push({
+      id,
+      slug: slugified,
+      title,
+      description: story.intro || undefined,
+      imageUrl,
+      link: `${UPSTREAM_BASE_URL}/cricket-news/${id}/${slugified}`,
+      publishedAt,
+    });
+    if (items.length >= 100) break;
+  }
+
+  return NewsFeedSchema.parse({
+    source: 'Series News',
     fetchedAt: new Date().toISOString(),
     items,
   });

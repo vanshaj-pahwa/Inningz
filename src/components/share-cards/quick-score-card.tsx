@@ -23,7 +23,7 @@ export interface QuickScoreCardProps {
   mode?: ShareMode;
   /** Batting side's identity colour (matches the live hero). */
   accent?: string;
-  /** Batting side's flag (a cricbuzz static URL); proxied same-origin for capture. */
+  /** Batting side's flag (an upstream static URL); proxied same-origin for capture. */
   flagUrl?: string;
   /** Per-over runs + whether a wicket fell, for the sparkline. */
   overPoints?: { runs: number; wicketFell: boolean }[];

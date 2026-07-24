@@ -11,11 +11,12 @@ import { ArrowLeft, Filter, ChevronDown, X, Calendar } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { deriveMatchFormat, displayMatchFormat } from '@/lib/utils';
 import SeriesStatsDisplay from '@/components/series-stats';
+import SeriesNewsDisplay from '@/components/series-news';
 import PointsTableDisplay from '@/components/points-table';
 import MatchCard from '@/components/match-card';
 import { useRecentHistoryContext } from '@/contexts/recent-history-context';
 
-type SeriesView = 'matches' | 'stats' | 'points';
+type SeriesView = 'matches' | 'stats' | 'points' | 'news';
 
 export default function SeriesPage() {
   const router = useRouter();
@@ -32,7 +33,7 @@ export default function SeriesPage() {
     if (viewInitialized.current) return;
     viewInitialized.current = true;
     const v = new URLSearchParams(window.location.search).get('view');
-    if (v === 'stats' || v === 'points' || v === 'matches') {
+    if (v === 'stats' || v === 'points' || v === 'matches' || v === 'news') {
       setView(v);
     }
   }, []);
@@ -234,6 +235,7 @@ export default function SeriesPage() {
     { value: 'matches', label: 'Matches', shortLabel: 'Matches' },
     { value: 'points', label: 'Points Table', shortLabel: 'Table', hidden: hasPointsTable === false },
     { value: 'stats', label: 'Stats', shortLabel: 'Stats' },
+    { value: 'news', label: 'News', shortLabel: 'News' },
   ];
 
   const visibleTabs = tabs.filter(t => !t.hidden);
@@ -549,6 +551,10 @@ export default function SeriesPage() {
 
         {view === 'points' && (
           <PointsTableDisplay seriesId={seriesId} onAvailabilityChange={handlePointsAvailability} />
+        )}
+
+        {view === 'news' && (
+          <SeriesNewsDisplay seriesId={seriesId} />
         )}
       </main>
 

@@ -127,7 +127,7 @@ function computeOverRuns(overSummary: string | undefined, apiOverRuns: number | 
 }
 
 // Render a match title with the two team names wrapped in `<Link>` when their
-// names resolve to a known cricbuzz teamId. Splits on " vs " and takes the
+// names resolve to a known upstream teamId. Splits on " vs " and takes the
 // short-code suffix before the first comma as the team-B boundary. Falls back
 // to plain text if the shape doesn't match.
 function TitleWithTeamLinks({ title }: { title?: string }) {

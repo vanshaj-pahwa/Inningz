@@ -280,7 +280,7 @@ export function parseJinaArticle(md: string): ParsedJinaArticle {
             // Alt text: `Image N: {alt}` — strip the numeric prefix.
             const altMatch = line.match(/^!\[Image \d+:\s*([^\]]+?)\]/);
             const alt = altMatch ? altMatch[1].trim() : undefined;
-            // Peek at the next non-blank line — cricinfo places the human
+            // Peek at the next non-blank line — the source places the human
             // caption ("... struck a half-century ... •BCCI") right after
             // the image. Prefer that over the alt when both exist.
             let caption = alt;

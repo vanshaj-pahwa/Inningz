@@ -4,9 +4,7 @@ import { useEffect, useState } from 'react';
 import { getSeriesStatsTypes, getSeriesStats } from '@/app/actions';
 import type { SeriesStatsType, SeriesStatCategory } from '@/app/actions';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { BarChart3, ChevronDown, LoaderCircle } from "lucide-react";
+import { BarChart3, LoaderCircle } from "lucide-react";
 import { getPlayerProfile } from '@/app/actions';
 import type { PlayerProfile } from '@/app/actions';
 import PlayerProfileDisplay from './player-profile';
@@ -71,9 +69,8 @@ export default function SeriesStatsDisplay({ seriesId }: SeriesStatsProps) {
 
   // Get available stat options (exclude section dividers that have no value)
   const statOptions = statsTypes?.statsTypes.filter(t => t.value) ?? [];
-  const selectedStatLabel = statOptions.find(s => s.value === selectedStat)?.header || 'Most Runs';
 
-  // Group stat options by category for the dropdown
+  // Group stat options by category for the sub-tab strip
   const battingStats = statOptions.filter(s => s.category === 'Batting');
   const bowlingStats = statOptions.filter(s => s.category === 'Bowling');
 
@@ -98,47 +95,75 @@ export default function SeriesStatsDisplay({ seriesId }: SeriesStatsProps) {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Stat type selector */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="rounded-xl gap-1.5 h-7 sm:h-8 text-[11px] sm:text-xs px-2.5">
-              <BarChart3 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-              {selectedStatLabel}
-              <ChevronDown className="h-2.5 w-2.5 sm:h-3 sm:w-3 opacity-50" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
-            {battingStats.length > 0 && (
-              <>
-                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground tracking-wider uppercase">Batting</div>
-                <DropdownMenuRadioGroup value={selectedStat} onValueChange={setSelectedStat}>
-                  {battingStats.map(s => (
-                    <DropdownMenuRadioItem key={s.value} value={s.value!}>
-                      {s.header}
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </>
-            )}
-            {bowlingStats.length > 0 && (
-              <>
-                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground tracking-wider uppercase mt-1">Bowling</div>
-                <DropdownMenuRadioGroup value={selectedStat} onValueChange={setSelectedStat}>
-                  {bowlingStats.map(s => (
-                    <DropdownMenuRadioItem key={s.value} value={s.value!}>
-                      {s.header}
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+    <div className="grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)] gap-4 lg:gap-8">
+      {/* Sidebar — mirrors the upstream page's grouped category rail so every
+          leaderboard is one click away. On mobile it collapses into a
+          horizontally scrollable strip so the table below stays the focus. */}
+      <aside className="lg:sticky lg:top-24 lg:self-start">
+        {/* Mobile: horizontal chip strip (Batting label · chips · Bowling · chips) */}
+        <div className="lg:hidden -mx-4 px-4 overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-x-3 whitespace-nowrap min-w-max border-b border-border/60">
+            {battingStats.length > 0 && <StatGroupLabel label="Batting" inline />}
+            {battingStats.map(s => (
+              <StatOption
+                key={s.value}
+                label={s.header}
+                active={selectedStat === s.value}
+                onClick={() => setSelectedStat(s.value!)}
+                inline
+              />
+            ))}
+            {bowlingStats.length > 0 && <StatGroupLabel label="Bowling" inline />}
+            {bowlingStats.map(s => (
+              <StatOption
+                key={s.value}
+                label={s.header}
+                active={selectedStat === s.value}
+                onClick={() => setSelectedStat(s.value!)}
+                inline
+              />
+            ))}
+          </div>
+        </div>
+        {/* Desktop: vertical grouped rail */}
+        <div className="hidden lg:block surface-card rounded-2xl overflow-hidden">
+          {battingStats.length > 0 && (
+            <>
+              <StatGroupLabel label="Batting" />
+              <ul>
+                {battingStats.map(s => (
+                  <li key={s.value}>
+                    <StatOption
+                      label={s.header}
+                      active={selectedStat === s.value}
+                      onClick={() => setSelectedStat(s.value!)}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          {bowlingStats.length > 0 && (
+            <>
+              <StatGroupLabel label="Bowling" />
+              <ul>
+                {bowlingStats.map(s => (
+                  <li key={s.value}>
+                    <StatOption
+                      label={s.header}
+                      active={selectedStat === s.value}
+                      onClick={() => setSelectedStat(s.value!)}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      </aside>
 
       {/* Stats table */}
+      <div className="min-w-0">
       {statsLoading ? (
         <div className="space-y-3">
           {[...Array(5)].map((_, i) => (
@@ -213,6 +238,7 @@ export default function SeriesStatsDisplay({ seriesId }: SeriesStatsProps) {
           </p>
         </div>
       )}
+      </div>
 
       {/* Player Profile Dialog */}
       <Dialog open={!!selectedProfileId} onOpenChange={(open) => {
@@ -242,6 +268,56 @@ export default function SeriesStatsDisplay({ seriesId }: SeriesStatsProps) {
           )}
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function StatOption({
+  label, active, onClick, inline = false,
+}: { label: string; active: boolean; onClick: () => void; inline?: boolean }) {
+  if (inline) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        aria-current={active ? 'true' : undefined}
+        className={`relative shrink-0 px-1 py-2.5 text-[13px] font-medium transition-colors ${
+          active ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+        }`}
+      >
+        {label}
+        {active && <span className="absolute left-0 right-0 -bottom-px h-0.5 bg-primary rounded-full" aria-hidden />}
+      </button>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-current={active ? 'true' : undefined}
+      className={`w-full flex items-center justify-between text-left px-3.5 py-2 text-[13px] font-medium border-l-2 transition-colors ${
+        active
+          ? 'text-primary border-primary bg-primary/5'
+          : 'text-muted-foreground hover:text-foreground border-transparent hover:bg-muted/30'
+      }`}
+    >
+      <span>{label}</span>
+      {active && <span aria-hidden className="text-primary">›</span>}
+    </button>
+  );
+}
+
+function StatGroupLabel({ label, inline = false }: { label: string; inline?: boolean }) {
+  if (inline) {
+    return (
+      <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 pl-1 pr-1 first:pl-0">
+        {label}
+      </span>
+    );
+  }
+  return (
+    <div className="px-3.5 py-2 bg-muted/30 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80">
+      {label}
     </div>
   );
 }

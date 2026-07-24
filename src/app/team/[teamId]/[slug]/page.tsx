@@ -30,7 +30,7 @@ const FORMAT_BADGE: Record<string, string> = {
 
 // Unified flag treatment — same tight rectangle and 2px border radius as
 // MatchCard uses (`rounded-[2px]`), so flags read the same across the app.
-// Every size below preserves cricbuzz's 4:3 flag aspect.
+// Every size below preserves the upstream's 4:3 flag aspect.
 function TeamFlag({
     src, alt, size = 'sm', priority,
 }: { src?: string; alt: string; size?: 'sm' | 'md' | 'lg' | 'xl'; priority?: boolean }) {

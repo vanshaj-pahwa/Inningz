@@ -23,7 +23,7 @@ export function rememberMatchFlags(matchId: string, teams: { name?: string; flag
   }
 }
 
-// Cricbuzz-style team (jersey) colours. Flag extraction alone misses these — a
+// Team (jersey) colours. Flag extraction alone misses these — a
 // team's identity colour isn't always its flag's dominant colour (India's flag
 // is green/orange, but the side plays in blue). Keyed by short code and full name.
 const TEAM_COLORS: Record<string, string> = {

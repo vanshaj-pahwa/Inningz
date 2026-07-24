@@ -72,6 +72,8 @@ import {
     scrapeICCRankings as scrapeICCRankingsFlow,
     scrapeICCTeamRankings as scrapeICCTeamRankingsFlow,
     scrapeCricketNews as scrapeCricketNewsFlow,
+    scrapeSeriesNews as scrapeSeriesNewsFlow,
+    scrapeAltUpstreamNewsShell as scrapeAltUpstreamNewsShellFlow,
     scrapeCricketNewsArticle as scrapeCricketNewsArticleFlow,
     type RankingsData as RankingsDataType,
     type RankingEntry as RankingEntryType,
@@ -534,6 +536,50 @@ export async function getSeriesPointsTable(seriesId: string): Promise<{ success:
     }
     try {
         const data = await scrapeSeriesPointsTableFlow(seriesId);
+        return { success: true, data };
+    } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : 'An unexpected error occurred.';
+        return { success: false, error: errorMessage };
+    }
+}
+
+export async function getSeriesNews(seriesId: string): Promise<{ success: boolean; data?: NewsFeedType; error?: string }> {
+    if (!seriesId) {
+        return { success: false, error: 'Invalid Series ID' };
+    }
+    try {
+        const data = await scrapeSeriesNewsFlow(seriesId);
+        return { success: true, data };
+    } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : 'An unexpected error occurred.';
+        return { success: false, error: errorMessage };
+    }
+}
+
+export type AltUpstreamNewsShell = {
+    id: string;
+    slug: string;
+    title: string;
+    description?: string;
+    heroImageUrl?: string;
+    heroImageCaption?: string;
+    publishedAt?: string;
+    author?: string;
+    paragraphs: string[];
+    blocks: Array<{ type: 'paragraph'; html: string } | { type: 'heading'; text: string }>;
+    wordCount: number;
+    readTimeMinutes: number;
+    tags: Array<{ label: string }>;
+    related: Array<{ id: string; slug: string; title: string; imageUrl?: string }>;
+};
+
+export async function getAltUpstreamNewsShell(id: string, slug: string): Promise<{ success: boolean; data?: AltUpstreamNewsShell; error?: string }> {
+    if (!id) {
+        return { success: false, error: 'Invalid story id' };
+    }
+    try {
+        const data = await scrapeAltUpstreamNewsShellFlow(id, slug);
+        if (!data) return { success: false, error: 'Story not found' };
         return { success: true, data };
     } catch (e) {
         const errorMessage = e instanceof Error ? e.message : 'An unexpected error occurred.';

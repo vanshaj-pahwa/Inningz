@@ -3,14 +3,17 @@
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Bookmark, Newspaper, Share2, Clock } from 'lucide-react';
-import { getCricketNews } from '@/app/actions';
-import type { NewsArticle, NewsItem, NewsBlock, LiveMatch } from '@/app/actions';
+import { getCricketNews, getAltUpstreamNewsShell, getPlayerProfile } from '@/app/actions';
+import type { NewsArticle, NewsItem, NewsBlock, LiveMatch, PlayerProfile } from '@/app/actions';
 import MatchCard from '@/components/match-card';
+import PlayerProfileDisplay from '@/components/player-profile';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { LoaderCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { buildNewsHref, toFaceCroppedThumb } from '@/lib/utils';
+import { buildNewsHref, buildTeamHref, buildSeriesHref, buildMatchHref, toFaceCroppedThumb } from '@/lib/utils';
 import { NEWS_ARTICLE_BASE_URLS } from '@/lib/upstream';
 import { parseJinaArticle, extractJinaLdImages, LAZY_IMAGE_SENTINEL } from '@/lib/parse-jina-article';
 
@@ -32,6 +35,29 @@ export default function NewsArticlePage() {
     // the server scrape returned empty. Used to swap the empty body area for a
     // skeleton so the reader sees progress, not a blank space.
     const [bodyScraping, setBodyScraping] = useState(false);
+    // Player-profile dialog state — mirrors the pattern in series-stats so
+    // tag pills for players open the same overlay the rest of the app uses.
+    const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+    const [selectedPlayerName, setSelectedPlayerName] = useState<string | null>(null);
+    const [selectedProfile, setSelectedProfile] = useState<PlayerProfile | null>(null);
+    const [profileLoading, setProfileLoading] = useState(false);
+    useEffect(() => {
+        if (!selectedProfileId) return;
+        setProfileLoading(true);
+        getPlayerProfile(selectedProfileId, selectedPlayerName || undefined).then(result => {
+            if (result.success && result.data) setSelectedProfile(result.data);
+            setProfileLoading(false);
+        });
+    }, [selectedProfileId, selectedPlayerName]);
+    // Where the click originated. The two upstreams recycle numeric ids in
+    // different namespaces (id 138004 exists on both and points to different
+    // stories), so the body reader MUST fetch from the origin that produced
+    // the click. Series-tab links carry `?src=series`; everything else is a
+    // main news tab link. Use useSearchParams (reactive) instead of reading
+    // window.location.search — the latter can lag one render behind on
+    // client-side navigations and mis-route the fetch on the first render.
+    const searchParams = useSearchParams();
+    const origin: 'news' | 'series' = searchParams?.get('src') === 'series' ? 'series' : 'news';
     // Guard so the reader-service enrichment fires at most once per (id, slug)
     // pair — otherwise setArticle inside the effect could re-trigger it when
     // the enriched blob still lacks fields the "healthy" heuristic requires.
@@ -43,9 +69,15 @@ export default function NewsArticlePage() {
     // exclusively from the reader effect below. This effect gets the shell up
     // instantly; the reader effect fills in the body.
     useEffect(() => {
+        // Reset per-article state at the top so an in-flight client-side
+        // navigation can't render stale content or an error from the
+        // previous article while the new fetch is still running.
+        setArticle(null);
+        setError(null);
+        setLoading(true);
+        setBodyScraping(false);
+        enrichedRef.current = null;
         (async () => {
-            setLoading(true);
-            setError(null);
             const feedResult = await getCricketNews();
             const feedItem = feedResult.success && feedResult.data
                 ? feedResult.data.items.find(i => i.id === id)
@@ -54,7 +86,14 @@ export default function NewsArticlePage() {
                 setRelated(feedResult.data.items.filter(i => i.id !== id).slice(0, 8));
                 if (feedItem?.imageUrl) setFeedHeroImage(feedItem.imageUrl);
             }
-            if (feedItem) {
+            // Series-tab clicks skip the RSS lookup entirely — those ids
+            // live in a different namespace and a hit would render the wrong
+            // story. Build the shell straight from the alternate upstream.
+            if (origin === 'series') {
+                const shell = await fetchAltUpstreamShell(id, slug);
+                if (shell) setArticle(shell);
+                else setError('Failed to load article');
+            } else if (feedItem) {
                 setArticle({
                     id: feedItem.id,
                     slug: feedItem.slug,
@@ -78,7 +117,7 @@ export default function NewsArticlePage() {
             }
             setLoading(false);
         })();
-    }, [id, slug]);
+    }, [id, slug, origin]);
 
 
     // Body content comes exclusively from the reader service. Rationale: the
@@ -89,6 +128,9 @@ export default function NewsArticlePage() {
     useEffect(() => {
         if (!article) return;
         if (!slug) return;
+        // Series-origin articles already carry their full body from the
+        // server-side shell — no browser-side reader pass needed.
+        if (origin === 'series') return;
         const key = `${id}::${slug}`;
         if (enrichedRef.current === key) return;
         enrichedRef.current = key;
@@ -161,7 +203,7 @@ export default function NewsArticlePage() {
             }
         })();
         return () => { cancelled = true; };
-    }, [article, id, slug]);
+    }, [article, id, slug, origin]);
 
     const publishedLabel = article?.publishedAt ? formatDate(article.publishedAt) : null;
 
@@ -296,23 +338,54 @@ export default function NewsArticlePage() {
                                 bouncing to check the score. */}
                             <LiveMatchContext tags={article.tags} title={article.title} />
 
-                            {(article.tags?.length ?? 0) > 0 && (
-                                <div className="mt-10 pt-6 border-t border-border/60">
-                                    <h3 className="font-display text-lg md:text-xl tracking-tight text-foreground mb-3">
-                                        Tags
-                                    </h3>
-                                    <div className="flex flex-wrap gap-2">
-                                        {article.tags.map((t) => (
-                                            <span
-                                                key={t.label}
-                                                className="inline-flex items-center rounded-full border border-border bg-muted/40 px-3 py-1 text-xs text-foreground"
-                                            >
-                                                {t.label}
-                                            </span>
-                                        ))}
+                            {(() => {
+                                // Resolve each tag into either an in-app route
+                                // (team / series / match) or a player-profile
+                                // dialog trigger. Anything we can't route is
+                                // dropped so the row never contains inert pills.
+                                type ResolvedTag =
+                                    | { kind: 'link'; label: string; href: string }
+                                    | { kind: 'player'; label: string; profileId: string };
+                                const resolvedTags: ResolvedTag[] = (article.tags ?? [])
+                                    .map((t): ResolvedTag | null => {
+                                        const tag = t as { label?: string; href?: string };
+                                        const label = tag.label ?? '';
+                                        if (!label) return null;
+                                        return resolveTagAction({ label, href: tag.href });
+                                    })
+                                    .filter((t): t is ResolvedTag => t !== null);
+                                if (resolvedTags.length === 0) return null;
+                                const pillClasses = 'inline-flex items-center rounded-full border border-border bg-muted/40 px-3 py-1 text-xs text-foreground hover:border-primary/60 hover:text-primary transition-colors';
+                                return (
+                                    <div className="mt-10 pt-6 border-t border-border/60">
+                                        <h3 className="font-display text-lg md:text-xl tracking-tight text-foreground mb-3">
+                                            Tags
+                                        </h3>
+                                        <div className="flex flex-wrap gap-2">
+                                            {resolvedTags.map((t) => (
+                                                t.kind === 'link' ? (
+                                                    <Link key={t.label} href={t.href} className={pillClasses}>
+                                                        {t.label}
+                                                    </Link>
+                                                ) : (
+                                                    <button
+                                                        key={t.label}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setSelectedProfileId(t.profileId);
+                                                            setSelectedPlayerName(t.label);
+                                                            setSelectedProfile(null);
+                                                        }}
+                                                        className={pillClasses}
+                                                    >
+                                                        {t.label}
+                                                    </button>
+                                                )
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                );
+                            })()}
                         </article>
 
                         <aside className="hidden lg:block">
@@ -325,20 +398,43 @@ export default function NewsArticlePage() {
                                         <h3 className="font-display text-lg md:text-xl tracking-tight text-foreground mb-4">
                                             Related
                                         </h3>
-                                        <ul className="space-y-1">
-                                            {article.related.map((r) => (
-                                                <li key={r.id}>
-                                                    <Link
-                                                        href={buildNewsHref(r.id, r.slug)}
-                                                        className="group flex gap-2 items-start py-2.5 border-b border-border/40 last:border-b-0"
-                                                    >
-                                                        <span className="font-display text-sm leading-none text-primary/70 shrink-0 mt-1" aria-hidden>›</span>
-                                                        <p className="flex-1 min-w-0 font-display text-[15px] leading-snug tracking-tight text-foreground group-hover:text-primary transition-colors">
-                                                            {r.title}
-                                                        </p>
-                                                    </Link>
-                                                </li>
-                                            ))}
+                                        <ul className="space-y-5">
+                                            {article.related.map((r) => {
+                                                // Related links inherit the current article's
+                                                // origin — ids here live in the same namespace
+                                                // as the current story.
+                                                const href = origin === 'series'
+                                                    ? `${buildNewsHref(r.id, r.slug)}?src=series`
+                                                    : buildNewsHref(r.id, r.slug);
+                                                return (
+                                                    <li key={r.id}>
+                                                        <Link
+                                                            href={href}
+                                                            className="group flex gap-3 items-start"
+                                                        >
+                                                            {r.imageUrl ? (
+                                                                <div className="w-20 h-14 rounded-lg overflow-hidden shrink-0 bg-muted">
+                                                                    <Image
+                                                                        src={r.imageUrl}
+                                                                        alt=""
+                                                                        width={200}
+                                                                        height={140}
+                                                                        unoptimized
+                                                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                                                    />
+                                                                </div>
+                                                            ) : (
+                                                                <div className="w-20 h-14 rounded-lg bg-muted/40 flex items-center justify-center shrink-0">
+                                                                    <Newspaper className="w-4 h-4 text-muted-foreground/40" />
+                                                                </div>
+                                                            )}
+                                                            <h4 className="text-[13px] leading-snug font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-3 flex-1">
+                                                                {r.title}
+                                                            </h4>
+                                                        </Link>
+                                                    </li>
+                                                );
+                                            })}
                                         </ul>
                                     </>
                                 ) : (
@@ -377,46 +473,96 @@ export default function NewsArticlePage() {
                             </div>
                         </aside>
 
-                        {/* More Stories — full-width strip under the article + Related
-                            sidebar. Uses the RSS "more stories" list for general browsing. */}
-                        {related.length > 0 && (
-                            <section className="mt-12 md:mt-16 lg:col-span-2">
-                                <h2 className="font-display text-xl md:text-2xl tracking-tight text-foreground mb-4 md:mb-5">
-                                    More stories
-                                </h2>
-                                <ul className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
-                                    {related.slice(0, 8).map((item) => (
-                                        <li key={item.id}>
-                                            <Link
-                                                href={buildNewsHref(item.id, item.slug)}
-                                                className="group flex flex-col gap-2 md:gap-3 h-full"
-                                            >
-                                                {item.imageUrl && (
-                                                    <div className="aspect-[4/3] md:aspect-[16/10] rounded-lg md:rounded-xl overflow-hidden bg-muted">
-                                                        <Image
-                                                            src={toFaceCroppedThumb(item.imageUrl, { width: 400, aspect: '4:3' }) || item.imageUrl}
-                                                            alt=""
-                                                            width={400}
-                                                            height={250}
-                                                            unoptimized
-                                                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                                                        />
-                                                    </div>
-                                                )}
-                                                <h4 className="font-display text-[13px] md:text-lg leading-snug tracking-tight text-foreground group-hover:text-primary transition-colors line-clamp-3">
-                                                    {item.title}
-                                                </h4>
-                                            </Link>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </section>
-                        )}
                     </div>
                 )}
             </main>
+
+            <Dialog open={!!selectedProfileId} onOpenChange={(open) => {
+                if (!open) {
+                    setSelectedProfileId(null);
+                    setSelectedPlayerName(null);
+                    setSelectedProfile(null);
+                }
+            }}>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 rounded-2xl">
+                    <DialogHeader className="sr-only">
+                        <DialogTitle>Player Profile</DialogTitle>
+                    </DialogHeader>
+                    {profileLoading && (
+                        <div className="flex justify-center items-center p-12">
+                            <LoaderCircle className="w-8 h-8 animate-spin text-primary" />
+                            <p className="ml-4 text-muted-foreground">Loading player profile...</p>
+                        </div>
+                    )}
+                    {selectedProfile && <PlayerProfileDisplay profile={selectedProfile} />}
+                    {!profileLoading && !selectedProfile && selectedProfileId && (
+                        <div className="p-8 text-center text-muted-foreground">
+                            Failed to load player profile
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
         </div>
     );
+}
+
+// Build a bare article shell for stories the RSS feed doesn't index
+// (series-news items live on the alternate upstream). Server action reads
+// og:title / og:description / og:image / article:published_time from the
+// story page so the header renders while the body reader fills in below.
+// Map an upstream tag's raw href to something the article page can render.
+// Teams / series / matches route to their in-app page; player tags emit a
+// `player` action the page opens as a profile dialog. Unmapped hrefs (e.g.
+// author pages, generic tag lists) return null so the tag is dropped.
+type ResolvedTagAction =
+    | { kind: 'link'; label: string; href: string }
+    | { kind: 'player'; label: string; profileId: string };
+function resolveTagAction(tag: { label: string; href?: string }): ResolvedTagAction | null {
+    const href = tag.href;
+    if (!href) return null;
+    // /profiles/{id}/{slug} — open the existing player-profile dialog.
+    const playerM = href.match(/^\/profiles\/(\d+)(?:\/|$)/);
+    if (playerM) return { kind: 'player', label: tag.label, profileId: playerM[1] };
+    // /cricket-team/{slug}/{id}  →  /team/{id}/{slug}
+    const teamM = href.match(/^\/cricket-team\/([^/?#]+)\/(\d+)(?:$|[/?#])/);
+    if (teamM) {
+        const h = buildTeamHref(teamM[2], tag.label);
+        return h ? { kind: 'link', label: tag.label, href: h } : null;
+    }
+    // /cricket-series/{id}/{slug}[/...]  →  /series/{id}/{slug}
+    const seriesM = href.match(/^\/cricket-series\/(\d+)\/([^/?#]+)/);
+    if (seriesM) {
+        const h = buildSeriesHref(tag.label, `/cricket-series/${seriesM[1]}/${seriesM[2]}`);
+        return h ? { kind: 'link', label: tag.label, href: h } : null;
+    }
+    // /live-cricket-scores/{id}/{slug}  →  /match/{id}/{slug}
+    const matchM = href.match(/^\/live-cricket-scores\/(\d+)\b/);
+    if (matchM) return { kind: 'link', label: tag.label, href: buildMatchHref(matchM[1], tag.label) };
+    return null;
+}
+
+async function fetchAltUpstreamShell(id: string, slug: string): Promise<NewsArticle | null> {
+    const result = await getAltUpstreamNewsShell(id, slug);
+    if (!result.success || !result.data) return null;
+    const d = result.data;
+    return {
+        id: d.id,
+        slug: d.slug,
+        title: d.title,
+        description: d.description,
+        publishedAt: d.publishedAt,
+        heroImageUrl: d.heroImageUrl,
+        heroImageCaption: d.heroImageCaption,
+        category: undefined,
+        author: d.author,
+        wordCount: d.wordCount,
+        readTimeMinutes: d.readTimeMinutes,
+        paragraphs: d.paragraphs,
+        blocks: d.blocks,
+        tags: d.tags,
+        related: d.related,
+        mostRead: [],
+    };
 }
 
 function ArticleSkeleton() {
@@ -506,14 +652,135 @@ function ArticleBody({ blocks, fallbackParagraphs, bodyLoading }: { blocks: News
             </div>
         );
     }
+    // Detect paragraphs that are ENTIRELY direct speech. Attribution in
+    // journalism ALWAYS follows a closing quote character (`," Sammy said`
+    // or `</q>, said Sammy`) — it never sits mid-speech. So look for the
+    // structural pattern "close-quote → capitalized word → attribution
+    // verb" instead of a loose "said appears anywhere" match, which would
+    // wrongly flag lines like `"Like I said, …"` as narrative.
+    const ATTRIB_AFTER_QUOTE_RE =
+        /(?:[""»""]|<\/q>)\s*[,.]?\s*(?:<[^>]+>\s*)*[A-Z][A-Za-z]+\s+(?:said|told|added|explained|asked|stated|noted|wrote|announced|remarked|commented|responded|replied|revealed|admitted|confirmed|acknowledged|argued|insisted|declared|claimed|conceded)\b/;
+    const isQuoteHtml = (h: string) => {
+        const text = h.replace(/<[^>]+>/g, '').trim();
+        if (!text) return false;
+        // Must open with a quote character — the universal marker of speech.
+        if (!/^[""„«"]/.test(text)) return false;
+        // Multi-paragraph quotes don't close intermediate paragraphs, so the
+        // trailing character isn't a reliable signal. Attribution presence is.
+        return !ATTRIB_AFTER_QUOTE_RE.test(h);
+    };
+    // Some source flows double the edge quote characters ("" at start/end).
+    // For blockquote rendering we already provide the drop-cap glyph, so
+    // strip up to two leading and trailing quote characters cleanly.
+    const stripEdgeQuotes = (h: string) =>
+        h
+            .replace(/^(\s*(?:<[^>]+>\s*)*)[""„«"]{1,2}/, '$1')
+            .replace(/[""»""]{1,2}((?:\s*<\/[^>]+>)*\s*[.,;!?]?)\s*$/, '$1');
+    // Cluster consecutive quote paragraphs so an interview reads as one
+    // continuous voice inside a single <blockquote> — not a stack of
+    // isolated cards, one per line.
+    type RenderItem =
+        | { kind: 'block'; block: NewsBlock }
+        | { kind: 'quotes'; htmls: string[] };
+    const grouped: RenderItem[] = [];
+    for (const b of blocks) {
+        if (b.type === 'paragraph' && isQuoteHtml(b.html)) {
+            const tail = grouped[grouped.length - 1];
+            if (tail && tail.kind === 'quotes') tail.htmls.push(b.html);
+            else grouped.push({ kind: 'quotes', htmls: [b.html] });
+        } else {
+            grouped.push({ kind: 'block', block: b });
+        }
+    }
+
+    // Prose vs quote paragraphs share the SAME size + leading so the article
+    // has one consistent reading rhythm — the italic serif face is what
+    // marks speech, not a size bump.
+    // Inline quoted spans inside prose (`"…"`) are rendered as italic
+    // serif via the [&_q]:… rules so a fragment of speech inside a
+    // narrative sentence still reads distinctly. `emphasizeInlineQuotes`
+    // below synthesises `<q>` wrappers when the source uses plain quote
+    // characters instead of real `<q>` tags.
+    const proseP =
+        'text-[16px] md:text-[17px] leading-[1.75] md:leading-[1.9] text-foreground/90 mb-5 md:mb-6 last:mb-0 ' +
+        "[&_b]:font-semibold [&_strong]:font-semibold [&_i]:italic [&_em]:italic " +
+        '[&_u]:underline [&_u]:decoration-primary/50 [&_u]:underline-offset-2 ' +
+        '[&_ul]:list-disc [&_ul]:pl-6 [&_ul]:my-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:my-3 [&_li]:mb-1 ' +
+        '[&_a]:text-primary [&_a]:underline [&_a]:decoration-primary/40 [&_a]:underline-offset-2 hover:[&_a]:decoration-primary ' +
+        "[&_q]:font-serif [&_q]:italic [&_q]:text-foreground [&_q]:before:content-[''] [&_q]:after:content-['']";
+    const quoteP =
+        'font-serif italic text-[16px] md:text-[17px] leading-[1.75] md:leading-[1.9] text-foreground/95 ' +
+        '[&_b]:not-italic [&_b]:font-semibold [&_strong]:not-italic [&_strong]:font-semibold ' +
+        '[&_a]:italic [&_a]:text-primary [&_a]:no-underline hover:[&_a]:underline';
+
+    // Wrap bare `"…"` spans in a synthetic `<q>` so the italic serif
+    // treatment above picks them up. Skip when the paragraph already has
+    // real `<q>` tags (the RSS parser sometimes emits them) to avoid
+    // double-wrapping and skip anchors / links so URL text stays untouched.
+    const emphasizeInlineQuotes = (h: string): string => {
+        if (/<q[\s>]/i.test(h)) return h;
+        // Straight double quotes: match pairs conservatively (min 3 chars
+        // inside) and don't cross tag boundaries. Smart-quote pairs are a
+        // separate pass because their opening/closing glyphs are asymmetric
+        // (open `“` vs close `”`) and can be matched safely.
+        let out = h.replace(
+            /“([^“”<>]{3,}?)”/g,
+            '<q>“$1”</q>',
+        );
+        out = out.replace(
+            /(^|[\s>(])"([^"<>]{3,}?)"(?=[\s.,;:!?)<]|$)/g,
+            '$1<q>"$2"</q>',
+        );
+        return out;
+    };
+
     return (
         <div className="mt-6 md:mt-10">
-            {blocks.map((b, i) => {
+            {grouped.map((item, i) => {
+                if (item.kind === 'quotes') {
+                    return (
+                        <figure key={i} className="my-8 md:my-10">
+                            {/* No rail, no card, no background. Editorial
+                                treatment: italic serif body at the same size
+                                as prose, a drop-cap opening quote in the
+                                display face floats into the first line and
+                                visually replaces the stripped `"`. A run of
+                                consecutive answers flows inside ONE figure
+                                so it reads as one voice, not stacked cards. */}
+                            <div className="space-y-4 md:space-y-5">
+                                {item.htmls.map((h, qi) => {
+                                    const trimmedHtml = stripEdgeQuotes(h);
+                                    if (qi === 0) {
+                                        return (
+                                            <p key={qi} className={quoteP}>
+                                                <span
+                                                    aria-hidden
+                                                    className="float-left font-display not-italic text-primary/70 text-[3.25rem] md:text-[3.75rem] leading-[0.82] mr-2.5 -mt-1 select-none"
+                                                >
+                                                    “
+                                                </span>
+                                                <span dangerouslySetInnerHTML={{ __html: trimmedHtml }} />
+                                            </p>
+                                        );
+                                    }
+                                    return (
+                                        <p
+                                            key={qi}
+                                            className={quoteP}
+                                            dangerouslySetInnerHTML={{ __html: trimmedHtml }}
+                                        />
+                                    );
+                                })}
+                            </div>
+                        </figure>
+                    );
+                }
+                const b = item.block;
                 if (b.type === 'heading') {
                     return (
                         <h2
                             key={i}
-                            className="font-display text-2xl md:text-3xl leading-tight tracking-tight text-foreground mt-8 md:mt-10 mb-3 md:mb-4 first:mt-0"
+                            className="font-display text-2xl md:text-3xl leading-tight tracking-tight text-foreground mt-10 md:mt-12 mb-3 md:mb-4 first:mt-0"
                         >
                             {b.text}
                         </h2>
@@ -521,8 +788,8 @@ function ArticleBody({ blocks, fallbackParagraphs, bodyLoading }: { blocks: News
                 }
                 if (b.type === 'image') {
                     return (
-                        <figure key={i} className="my-6 md:my-8">
-                            <div className="rounded-2xl overflow-hidden bg-muted">
+                        <figure key={i} className="my-8 md:my-10 -mx-4 md:mx-0">
+                            <div className="md:rounded-2xl overflow-hidden bg-muted">
                                 <Image
                                     src={b.imageUrl}
                                     alt={b.caption ?? ''}
@@ -533,7 +800,7 @@ function ArticleBody({ blocks, fallbackParagraphs, bodyLoading }: { blocks: News
                                 />
                             </div>
                             {(b.caption || b.credit) && (
-                                <figcaption className="mt-2 text-[11px] md:text-xs text-muted-foreground italic flex flex-wrap items-center gap-1.5">
+                                <figcaption className="mt-2.5 px-4 md:px-0 text-[11px] md:text-xs text-muted-foreground italic flex flex-wrap items-center gap-1.5">
                                     {b.caption && <span>{b.caption}</span>}
                                     {b.caption && b.credit && <span className="text-muted-foreground/50 not-italic" aria-hidden>·</span>}
                                     {b.credit && <span className="not-italic">{b.credit}</span>}
@@ -545,8 +812,8 @@ function ArticleBody({ blocks, fallbackParagraphs, bodyLoading }: { blocks: News
                 return (
                     <p
                         key={i}
-                        className="text-[16px] md:text-[17px] leading-[1.75] md:leading-[1.9] text-foreground/90 mb-5 md:mb-6 last:mb-0 [&_b]:font-semibold [&_strong]:font-semibold [&_i]:italic [&_em]:italic [&_u]:underline [&_u]:decoration-primary/50 [&_u]:underline-offset-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:my-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:my-3 [&_li]:mb-1 [&_q]:italic [&_q]:text-foreground [&_q]:font-medium [&_q]:before:content-[''] [&_q]:after:content-[''] [&_q]:bg-primary/[0.06] [&_q]:rounded [&_q]:px-1 [&_q]:py-[0.05em] [&_q]:decoration-primary/50"
-                        dangerouslySetInnerHTML={{ __html: b.html }}
+                        className={proseP}
+                        dangerouslySetInnerHTML={{ __html: emphasizeInlineQuotes(b.html) }}
                     />
                 );
             })}
