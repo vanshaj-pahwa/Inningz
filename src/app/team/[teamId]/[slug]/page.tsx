@@ -441,107 +441,133 @@ function NextUp({ match, now, h2h }: {
     const startMs = match.startDate
         ? match.startDate < 10_000_000_000 ? match.startDate * 1000 : match.startDate
         : undefined;
-    const countdown = startMs ? buildCountdown(startMs - now) : null;
+    const diffMs = startMs ? startMs - now : 0;
+    const countdown = startMs ? buildCountdown(diffMs) : null;
+    // Countdown becomes the hero's most prominent element only when it's
+    // actually urgent (< 24h) — otherwise it's a peer of the datetime line.
+    // Splitting it into a "big number" (e.g. `1d 2h`) + a small "starts in"
+    // label lets the eye land on the answer, not the ornament.
+    const isUrgent = !!startMs && diffMs > 0 && diffMs < 24 * 60 * 60 * 1000;
     const [teamA, teamB] = match.teams;
     const href = buildMatchHref(match.matchId, match.title);
     const format = displayMatchFormat(match.matchFormat) || deriveMatchFormat(match.title, match.seriesName);
+    // Break the full datetime string into two lines so the day+date sits
+    // above the time. Format is "Sat 25 Jul, 16:30 GMT" — split on the first
+    // comma. Falls back to a single line if the format ever changes shape.
+    const fullTime = startMs ? formatFullTime(startMs) : null;
+    const [dateLine, timeLine] = (() => {
+        if (!fullTime) return [null, null] as const;
+        const commaIdx = fullTime.indexOf(',');
+        if (commaIdx === -1) return [fullTime, null] as const;
+        return [fullTime.slice(0, commaIdx).trim(), fullTime.slice(commaIdx + 1).trim()] as const;
+    })();
+    const wins = h2h?.results.filter(r => r === 'W').length ?? 0;
+    const losses = h2h?.results.filter(r => r === 'L').length ?? 0;
+    const draws = h2h?.results.filter(r => r === 'D').length ?? 0;
     return (
         <Link
             href={href}
             className="block surface-card rounded-2xl overflow-hidden hover:border-primary/40 transition-colors group"
         >
+            {/* Eyebrow — one line: NEXT UP · Series name, format chip pinned
+                right. Series moved out of the body meta so the middle stays
+                for match-specific info (teams + when + where). */}
             <div className="px-4 md:px-5 py-2.5 border-b border-border/50 bg-gradient-to-r from-primary/10 to-transparent flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-primary">Next up</span>
-                    {format && (
-                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md tracking-wide ${FORMAT_BADGE[format] ?? 'bg-muted text-muted-foreground'}`}>
-                            {format}
-                        </span>
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-primary shrink-0">
+                        Next up
+                    </span>
+                    {match.seriesName && (
+                        <>
+                            <span aria-hidden className="text-primary/40 shrink-0">·</span>
+                            <span className="text-[10px] md:text-[11px] font-semibold uppercase tracking-wider text-muted-foreground truncate">
+                                {match.seriesName}
+                            </span>
+                        </>
                     )}
                 </div>
-                {countdown && (
-                    <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-amber-500 dark:text-amber-400">
-                        <Clock className="w-3 h-3" />
-                        <span className="tabular-nums">{countdown}</span>
+                {format && (
+                    <span className={`shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-md tracking-wide ${FORMAT_BADGE[format] ?? 'bg-muted text-muted-foreground'}`}>
+                        {format}
                     </span>
                 )}
             </div>
-            <div className="p-5 md:p-6">
-                {/* Mobile: mirror the FixtureRow layout — teams stack
-                    vertically, flag on the left of each row, name fills the
-                    rest. Same visual DNA as every other match on the page,
-                    just scaled up (size="md" flag + text-xl name) so it
-                    reads as the hero. Full team names stay on one line, no
-                    forced wrapping, and flags align vertically. */}
-                <div className="md:hidden space-y-2.5">
-                    <div className="flex items-center gap-3">
+
+            <div className="p-5 md:p-6 space-y-5 md:space-y-6">
+                {/* Team block — stacked on both mobile and desktop so the
+                    layout stays scannable regardless of team-name length.
+                    Same visual DNA as the FixtureRow but scaled up. */}
+                <div className="space-y-2.5 md:space-y-3">
+                    <div className="flex items-center gap-3 md:gap-4">
                         <TeamFlag src={teamA?.flagUrl} alt={teamA?.name || 'Team A'} size="md" />
-                        <span className="flex-1 min-w-0 font-display text-xl tracking-tight leading-tight truncate">
+                        <span className="flex-1 min-w-0 font-display text-xl md:text-2xl tracking-tight leading-tight truncate">
                             {teamA?.name}
                         </span>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 md:gap-4">
                         <TeamFlag src={teamB?.flagUrl} alt={teamB?.name || 'Team B'} size="md" />
-                        <span className="flex-1 min-w-0 font-display text-xl tracking-tight leading-tight truncate">
+                        <span className="flex-1 min-w-0 font-display text-xl md:text-2xl tracking-tight leading-tight truncate">
                             {teamB?.name}
                         </span>
                     </div>
                 </div>
-                <div className="hidden md:grid md:grid-cols-[1fr_auto_1fr] md:items-center md:gap-6">
-                    <div className="flex items-center gap-4 min-w-0">
-                        <TeamFlag src={teamA?.flagUrl} alt={teamA?.name || 'Team A'} size="lg" />
-                        <span className="font-display text-2xl tracking-tight truncate">{teamA?.name}</span>
-                    </div>
-                    <span className="text-muted-foreground/40 font-display text-2xl">vs</span>
-                    <div className="flex items-center gap-4 min-w-0 justify-end">
-                        <span className="font-display text-2xl tracking-tight truncate text-right">{teamB?.name}</span>
-                        <TeamFlag src={teamB?.flagUrl} alt={teamB?.name || 'Team B'} size="lg" />
-                    </div>
-                </div>
-                {/* Meta: mobile centres the series name on its own line and
-                    puts the date + venue together on the line below; desktop
-                    keeps the original single-row flex-wrap. */}
-                <div className="mt-4 md:mt-5 text-xs md:text-sm text-muted-foreground">
-                    <div className="md:hidden flex flex-col items-center text-center gap-1.5">
-                        {match.seriesName && (
-                            <span className="font-medium text-foreground/80">{match.seriesName}</span>
+
+                {/* When strip — two columns share the same baseline so the
+                    countdown ("1d 2h") reads at the same height as the
+                    day+time. Countdown gets primary tint when urgent,
+                    foreground colour otherwise; the labels above each column
+                    keep the pair intentional and legible. */}
+                {(countdown || fullTime) && (
+                    <div className="flex items-start gap-6 md:gap-10">
+                        {countdown && (
+                            <div className="min-w-0">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                                    Starts in
+                                </p>
+                                <p
+                                    className={`mt-1 font-display text-3xl md:text-4xl leading-none tabular-nums ${
+                                        isUrgent ? 'text-primary' : 'text-foreground'
+                                    }`}
+                                >
+                                    {countdown}
+                                </p>
+                            </div>
                         )}
-                        {(startMs || match.venue) && (
-                            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
-                                {startMs && (
-                                    <span className="inline-flex items-center gap-1.5">
-                                        <Clock className="w-3.5 h-3.5 opacity-70" />
-                                        <span className="tabular-nums">{formatFullTime(startMs)}</span>
-                                    </span>
-                                )}
-                                {match.venue && (
-                                    <span className="inline-flex items-center gap-1.5">
-                                        <MapPin className="w-3.5 h-3.5 opacity-70" />
-                                        <span>{match.venue}</span>
-                                    </span>
-                                )}
+                        {(dateLine || timeLine) && (
+                            <div className="min-w-0">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                                    Starts at
+                                </p>
+                                <div className="mt-1 font-display text-xl md:text-2xl leading-none text-foreground tabular-nums">
+                                    <span>{dateLine}</span>
+                                    {timeLine && (
+                                        <span className="block text-muted-foreground text-base md:text-lg mt-1">
+                                            {timeLine}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>
-                    <div className="hidden md:flex flex-wrap items-center gap-x-4 gap-y-1.5">
-                        {match.seriesName && <span className="truncate">{match.seriesName}</span>}
-                        {startMs && (
-                            <span className="inline-flex items-center gap-1.5">
-                                <Clock className="w-3.5 h-3.5 opacity-70" />
-                                <span className="tabular-nums">{formatFullTime(startMs)}</span>
-                            </span>
-                        )}
-                        {match.venue && (
-                            <span className="inline-flex items-center gap-1.5 truncate">
-                                <MapPin className="w-3.5 h-3.5 opacity-70" />
-                                <span className="truncate">{match.venue}</span>
-                            </span>
-                        )}
+                )}
+
+                {/* Venue — its own row so the icon+text align consistently
+                    with the FixtureRow venue treatment elsewhere. */}
+                {match.venue && (
+                    <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground">
+                        <MapPin aria-hidden className="w-3.5 h-3.5 md:w-4 md:h-4 shrink-0 opacity-70" />
+                        <span className="truncate">{match.venue}</span>
                     </div>
-                </div>
-                {h2h && h2h.results.length > 0 && (
-                    <div className="mt-4 pt-4 border-t border-border/50 flex flex-wrap items-center gap-x-3 gap-y-2">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                )}
+            </div>
+
+            {/* H2H footer — full-width band with its own background tint so
+                it reads as a summary, not a random append. Label · dots ·
+                W-L split flow left to right with proper breathing room. */}
+            {h2h && h2h.results.length > 0 && (
+                <div className="px-4 md:px-5 py-3 border-t border-border/50 bg-muted/20 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground shrink-0">
                             Last {h2h.results.length} vs {h2h.opponent}
                         </span>
                         <div className="flex items-center gap-1">
@@ -549,14 +575,20 @@ function NextUp({ match, now, h2h }: {
                                 <FormDot key={i} result={r} />
                             ))}
                         </div>
-                        <span className="text-[11px] tabular-nums text-muted-foreground">
-                            {h2h.results.filter(r => r === 'W').length}W ·
-                            {' ' + h2h.results.filter(r => r === 'L').length}L
-                            {h2h.results.some(r => r === 'D') && ` · ${h2h.results.filter(r => r === 'D').length}D`}
-                        </span>
                     </div>
-                )}
-            </div>
+                    <span className="text-[11px] md:text-xs font-semibold tabular-nums text-foreground shrink-0">
+                        {wins}<span className="text-muted-foreground">W</span>
+                        <span aria-hidden className="text-muted-foreground/40 mx-1.5">·</span>
+                        {losses}<span className="text-muted-foreground">L</span>
+                        {draws > 0 && (
+                            <>
+                                <span aria-hidden className="text-muted-foreground/40 mx-1.5">·</span>
+                                {draws}<span className="text-muted-foreground">D</span>
+                            </>
+                        )}
+                    </span>
+                </div>
+            )}
         </Link>
     );
 }
