@@ -324,7 +324,7 @@ function ICCRankingsCard({ rankings }: { rankings?: PlayerProfile['rankings'] })
                             onClick={() => setTab(t.key)}
                             className={`px-2.5 py-0.5 text-[11px] rounded-full transition-all whitespace-nowrap ${
                                 tab === t.key
-                                    ? 'bg-green-600 text-white font-semibold shadow-sm'
+                                    ? 'bg-primary text-primary-foreground font-semibold shadow-sm'
                                     : 'text-zinc-500 dark:text-zinc-400 hover:text-foreground'
                             }`}
                         >
@@ -383,7 +383,7 @@ function RecentFormCard({ recentForm }: { recentForm?: PlayerProfile['recentForm
                                 onClick={() => setTab(t.key)}
                                 className={`px-2.5 py-0.5 text-[11px] rounded-full transition-all ${
                                     tab === t.key
-                                        ? 'bg-green-600 text-white font-semibold shadow-sm'
+                                        ? 'bg-primary text-primary-foreground font-semibold shadow-sm'
                                         : 'text-zinc-500 dark:text-zinc-400 hover:text-foreground'
                                 }`}
                             >
@@ -448,7 +448,7 @@ function CareerSummaryCard({ battingCareerSummary, bowlingCareerSummary }: {
                                 onClick={() => setTab(t.key)}
                                 className={`px-2.5 py-0.5 text-[11px] rounded-full transition-all ${
                                     tab === t.key
-                                        ? 'bg-green-600 text-white font-semibold shadow-sm'
+                                        ? 'bg-primary text-primary-foreground font-semibold shadow-sm'
                                         : 'text-zinc-500 dark:text-zinc-400 hover:text-foreground'
                                 }`}
                             >
