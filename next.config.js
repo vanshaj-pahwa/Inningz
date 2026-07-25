@@ -19,9 +19,15 @@ const nextConfig = {
   // Match URLs support an optional slug for readability + share previews:
   //   /match/144673/southern-brave-vs-welsh-fire-2nd-match
   // The slug is ignored server-side; the route handler only reads the id.
+  // The negative lookahead keeps Next's generated metadata routes
+  // (opengraph-image / twitter-image) from being swallowed as a "slug" and
+  // rewritten to the page — otherwise the share image would serve page HTML.
   async rewrites() {
     return [
-      { source: '/match/:matchId/:slug*', destination: '/match/:matchId' },
+      {
+        source: '/match/:matchId/:slug((?!opengraph-image|twitter-image).+)',
+        destination: '/match/:matchId',
+      },
     ];
   },
 };
