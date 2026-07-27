@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
@@ -269,7 +269,36 @@ export default function NewsArticlePage() {
 
                 {!loading && !error && article && (
                     <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-8 lg:gap-12">
-                        <article className="max-w-3xl">
+                        <article
+                            className="max-w-3xl"
+                            onClick={(e) => {
+                                // Delegated handler for entity links injected via
+                                // dangerouslySetInnerHTML — teams do a client-side
+                                // route, players open the profile dialog.
+                                const target = e.target as HTMLElement | null;
+                                if (!target) return;
+                                const teamAnchor = target.closest<HTMLAnchorElement>('a[data-entity="team"]');
+                                if (teamAnchor) {
+                                    const href = teamAnchor.getAttribute('href');
+                                    if (href) {
+                                        e.preventDefault();
+                                        router.push(href);
+                                    }
+                                    return;
+                                }
+                                const playerBtn = target.closest<HTMLButtonElement>('button[data-entity="player"]');
+                                if (playerBtn) {
+                                    e.preventDefault();
+                                    const pid = playerBtn.getAttribute('data-player-id');
+                                    const name = playerBtn.getAttribute('data-player-name');
+                                    if (pid) {
+                                        setSelectedProfileId(pid);
+                                        setSelectedPlayerName(name || null);
+                                        setSelectedProfile(null);
+                                    }
+                                }
+                            }}
+                        >
                             {isFresh(article.publishedAt) && (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 text-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest mb-3">
                                     <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
@@ -332,13 +361,15 @@ export default function NewsArticlePage() {
                                 fallbackParagraphs={article.paragraphs}
                                 bodyLoading={bodyScraping}
                                 provisionalLede={article.description}
+                                entities={buildLinkableEntities(article)}
+                                matchContext={{ tags: article.tags, title: article.title }}
                             />
 
-                            {/* Live match context — surface a live scorecard
-                                when any team named in this article is currently
-                                playing. Reader stays in the story instead of
-                                bouncing to check the score. */}
-                            <LiveMatchContext tags={article.tags} title={article.title} />
+                            {/* Match context moved inline — `InlineMatchCard`
+                                now renders after the first prose paragraph
+                                inside `ArticleBody` so the reader sees the
+                                fixture at eye level, not after scrolling to
+                                the very bottom of the article. */}
 
                             {(() => {
                                 // Resolve each tag into either an in-app route
@@ -671,7 +702,165 @@ function BylineStrip({ author, publishedLabel, readTime }: { author?: string; pu
     );
 }
 
-function ArticleBody({ blocks, fallbackParagraphs, bodyLoading, provisionalLede }: { blocks: NewsBlock[]; fallbackParagraphs: string[]; bodyLoading?: boolean; provisionalLede?: string }) {
+// ─── Inline entity linking ──────────────────────────────────────────
+//
+// Turns first mentions of teams and players inside article prose into
+// clickable links / profile-dialog triggers. Only FIRST mention per entity
+// per article is wrapped so a run of names ("Sammy said... Sammy added...")
+// doesn't turn the paragraph into an underlined mesh. Runs on the sanitised
+// paragraph HTML, so anything inside an existing `<a>` or `<q>` is skipped
+// (direct-speech blocks stay untouched).
+
+type LinkableEntity =
+    | { kind: 'team'; name: string; href: string }
+    | { kind: 'player'; name: string; profileId: string };
+
+function buildLinkableEntities(article: NewsArticle | null): LinkableEntity[] {
+    if (!article) return [];
+    const out: LinkableEntity[] = [];
+    const seenKeys = new Set<string>();
+    const addTeam = (name: string, href: string) => {
+        const key = 't:' + name.toLowerCase();
+        if (seenKeys.has(key)) return;
+        seenKeys.add(key);
+        out.push({ kind: 'team', name, href });
+    };
+    const addPlayer = (name: string, profileId: string) => {
+        const key = 'p:' + name.toLowerCase();
+        if (seenKeys.has(key)) return;
+        seenKeys.add(key);
+        out.push({ kind: 'player', name, profileId });
+    };
+    // Tag-derived entities (only cricbuzz-origin articles ship these today).
+    for (const t of article.tags ?? []) {
+        const tag = t as { label?: string; href?: string };
+        const label = tag.label ?? '';
+        if (!label) continue;
+        const action = resolveTagAction({ label, href: tag.href });
+        if (!action) continue;
+        if (action.kind === 'link' && action.href.startsWith('/team/')) {
+            addTeam(action.label, action.href);
+        } else if (action.kind === 'player') {
+            addPlayer(action.label, action.profileId);
+        }
+    }
+    // Static team fallback — the RSS source doesn't ship tags at all, so
+    // teams from `TEAM_ID_BY_NAME` are the only linkable entities for those
+    // articles. Only the well-known ones — associate sides in the map would
+    // false-positive too easily inside common English words otherwise.
+    const WELL_KNOWN = [
+        'India', 'Pakistan', 'Australia', 'England', 'Sri Lanka', 'New Zealand',
+        'South Africa', 'West Indies', 'Bangladesh', 'Zimbabwe', 'Ireland',
+        'Afghanistan', 'Netherlands', 'Scotland', 'Canada', 'Namibia', 'Nepal',
+        'Oman', 'United Arab Emirates', 'United States',
+    ];
+    for (const name of WELL_KNOWN) {
+        const href = buildTeamHref(undefined, name);
+        if (href) addTeam(name, href);
+    }
+    // Longest names first — "West Indies" must match before "Indies" would
+    // accidentally split from an unrelated phrase.
+    out.sort((a, b) => b.name.length - a.name.length);
+    return out;
+}
+
+// Walk `html` character-by-character tracking `<a>` and `<q>` tag depth.
+// When in plain-text mode (both depths = 0) attempt the first regex match;
+// on hit, wrap it via `makeWrapper` and return the full string. Returns the
+// input unchanged if no match is found in any text region.
+function wrapFirstInTextNodes(
+    html: string,
+    re: RegExp,
+    makeWrapper: (matchedText: string) => string,
+): string {
+    const chunks: string[] = [];
+    let i = 0;
+    let textStart = 0;
+    let inALink = 0;
+    let inQuote = 0;
+    // Fresh regex each call to reset lastIndex.
+    const scan = new RegExp(re.source, re.flags.includes('i') ? 'i' : '');
+    while (i < html.length) {
+        if (html[i] === '<') {
+            // Flush text since last tag.
+            if (i > textStart) {
+                const text = html.slice(textStart, i);
+                if (!inALink && !inQuote) {
+                    const m = scan.exec(text);
+                    if (m) {
+                        chunks.push(text.slice(0, m.index));
+                        chunks.push(makeWrapper(m[0]));
+                        chunks.push(text.slice(m.index + m[0].length));
+                        chunks.push(html.slice(i));
+                        return chunks.join('');
+                    }
+                }
+                chunks.push(text);
+            }
+            const tagEnd = html.indexOf('>', i);
+            if (tagEnd === -1) { chunks.push(html.slice(i)); return chunks.join(''); }
+            const tag = html.slice(i, tagEnd + 1);
+            chunks.push(tag);
+            const nameM = tag.match(/^<\/?([a-zA-Z]+)/);
+            if (nameM) {
+                const name = nameM[1].toLowerCase();
+                const isClose = tag.startsWith('</');
+                if (name === 'a') inALink += isClose ? -1 : 1;
+                else if (name === 'q') inQuote += isClose ? -1 : 1;
+            }
+            i = tagEnd + 1;
+            textStart = i;
+        } else {
+            i++;
+        }
+    }
+    if (textStart < html.length) {
+        const text = html.slice(textStart);
+        if (!inALink && !inQuote) {
+            const m = scan.exec(text);
+            if (m) {
+                chunks.push(text.slice(0, m.index));
+                chunks.push(makeWrapper(m[0]));
+                chunks.push(text.slice(m.index + m[0].length));
+                return chunks.join('');
+            }
+        }
+        chunks.push(text);
+    }
+    return chunks.join('');
+}
+
+function escapeAttr(s: string): string {
+    return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+function escapeRegex(s: string): string {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function linkEntities(html: string, entities: LinkableEntity[], seen: Set<string>): string {
+    let out = html;
+    for (const e of entities) {
+        const seenKey = e.kind + ':' + e.name.toLowerCase();
+        if (seen.has(seenKey)) continue;
+        // Word-boundary, case-insensitive. Team names like "West Indies"
+        // include a space — \b works around whitespace too.
+        const re = new RegExp('\\b' + escapeRegex(e.name) + '\\b', 'i');
+        const wrapped = wrapFirstInTextNodes(out, re, (matched) => {
+            if (e.kind === 'team') {
+                return `<a href="${escapeAttr(e.href)}" data-entity="team" class="entity-link">${matched}</a>`;
+            }
+            return `<button type="button" data-entity="player" data-player-id="${escapeAttr(e.profileId)}" data-player-name="${escapeAttr(e.name)}" class="entity-link">${matched}</button>`;
+        });
+        if (wrapped !== out) {
+            out = wrapped;
+            seen.add(seenKey);
+        }
+    }
+    return out;
+}
+
+function ArticleBody({ blocks, fallbackParagraphs, bodyLoading, provisionalLede, entities, matchContext }: { blocks: NewsBlock[]; fallbackParagraphs: string[]; bodyLoading?: boolean; provisionalLede?: string; entities?: LinkableEntity[]; matchContext?: { tags: NewsArticle['tags']; title: string } }) {
     // While the client-side reader fetch is in flight, prefer to show the
     // RSS/shell description as a real lede paragraph rather than gray bars —
     // the reader lands in ~2-4s and staring at skeleton for that long makes
@@ -772,7 +961,14 @@ function ArticleBody({ blocks, fallbackParagraphs, bodyLoading, provisionalLede 
         '[&_u]:underline [&_u]:decoration-primary/50 [&_u]:underline-offset-2 ' +
         '[&_ul]:list-disc [&_ul]:pl-6 [&_ul]:my-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:my-3 [&_li]:mb-1 ' +
         '[&_a]:text-primary [&_a]:underline [&_a]:decoration-primary/40 [&_a]:underline-offset-2 hover:[&_a]:decoration-primary ' +
-        "[&_q]:font-serif [&_q]:italic [&_q]:text-foreground [&_q]:before:content-[''] [&_q]:after:content-['']";
+        "[&_q]:font-serif [&_q]:italic [&_q]:text-foreground [&_q]:before:content-[''] [&_q]:after:content-[''] " +
+        // Entity links (teams + players) — tuned to be discoverable without
+        // turning a paragraph into a wall of underlines. No default underline;
+        // a solid dotted-underline reveals on hover. Player buttons reset
+        // their native chrome so they sit inline with the sentence.
+        '[&_.entity-link]:text-primary [&_.entity-link]:font-semibold [&_.entity-link]:no-underline [&_.entity-link]:decoration-primary/60 [&_.entity-link]:underline-offset-2 [&_.entity-link]:cursor-pointer [&_.entity-link]:transition-colors ' +
+        'hover:[&_.entity-link]:underline hover:[&_.entity-link]:text-primary ' +
+        '[&_button.entity-link]:bg-transparent [&_button.entity-link]:border-0 [&_button.entity-link]:p-0 [&_button.entity-link]:font-inherit [&_button.entity-link]:text-inherit [&_button.entity-link]:align-baseline';
     const quoteP =
         'font-serif italic text-[16px] md:text-[17px] leading-[1.75] md:leading-[1.9] text-foreground/95 ' +
         '[&_b]:not-italic [&_b]:font-semibold [&_strong]:not-italic [&_strong]:font-semibold ' +
@@ -799,6 +995,15 @@ function ArticleBody({ blocks, fallbackParagraphs, bodyLoading, provisionalLede 
         return out;
     };
 
+    // Shared `seen` set across the paragraph render so first-mention is
+    // enforced at ARTICLE scope, not per-paragraph.
+    const seenEntities = new Set<string>();
+    // Inject the live/upcoming match card AFTER the first prose paragraph so
+    // the reader sees the story opening + then a visual anchor to the actual
+    // fixture the story is about. Skipped when no context provided.
+    const firstProseIdx = grouped.findIndex(
+        item => item.kind === 'block' && item.block.type === 'paragraph',
+    );
     return (
         <div className="mt-6 md:mt-10">
             {grouped.map((item, i) => {
@@ -874,13 +1079,29 @@ function ArticleBody({ blocks, fallbackParagraphs, bodyLoading, provisionalLede 
                         </figure>
                     );
                 }
-                return (
+                // Order: (1) wrap `"…"` in `<q>` so entity linking can then
+                // skip inside speech spans, (2) wrap first-mention entities
+                // in the resulting text-only regions.
+                const withQuotes = emphasizeInlineQuotes(b.html);
+                const finalHtml = entities && entities.length > 0
+                    ? linkEntities(withQuotes, entities, seenEntities)
+                    : withQuotes;
+                const paragraph = (
                     <p
                         key={i}
                         className={proseP}
-                        dangerouslySetInnerHTML={{ __html: emphasizeInlineQuotes(b.html) }}
+                        dangerouslySetInnerHTML={{ __html: finalHtml }}
                     />
                 );
+                if (i === firstProseIdx && matchContext) {
+                    return (
+                        <React.Fragment key={i}>
+                            {paragraph}
+                            <InlineMatchCard tags={matchContext.tags} title={matchContext.title} />
+                        </React.Fragment>
+                    );
+                }
+                return paragraph;
             })}
         </div>
     );
@@ -958,37 +1179,63 @@ function BookmarkButton({ article }: { article: NewsArticle | null }) {
     );
 }
 
-function LiveMatchContext({ tags, title }: { tags: NewsArticle['tags']; title: string }) {
-    const [match, setMatch] = useState<LiveMatch | null>(null);
+// Match card injected inline (after the first prose paragraph) when the
+// article names both teams of a fixture that is either currently live or
+// upcoming. Threshold is both-teams-present (score >= 2) to avoid injecting
+// the wrong Indian match into a story that just mentions "India" once.
+// Live matches win over upcoming so a story about a currently-live series
+// always surfaces the live scorecard.
+function InlineMatchCard({ tags, title }: { tags: NewsArticle['tags']; title: string }) {
+    const [state, setState] = useState<{ match: LiveMatch; kind: 'live' | 'upcoming' } | null>(null);
     useEffect(() => {
         (async () => {
             try {
-                const { getLiveMatches } = await import('@/app/actions');
-                const result = await getLiveMatches();
-                if (!result.success || !result.matches) return;
-                const searchable = (title + ' ' + tags.map(t => t.label).join(' ')).toLowerCase();
-                let best: { m: LiveMatch; score: number } | null = null;
-                for (const m of result.matches) {
-                    const teamNames = (m.teams || []).map(t => (t.name || '').toLowerCase());
-                    const hits = teamNames.reduce((n, name) => n + (name && searchable.includes(name) ? 1 : 0), 0);
-                    if (hits > 0 && (!best || hits > best.score)) best = { m, score: hits };
+                const { getLiveMatches, getUpcomingMatches } = await import('@/app/actions');
+                const [live, upcoming] = await Promise.all([
+                    getLiveMatches().catch(() => null),
+                    getUpcomingMatches().catch(() => null),
+                ]);
+                const searchable = (title + ' ' + (tags?.map(t => t.label).join(' ') || '')).toLowerCase();
+                const teamMatchScore = (m: LiveMatch) => {
+                    const names = (m.teams || []).map(t => (t.name || '').toLowerCase());
+                    return names.reduce((n, name) => n + (name && searchable.includes(name) ? 1 : 0), 0);
+                };
+                let best: { match: LiveMatch; kind: 'live' | 'upcoming'; score: number } | null = null;
+                for (const m of live?.matches || []) {
+                    const s = teamMatchScore(m);
+                    if (s >= 2 && (!best || s > best.score)) best = { match: m, kind: 'live', score: s };
                 }
-                if (best?.m) setMatch(best.m);
+                if (!best) {
+                    for (const m of upcoming?.matches || []) {
+                        const s = teamMatchScore(m);
+                        if (s >= 2 && (!best || s > best.score)) best = { match: m, kind: 'upcoming', score: s };
+                    }
+                }
+                if (best) setState({ match: best.match, kind: best.kind });
             } catch { /* upstream not reachable — skip the widget */ }
         })();
     }, [tags, title]);
-    if (!match) return null;
+    if (!state) return null;
     return (
-        <section className="mt-10">
-            <h3 className="font-display text-lg md:text-xl tracking-tight text-foreground mb-4 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                Live now
-            </h3>
-            {/* Real MatchCard from the home page — flags, format badge,
-                live-score treatment, hover state, click-through. */}
-            <div className="max-w-sm">
-                <MatchCard match={match} header="none" />
+        <figure className="my-7 md:my-9 -mx-4 md:mx-0">
+            <div className="px-4 md:px-0 mb-3 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest">
+                {state.kind === 'live' ? (
+                    <>
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" aria-hidden />
+                        <span className="text-red-500 dark:text-red-400">Live now</span>
+                    </>
+                ) : (
+                    <>
+                        <Clock className="w-3 h-3 text-primary" aria-hidden />
+                        <span className="text-primary">Coming up</span>
+                    </>
+                )}
+                <span aria-hidden className="text-muted-foreground/40">·</span>
+                <span className="text-muted-foreground">Referenced in this story</span>
             </div>
-        </section>
+            <div className="max-w-md mx-4 md:mx-0">
+                <MatchCard match={state.match} header="none" />
+            </div>
+        </figure>
     );
 }
