@@ -12,6 +12,7 @@ import { PlayerProfileProvider } from '@/contexts/player-profile-context';
 
 import AppShell from '@/components/app-shell';
 import CommandPaletteProvider from '@/components/command-palette';
+import { SITE_URL, SITE_NAME, SITE_TAGLINE, DEFAULT_DESCRIPTION } from '@/lib/seo';
 
 const dmSerifDisplay = DM_Serif_Display({
     subsets: ['latin'],
@@ -36,9 +37,41 @@ const jetbrainsMono = JetBrains_Mono({
 export const preferredRegion = ['bom1'];
 
 export const metadata: Metadata = {
-  title: 'Inningz',
-  description: 'Live Cricket Scores & Analytics',
+  metadataBase: new URL(SITE_URL),
+  // Per-page titles render as "England vs India, Live Score · Inningz"; the
+  // home page (and anything without its own title) uses the default.
+  title: {
+    default: `${SITE_NAME}: ${SITE_TAGLINE}`,
+    template: `%s · ${SITE_NAME}`,
+  },
+  description: DEFAULT_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: [
+    'live cricket score', 'cricket scores', 'cricket commentary', 'scorecard',
+    'points table', 'ICC rankings', 'cricket news', 'IPL', 'T20', 'ODI', 'Test cricket',
+  ],
+  authors: [{ name: 'Vanshaj' }],
+  creator: 'Vanshaj',
   manifest: '/manifest.json',
+  alternates: { canonical: '/' },
+  openGraph: {
+    type: 'website',
+    siteName: SITE_NAME,
+    title: `${SITE_NAME}: ${SITE_TAGLINE}`,
+    description: DEFAULT_DESCRIPTION,
+    url: SITE_URL,
+    locale: 'en_US',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: `${SITE_NAME}: ${SITE_TAGLINE}`,
+    description: DEFAULT_DESCRIPTION,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1 },
+  },
   icons: {
     icon: [
       { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
