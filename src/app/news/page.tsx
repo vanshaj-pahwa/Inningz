@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import NewsClient from './news-client';
 import JsonLd from '@/components/json-ld';
+import SeoInternalLinks from '@/components/seo-internal-links';
 import { buildMetadata, absoluteUrl, SITE_NAME } from '@/lib/seo';
 
 export const metadata: Metadata = buildMetadata({
@@ -22,6 +23,10 @@ export default function NewsPage() {
     <>
       <JsonLd data={jsonLd} />
       <NewsClient />
+      {/* News-first internal-link block: article URLs first, then the
+          match/team cross-nav so Googlebot can crawl into the deep story
+          pages that are otherwise painted in by the client renderer. */}
+      <SeoInternalLinks sections={['news', 'matches', 'teams']} />
     </>
   );
 }
