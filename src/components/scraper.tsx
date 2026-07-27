@@ -9,7 +9,7 @@ import { loadMoreCommentary as loadMoreCommentaryAction, getPlayerProfile, getPl
 import type { ScrapeCricbuzzUrlOutput, Commentary, PlayerProfile, PlayerHighlights } from '@/app/actions';
 import { useLiveScore } from '@/lib/data-layer';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { User, ArrowLeft, ChevronLeft, ChevronRight, ChevronUp, Share2, Trophy, MapPin, Clock, Newspaper, Medal } from "lucide-react";
+import { User, ChevronLeft, ChevronRight, ChevronUp, Share2, Trophy, MapPin, Clock, Newspaper, Medal } from "lucide-react";
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { cn, buildVenueHref, buildTeamHref, displayMatchFormat } from '@/lib/utils';
@@ -41,22 +41,51 @@ const heroOversCache = new Map<string, OverPoint[]>();
 // "upcoming" empty states. Without this the user lands on a bare centered
 // card with only the mobile bottom nav, which reads as a broken page.
 function StrandedPage({ children }: { children: React.ReactNode }) {
+    // Same masthead the home page uses (`glass-nav` sticky header, logo left,
+    // Search / News / Rankings / ThemeToggle right) so a stranded state on
+    // /match/{id} still feels like the app, not a bespoke error page.
     return (
-        <div className="min-h-screen flex flex-col">
-            <header className="sticky top-0 z-20 border-b border-border/40 bg-background/85 backdrop-blur">
-                <div className="max-w-6xl mx-auto px-4 h-12 flex items-center justify-between">
-                    <Link
-                        href="/"
-                        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                        aria-label="Back to home"
-                    >
-                        <ArrowLeft className="w-4 h-4" />
-                        <span className="hidden sm:inline">Home</span>
-                    </Link>
-                    <Link href="/" className="font-display text-base tracking-tight">
-                        Inningz
-                    </Link>
-                    <div className="w-12" />
+        <div className="min-h-screen flex flex-col stadium-glow">
+            <header className="sticky top-0 z-50 w-full glass-nav">
+                <div className="max-w-7xl mx-auto px-4 md:px-6">
+                    <div className="flex items-center justify-between h-14 md:h-16">
+                        <Link href="/" aria-label="Inningz home">
+                            <Image
+                                src="/logo-full-transparent.png"
+                                alt="Inningz"
+                                width={400}
+                                height={120}
+                                priority
+                                className="hidden dark:block h-9 md:h-11 w-auto"
+                            />
+                            <Image
+                                src="/logo-full-dark.png"
+                                alt="Inningz"
+                                width={400}
+                                height={120}
+                                priority
+                                className="block dark:hidden h-9 md:h-11 w-auto"
+                            />
+                        </Link>
+                        <div className="flex items-center gap-1.5">
+                            <CommandPaletteTrigger />
+                            <Link
+                                href="/news"
+                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                            >
+                                <Newspaper className="w-4 h-4" />
+                                <span className="hidden sm:inline">News</span>
+                            </Link>
+                            <Link
+                                href="/rankings"
+                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                            >
+                                <Medal className="w-4 h-4" />
+                                <span className="hidden sm:inline">Rankings</span>
+                            </Link>
+                            <ThemeToggle />
+                        </div>
+                    </div>
                 </div>
             </header>
             <div className="flex-1 max-w-md mx-auto w-full px-4 py-10 flex flex-col items-center justify-center text-center">
