@@ -1,6 +1,6 @@
 import HomeClient from './home-client';
 import JsonLd from '@/components/json-ld';
-import SeoInternalLinks from '@/components/seo-internal-links';
+import SiteFooter from '@/components/site-footer';
 import { SITE_NAME, SITE_TAGLINE, SITE_URL, absoluteUrl } from '@/lib/seo';
 
 // Home inherits the root layout's default title/description; here we add the
@@ -35,7 +35,7 @@ export default function HomePage() {
       {/* Server-rendered anchor block so Googlebot can discover deep pages
           via crawling on the first pass — the client SPA doesn't paint them
           into the initial HTML. */}
-      <SeoInternalLinks sections={['matches', 'teams', 'news']} />
+      <SiteFooter sections={['matches', 'teams', 'news']} />
     </>
   );
 }
