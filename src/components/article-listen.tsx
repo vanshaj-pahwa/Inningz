@@ -536,12 +536,8 @@ export default function ArticleListen({ article }: Props) {
                     aria-label="Article audio player"
                     className="fixed left-1/2 -translate-x-1/2 z-[100] w-[calc(100vw-2rem)] max-w-md"
                     style={{
-                        position: 'fixed',
-                        bottom: '16px',
-                        top: 'auto',
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                    }}
+                        bottom: 'max(1rem, env(safe-area-inset-bottom))',
+                    } as React.CSSProperties}
                 >
                     <div className="surface-card rounded-2xl border border-border/60 shadow-2xl backdrop-blur px-3 py-2.5 flex items-center gap-3">
                         <button
