@@ -10,6 +10,7 @@ import type { NewsArticle, NewsItem, NewsBlock, LiveMatch, PlayerProfile } from 
 import MatchCard from '@/components/match-card';
 import PlayerProfileDisplay from '@/components/player-profile';
 import ArticleListen from '@/components/article-listen';
+import AudioControlBar from '@/components/audio-control-bar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { LoaderCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -252,6 +253,7 @@ export default function NewsArticleClient() {
                     </div>
                 </div>
             </header>
+            <AudioControlBar />
 
             <main className="max-w-7xl mx-auto px-4 md:px-6 pt-8 md:pt-12 pb-16">
                 {loading && <ArticleSkeleton />}
