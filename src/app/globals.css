@@ -854,6 +854,11 @@
   }
 }
 
+/* Article listen-mode's `::highlight(tts-word)` rule is injected at
+   runtime by `ArticleListen` — kept out of this file because Turbopack's
+   CSS parser doesn't yet accept the CSS Custom Highlight API's
+   `::highlight()` pseudo-element syntax. */
+
 /* Respect the OS "reduce motion" setting — neutralize infinite pulses,
    entrance animations, and long transitions. */
 @media (prefers-reduced-motion: reduce) {

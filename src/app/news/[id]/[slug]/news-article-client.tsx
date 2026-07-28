@@ -9,6 +9,7 @@ import { getCricketNews, getAltUpstreamNewsShell, getPlayerProfile } from '@/app
 import type { NewsArticle, NewsItem, NewsBlock, LiveMatch, PlayerProfile } from '@/app/actions';
 import MatchCard from '@/components/match-card';
 import PlayerProfileDisplay from '@/components/player-profile';
+import ArticleListen from '@/components/article-listen';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { LoaderCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -243,6 +244,7 @@ export default function NewsArticleClient() {
                             </Link>
                         </div>
                         <div className="flex items-center gap-1.5">
+                            <ArticleListen article={article} />
                             <ShareButton article={article} />
                             <BookmarkButton article={article} />
                             <ThemeToggle />
@@ -305,11 +307,17 @@ export default function NewsArticleClient() {
                                     New
                                 </span>
                             )}
-                            <h1 className="font-display text-3xl md:text-5xl lg:text-[3.5rem] leading-[1.05] tracking-tight text-foreground">
+                            <h1
+                                className="font-display text-3xl md:text-5xl lg:text-[3.5rem] leading-[1.05] tracking-tight text-foreground"
+                                data-listen-idx="title"
+                            >
                                 {article.title}
                             </h1>
                             {article.description && (
-                                <p className="mt-4 md:mt-5 text-base md:text-lg leading-relaxed text-muted-foreground">
+                                <p
+                                    className="mt-4 md:mt-5 text-base md:text-lg leading-relaxed text-muted-foreground"
+                                    data-listen-idx="description"
+                                >
                                     {article.description}
                                 </p>
                             )}
@@ -934,18 +942,21 @@ function ArticleBody({ blocks, fallbackParagraphs, bodyLoading, provisionalLede,
     // continuous voice inside a single <blockquote> — not a stack of
     // isolated cards, one per line.
     type RenderItem =
-        | { kind: 'block'; block: NewsBlock }
+        | { kind: 'block'; block: NewsBlock; sourceIdx: number }
         | { kind: 'quotes'; htmls: string[] };
     const grouped: RenderItem[] = [];
-    for (const b of blocks) {
+    blocks.forEach((b, bi) => {
         if (b.type === 'paragraph' && isQuoteHtml(b.html)) {
             const tail = grouped[grouped.length - 1];
             if (tail && tail.kind === 'quotes') tail.htmls.push(b.html);
             else grouped.push({ kind: 'quotes', htmls: [b.html] });
         } else {
-            grouped.push({ kind: 'block', block: b });
+            // Preserve the block's original index so ArticleListen can
+            // target the rendered `<p data-listen-idx>` when highlighting
+            // the current spoken word.
+            grouped.push({ kind: 'block', block: b, sourceIdx: bi });
         }
-    }
+    });
 
     // Prose vs quote paragraphs share the SAME size + leading so the article
     // has one consistent reading rhythm — the italic serif face is what
@@ -1051,6 +1062,7 @@ function ArticleBody({ blocks, fallbackParagraphs, bodyLoading, provisionalLede,
                         <h2
                             key={i}
                             className="font-display text-2xl md:text-3xl leading-tight tracking-tight text-foreground mt-10 md:mt-12 mb-3 md:mb-4 first:mt-0"
+                            data-listen-idx={item.sourceIdx}
                         >
                             {b.text}
                         </h2>
@@ -1090,6 +1102,7 @@ function ArticleBody({ blocks, fallbackParagraphs, bodyLoading, provisionalLede,
                     <p
                         key={i}
                         className={proseP}
+                        data-listen-idx={item.sourceIdx}
                         dangerouslySetInnerHTML={{ __html: finalHtml }}
                     />
                 );
