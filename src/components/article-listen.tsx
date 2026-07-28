@@ -585,7 +585,7 @@ export default function ArticleListen({ article }: Props) {
                                             aria-label={`Voice: ${voice?.name ?? 'default'}`}
                                             title={`Voice: ${voice?.name ?? 'default'}`}
                                         >
-                                            <Mic2 aria-hidden className="w-3.5 h-3.5" />
+                                            <Mic2 aria-hidden className="w-3.5 h-3.5 text-current" />
                                         </button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent
@@ -623,7 +623,7 @@ export default function ArticleListen({ article }: Props) {
                                         aria-label="Playback speed"
                                         title="Playback speed"
                                     >
-                                        <Gauge aria-hidden className="w-3 h-3 text-muted-foreground" />
+                                        <Gauge aria-hidden className="w-3 h-3 text-current" />
                                         <span className="tabular-nums">{currentSpeedLabel}</span>
                                     </button>
                                 </DropdownMenuTrigger>
