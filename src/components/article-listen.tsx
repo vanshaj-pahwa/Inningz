@@ -534,8 +534,15 @@ export default function ArticleListen({ article }: Props) {
                 <div
                     role="region"
                     aria-label="Article audio player"
-                    className="fixed left-1/2 -translate-x-1/2 z-[100] w-[calc(100vw-2rem)] max-w-md"
+                    className="z-[100]"
                     style={{
+                        position: 'fixed',
+                        inset: 'auto auto 0 0',
+                        left: '50%',
+                        right: 'auto',
+                        transform: 'translateX(-50%)',
+                        width: 'calc(100vw - 2rem)',
+                        maxWidth: '28rem',
                         bottom: 'max(1rem, env(safe-area-inset-bottom))',
                     } as React.CSSProperties}
                 >
