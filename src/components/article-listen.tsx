@@ -537,6 +537,7 @@ export default function ArticleListen({ article }: Props) {
                     className="fixed left-1/2 -translate-x-1/2 z-[100] w-[calc(100vw-2rem)] max-w-md"
                     style={{
                         bottom: 'max(1rem, env(safe-area-inset-bottom))',
+                        top: 'auto',
                     }}
                 >
                     <div className="surface-card rounded-2xl border border-border/60 shadow-2xl backdrop-blur px-3 py-2.5 flex items-center gap-3">
