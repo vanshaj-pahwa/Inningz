@@ -175,6 +175,7 @@ export default function ArticleListen({ article }: Props) {
     const [progress, setProgress] = useState(0); // 0..1
     const [rate, setRate] = useState(1);
     const [voice, setVoice] = useState<SpeechSynthesisVoice | null>(null);
+    const [showPlayerModal, setShowPlayerModal] = useState(false);
     const [ready, setReady] = useState(false);
 
     // Refs so `onend` / `onboundary` callbacks always read the freshest
