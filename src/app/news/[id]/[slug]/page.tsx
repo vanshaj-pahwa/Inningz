@@ -15,11 +15,19 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
     if (!res.success || !a) {
       return buildMetadata({ title: 'Cricket News', path: buildNewsHref(id, slug), type: 'article' });
     }
+
+    // Use hero image if available, otherwise generate one via API
+    const images = a.heroImageUrl
+      ? [a.heroImageUrl]
+      : [
+          `/api/og-image?headline=${encodeURIComponent(a.title)}&excerpt=${encodeURIComponent(a.description || a.paragraphs?.[0] || '')}&category=${encodeURIComponent(a.category || 'CRICKET')}`,
+        ];
+
     return buildMetadata({
       title: a.title,
       path: buildNewsHref(a.id || id, a.slug || slug),
       description: a.description || a.paragraphs?.[0],
-      images: [a.heroImageUrl],
+      images,
       type: 'article',
       publishedTime: a.publishedAt,
     });
